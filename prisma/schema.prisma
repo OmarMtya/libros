@@ -1,0 +1,583 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DimensionKind {
+  target
+  minimum_required
+  maximum_tolerated
+  importance
+  selection_control
+}
+
+enum MatchingOperator {
+  absolute_distance
+  minimum_threshold
+  maximum_threshold
+  selection_control
+}
+
+enum ResponseType {
+  scale
+  single_select
+  multi_select
+  ranking
+  structured
+  book_search
+}
+
+enum QuestionnaireStatus {
+  started
+  completed
+  abandoned
+}
+
+enum EvidenceSourceType {
+  questionnaire_answer
+  reading_feedback
+  ai_proposal
+}
+
+enum EvidenceStatus {
+  active
+  superseded
+  rejected
+  deactivated
+}
+
+enum FeedbackReadingStatus {
+  completed
+  in_progress
+  paused
+  abandoned
+  not_started
+}
+
+enum TagType {
+  genre
+  subgenre
+  theme
+  setting
+  period
+  cultural_context
+  narrative_motif
+}
+
+enum TagStatus {
+  active
+  deprecated
+}
+
+enum UserRole {
+  customer
+  admin
+}
+
+enum ProductPackageKey {
+  libro_sorpresa_fisico
+  libro_sorpresa_completo
+}
+
+enum OrderStatus {
+  pending_payment
+  paid
+  curation_pending
+  fulfilling
+  fulfilled
+  cancelled
+  refunded
+}
+
+enum PaymentProvider {
+  stripe
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+  cancelled
+  refunded
+}
+
+enum FulfillmentStatus {
+  curation_pending
+  preparing
+  shipped
+  delivered
+}
+
+model User {
+  id                   String                @id @default(uuid()) @db.Uuid
+  email                String?               @unique @db.VarChar(320)
+  displayName          String?               @map("display_name")
+  role                 UserRole              @default(customer)
+  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastSignedInAt       DateTime?             @map("last_signed_in_at") @db.Timestamptz(6)
+  questionnaireSessions QuestionnaireSession[]
+  questionAnswers      QuestionAnswer[]
+  readerProfile        ReaderProfile?
+  readerEvidence       ReaderEvidence[]
+  readingFeedback      ReadingFeedback[]
+  orders               Order[]
+
+  @@map("users")
+}
+
+model DimensionDefinition {
+  key                 String           @id @db.VarChar(100)
+  domainKey           String           @map("domain_key") @db.VarChar(100)
+  dimensionKind       DimensionKind    @map("dimension_kind")
+  bookFeatureKey      String?          @map("book_feature_key") @db.VarChar(100)
+  matchingOperator    MatchingOperator @map("matching_operator")
+  lowerLabel          String           @map("lower_label")
+  upperLabel          String           @map("upper_label")
+  schemaVersion       String           @map("schema_version") @db.VarChar(30)
+  isActive            Boolean          @default(true) @map("is_active")
+  createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  profileDimensions   ReaderProfileDimension[]
+  evidence            ReaderEvidence[]
+
+  @@map("dimension_definitions")
+}
+
+model QuestionDefinition {
+  id                   String                  @id @default(uuid()) @db.Uuid
+  questionKey          String                  @map("question_key") @db.VarChar(100)
+  version              Int
+  questionnaireVersion String                  @map("questionnaire_version") @db.VarChar(30)
+  textEsMx             String                  @map("text_es_mx")
+  responseType         ResponseType            @map("response_type")
+  isRequired           Boolean                 @default(false) @map("is_required")
+  displayOrder         Int                     @map("display_order")
+  branchingRulesJson   Json?                   @map("branching_rules_json")
+  validationJson       Json?                   @map("validation_json")
+  isActive             Boolean                 @default(true) @map("is_active")
+  createdAt            DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  optionMappings       QuestionOptionMapping[]
+
+  @@unique([questionKey, version])
+  @@unique([questionKey, questionnaireVersion])
+  @@map("question_definitions")
+}
+
+model QuestionOptionMapping {
+  id                   String             @id @default(uuid()) @db.Uuid
+  questionId           String             @map("question_id") @db.Uuid
+  optionKey            String             @map("option_key") @db.VarChar(100)
+  labelEsMx            String             @map("label_es_mx")
+  evidenceMappingsJson Json               @map("evidence_mappings_json")
+  sortOrder            Int                @map("sort_order")
+  isActive             Boolean            @default(true) @map("is_active")
+  question             QuestionDefinition @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([questionId, optionKey])
+  @@map("question_option_mappings")
+}
+
+model QuestionnaireSession {
+  id                   String              @id @default(uuid()) @db.Uuid
+  userId               String              @map("user_id") @db.Uuid
+  questionnaireVersion String              @map("questionnaire_version") @db.VarChar(30)
+  status               QuestionnaireStatus @default(started)
+  startedAt            DateTime            @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt          DateTime?           @map("completed_at") @db.Timestamptz(6)
+  metadataJson         Json?               @map("metadata_json")
+  optimisticLockVersion Int                @default(0) @map("optimistic_lock_version")
+  user                 User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers              QuestionAnswer[]
+
+  @@index([userId, status])
+  @@map("questionnaire_sessions")
+}
+
+model QuestionAnswer {
+  id                   String               @id @default(uuid()) @db.Uuid
+  sessionId            String               @map("session_id") @db.Uuid
+  userId               String               @map("user_id") @db.Uuid
+  questionKey          String               @map("question_key") @db.VarChar(100)
+  questionVersion      Int                  @map("question_version")
+  questionnaireVersion String               @map("questionnaire_version") @db.VarChar(30)
+  stimulusHash         String?              @map("stimulus_hash") @db.VarChar(64)
+  rawResponse          Json                 @map("raw_response")
+  normalizedResponse   Json                 @map("normalized_response")
+  idempotencyKey       String?              @map("idempotency_key") @db.VarChar(100)
+  answeredAt           DateTime             @default(now()) @map("answered_at") @db.Timestamptz(6)
+  session              QuestionnaireSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, questionKey])
+  @@unique([sessionId, idempotencyKey])
+  @@index([questionKey, questionVersion])
+  @@map("question_answers")
+}
+
+model ReaderProfile {
+  id                      String                   @id @default(uuid()) @db.Uuid
+  userId                  String                   @unique @map("user_id") @db.Uuid
+  schemaVersion           String                   @map("schema_version") @db.VarChar(30)
+  currentVersion          Int                      @default(0) @map("current_version")
+  overallConfidence       Decimal                  @default(0) @map("overall_confidence") @db.Decimal(5, 4)
+  globalProfileCoverage   Decimal                  @default(0) @map("global_profile_coverage") @db.Decimal(5, 4)
+  onboardingCoreCoverage  Decimal                  @default(0) @map("onboarding_core_coverage") @db.Decimal(5, 4)
+  evidenceMaturity        Decimal                  @default(0) @map("evidence_maturity") @db.Decimal(5, 4)
+  readyToRecommend        Boolean                  @default(false) @map("ready_to_recommend")
+  summary                 String?
+  snapshotJson            Json                     @default("{}") @map("snapshot_json")
+  createdAt               DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  optimisticLockVersion   Int                      @default(0) @map("optimistic_lock_version")
+  user                    User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dimensions              ReaderProfileDimension[]
+  versions                ReaderProfileVersion[]
+  evidence                ReaderEvidence[]
+  tagPreferences          ReaderTagPreference[]
+  operationalConstraints  ReaderOperationalConstraints?
+  conditionalRules        ReaderConditionalRule[]
+  positiveTriggers        ReaderPositiveTrigger[]
+
+  @@map("reader_profiles")
+}
+
+model ReaderProfileDimension {
+  id                  String              @id @default(uuid()) @db.Uuid
+  profileId           String              @map("profile_id") @db.Uuid
+  dimensionKey        String              @map("dimension_key") @db.VarChar(100)
+  value               Decimal?            @db.Decimal(5, 4)
+  confidence          Decimal             @default(0) @db.Decimal(5, 4)
+  evidenceCount       Int                 @default(0) @map("evidence_count")
+  totalEvidenceWeight Decimal             @default(0) @map("total_evidence_weight") @db.Decimal(8, 4)
+  lastEvidenceAt      DateTime?           @map("last_evidence_at") @db.Timestamptz(6)
+  updatedAt           DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  profile             ReaderProfile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  dimension           DimensionDefinition @relation(fields: [dimensionKey], references: [key], onDelete: Restrict)
+
+  @@unique([profileId, dimensionKey])
+  @@map("reader_profile_dimensions")
+}
+
+model ReaderOperationalConstraints {
+  profileId            String        @id @map("profile_id") @db.Uuid
+  preferredPagesMin    Int?          @map("preferred_pages_min")
+  preferredPagesMax    Int?          @map("preferred_pages_max")
+  seriesPreference     String?       @map("series_preference") @db.VarChar(60)
+  acceptedLanguagesJson Json         @default("[]") @map("accepted_languages_json")
+  acceptedFormatsJson  Json          @default("[]") @map("accepted_formats_json")
+  formatSource         String?       @map("format_source") @db.VarChar(60)
+  updatedAt            DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  profile              ReaderProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("reader_operational_constraints")
+}
+
+model ReaderConditionalRule {
+  id          String        @id @default(uuid()) @db.Uuid
+  profileId   String        @map("profile_id") @db.Uuid
+  sourceId    String        @map("source_id") @db.Uuid
+  ruleKey     String        @map("rule_key") @db.VarChar(100)
+  ruleJson    Json          @map("rule_json")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  profile     ReaderProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, sourceId, ruleKey])
+  @@map("reader_conditional_rules")
+}
+
+model ReaderPositiveTrigger {
+  id                  String        @id @default(uuid()) @db.Uuid
+  profileId           String        @map("profile_id") @db.Uuid
+  triggerKey          String        @map("trigger_key") @db.VarChar(100)
+  confidence          Decimal       @default(0) @db.Decimal(5, 4)
+  evidenceCount       Int           @default(0) @map("evidence_count")
+  totalEvidenceWeight Decimal       @default(0) @map("total_evidence_weight") @db.Decimal(8, 4)
+  updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  profile             ReaderProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  evidence            ReaderPositiveTriggerEvidence[]
+
+  @@unique([profileId, triggerKey])
+  @@map("reader_positive_triggers")
+}
+
+model ReaderPositiveTriggerEvidence {
+  id                  String                @id @default(uuid()) @db.Uuid
+  triggerId           String                @map("trigger_id") @db.Uuid
+  sourceId            String                @map("source_id") @db.Uuid
+  baseWeight          Decimal               @map("base_weight") @db.Decimal(5, 4)
+  exposureFactor      Decimal               @map("exposure_factor") @db.Decimal(5, 4)
+  specificityFactor   Decimal               @map("specificity_factor") @db.Decimal(5, 4)
+  attributionFactor   Decimal               @map("attribution_factor") @db.Decimal(5, 4)
+  finalWeight         Decimal               @map("final_weight") @db.Decimal(5, 4)
+  reasonCode          String                @map("reason_code") @db.VarChar(100)
+  rawPayload          Json                  @map("raw_payload")
+  evidenceFingerprint String                @unique @map("evidence_fingerprint") @db.VarChar(64)
+  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  trigger             ReaderPositiveTrigger @relation(fields: [triggerId], references: [id], onDelete: Cascade)
+
+  @@index([triggerId])
+  @@map("reader_positive_trigger_evidence")
+}
+
+model ReaderProfileVersion {
+  id             String                   @id @default(uuid()) @db.Uuid
+  profileId      String                   @map("profile_id") @db.Uuid
+  version        Int
+  snapshotJson   Json                     @map("snapshot_json")
+  changeReason   String                   @map("change_reason") @db.VarChar(100)
+  sourceId       String?                  @map("source_id") @db.Uuid
+  createdAt      DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  profile        ReaderProfile            @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  evidenceLinks  ProfileVersionEvidence[]
+
+  @@unique([profileId, version])
+  @@map("reader_profile_versions")
+}
+
+model ReaderEvidence {
+  id                String              @id @default(uuid()) @db.Uuid
+  userId            String              @map("user_id") @db.Uuid
+  profileId         String              @map("profile_id") @db.Uuid
+  bookId            String?             @map("book_id") @db.Uuid
+  sourceType        EvidenceSourceType  @map("source_type")
+  sourceId          String              @map("source_id") @db.Uuid
+  dimensionKey      String              @map("dimension_key") @db.VarChar(100)
+  observedValue     Decimal             @map("observed_value") @db.Decimal(5, 4)
+  direction         Decimal             @default(1) @db.Decimal(3, 2)
+  baseWeight        Decimal             @map("base_weight") @db.Decimal(5, 4)
+  exposureFactor    Decimal             @map("exposure_factor") @db.Decimal(5, 4)
+  specificityFactor Decimal             @map("specificity_factor") @db.Decimal(5, 4)
+  attributionFactor Decimal             @map("attribution_factor") @db.Decimal(5, 4)
+  finalWeight       Decimal             @map("final_weight") @db.Decimal(5, 4)
+  reasonCode        String              @map("reason_code") @db.VarChar(100)
+  reasonText        String?             @map("reason_text")
+  rawPayload        Json                @map("raw_payload")
+  evidenceFingerprint String            @unique @map("evidence_fingerprint") @db.VarChar(64)
+  status            EvidenceStatus      @default(active)
+  supersededById    String?             @map("superseded_by") @db.Uuid
+  deactivatedAt     DateTime?           @map("deactivated_at") @db.Timestamptz(6)
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile           ReaderProfile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  dimension         DimensionDefinition @relation(fields: [dimensionKey], references: [key], onDelete: Restrict)
+  supersededBy      ReaderEvidence?     @relation("EvidenceSupersession", fields: [supersededById], references: [id])
+  supersedes        ReaderEvidence[]    @relation("EvidenceSupersession")
+  profileVersions   ProfileVersionEvidence[]
+
+  @@index([userId, status])
+  @@index([profileId, status])
+  @@map("reader_evidence")
+}
+
+model ProfileVersionEvidence {
+  profileVersionId String               @map("profile_version_id") @db.Uuid
+  evidenceId       String               @map("evidence_id") @db.Uuid
+  includedAt       DateTime             @default(now()) @map("included_at") @db.Timestamptz(6)
+  profileVersion   ReaderProfileVersion @relation(fields: [profileVersionId], references: [id], onDelete: Restrict)
+  evidence         ReaderEvidence       @relation(fields: [evidenceId], references: [id], onDelete: Restrict)
+
+  @@id([profileVersionId, evidenceId])
+  @@map("profile_version_evidence")
+}
+
+model TagIdentity {
+  tagKey                       String       @id @map("tag_key") @db.VarChar(60)
+  canonicalTaxonomicVersion    String       @map("canonical_taxonomic_version") @db.VarChar(20)
+  currentStatus                TagStatus    @map("current_status")
+  currentReplacementTagKey     String?      @map("current_replacement_tag_key") @db.VarChar(60)
+  createdAt                    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  versions                     TagVersion[]
+  preferences                  ReaderTagPreference[]
+
+  @@map("tag_identity")
+}
+
+model TagVersion {
+  tagKey               String      @map("tag_key") @db.VarChar(60)
+  taxonomicVersion     String      @map("taxonomic_version") @db.VarChar(20)
+  tagType              TagType     @map("tag_type")
+  name                 String      @db.VarChar(120)
+  description          String      @db.VarChar(280)
+  aliasesJson          Json        @map("aliases_json")
+  parentTagKey         String?     @map("parent_tag_key") @db.VarChar(60)
+  status               TagStatus
+  replacementTagKey    String?     @map("replacement_tag_key") @db.VarChar(60)
+  replacementTagKeysJson Json?    @map("replacement_tag_keys_json")
+  createdAt            DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  deprecatedAt         DateTime?   @map("deprecated_at") @db.Timestamptz(6)
+  deprecatedReason     String?     @map("deprecated_reason")
+  identity             TagIdentity @relation(fields: [tagKey], references: [tagKey], onDelete: Restrict)
+
+  @@id([tagKey, taxonomicVersion])
+  @@index([tagType, status, taxonomicVersion])
+  @@map("tag_versions")
+}
+
+model ReaderTagPreference {
+  id             String        @id @default(uuid()) @db.Uuid
+  profileId      String        @map("profile_id") @db.Uuid
+  tagKey         String        @map("tag_key") @db.VarChar(60)
+  tagType        TagType       @map("tag_type")
+  affinity       Decimal       @db.Decimal(5, 4)
+  confidence     Decimal       @default(0) @db.Decimal(5, 4)
+  evidenceCount  Int           @default(0) @map("evidence_count")
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  profile        ReaderProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  tag            TagIdentity  @relation(fields: [tagKey], references: [tagKey], onDelete: Restrict)
+
+  @@unique([profileId, tagKey])
+  @@map("reader_tag_preferences")
+}
+
+model ReadingFeedback {
+  id                    String                @id @default(uuid()) @db.Uuid
+  userId                String                @map("user_id") @db.Uuid
+  bookId                String?               @map("book_id") @db.Uuid
+  recommendationId      String?               @map("recommendation_id") @db.Uuid
+  orderId               String?               @map("order_id") @db.Uuid
+  feedbackVersion       String                @map("feedback_version") @db.VarChar(30)
+  started               Boolean
+  notStartedReason      String?               @map("not_started_reason") @db.VarChar(40)
+  readingStatus         FeedbackReadingStatus @map("reading_status")
+  completionPercentage  Int                   @map("completion_percentage")
+  selectionFitRating    Int?                  @map("selection_fit_rating")
+  outcomeAttribution    String?               @map("outcome_attribution") @db.VarChar(40)
+  nextDirectionJson     Json?                 @map("next_direction_json")
+  freeText              String?               @map("free_text")
+  idempotencyKey        String?               @map("idempotency_key") @db.VarChar(100)
+  submittedAt           DateTime              @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order                 Order?                @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  aspects               ReadingFeedbackAspect[]
+
+  @@unique([userId, idempotencyKey])
+  @@map("reading_feedback")
+}
+
+model ProductPackage {
+  id             String            @id @default(uuid()) @db.Uuid
+  key            ProductPackageKey @unique
+  name           String
+  description    String
+  priceCents     Int               @map("price_cents")
+  shippingCents  Int               @default(0) @map("shipping_cents")
+  currency       String            @default("MXN") @db.VarChar(3)
+  includedFormats Json             @default("[]") @map("included_formats")
+  isActive       Boolean           @default(true) @map("is_active")
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  orders         Order[]
+
+  @@map("product_packages")
+}
+
+model Order {
+  id             String          @id @default(uuid()) @db.Uuid
+  userId         String          @map("user_id") @db.Uuid
+  packageId      String          @map("package_id") @db.Uuid
+  packageKey     ProductPackageKey @map("package_key")
+  packageName    String          @map("package_name")
+  subtotalCents  Int             @map("subtotal_cents")
+  shippingCents  Int             @default(0) @map("shipping_cents")
+  totalCents     Int             @map("total_cents")
+  currency       String          @db.VarChar(3)
+  status         OrderStatus     @default(pending_payment)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  paidAt         DateTime?       @map("paid_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  productPackage ProductPackage  @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  shippingAddress OrderShippingAddress?
+  payments       Payment[]
+  fulfillment    Fulfillment?
+  feedbacks      ReadingFeedback[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
+model OrderShippingAddress {
+  id              String   @id @default(uuid()) @db.Uuid
+  orderId         String   @unique @map("order_id") @db.Uuid
+  recipientName   String   @map("recipient_name")
+  phone           String
+  street          String
+  exteriorNumber  String   @map("exterior_number")
+  interiorNumber  String?  @map("interior_number")
+  neighborhood    String
+  city            String
+  state           String
+  postalCode      String   @map("postal_code") @db.VarChar(10)
+  country         String   @default("MX") @db.Char(2)
+  references      String?
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_shipping_addresses")
+}
+
+model Payment {
+  id                String          @id @default(uuid()) @db.Uuid
+  orderId           String          @map("order_id") @db.Uuid
+  provider          PaymentProvider
+  externalSessionId String          @unique @map("external_session_id")
+  amountCents       Int             @map("amount_cents")
+  currency          String          @db.VarChar(3)
+  status            PaymentStatus   @default(pending)
+  providerPayload   Json?           @map("provider_payload")
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  order             Order           @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  events            PaymentEvent[]
+
+  @@index([orderId])
+  @@map("payments")
+}
+
+model PaymentEvent {
+  id              String   @id @default(uuid()) @db.Uuid
+  paymentId       String?  @map("payment_id") @db.Uuid
+  providerEventId String   @unique @map("provider_event_id")
+  eventType       String   @map("event_type")
+  payload         Json     @default("{}")
+  receivedAt      DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
+  payment         Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@map("payment_events")
+}
+
+model Fulfillment {
+  id               String            @id @default(uuid()) @db.Uuid
+  orderId          String            @unique @map("order_id") @db.Uuid
+  status           FulfillmentStatus @default(curation_pending)
+  bookTitle        String?           @map("book_title")
+  bookAuthor       String?           @map("book_author")
+  isbn             String?           @db.VarChar(20)
+  coverUrl         String?           @map("cover_url")
+  internalNotes    String?           @map("internal_notes")
+  trackingNumber   String?           @map("tracking_number")
+  ebookStoragePath String?           @map("ebook_storage_path")
+  audioStoragePath String?           @map("audio_storage_path")
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  order            Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("fulfillments")
+}
+
+model ReadingFeedbackAspect {
+  id          String          @id @default(uuid()) @db.Uuid
+  feedbackId  String          @map("feedback_id") @db.Uuid
+  polarity    String          @db.VarChar(10)
+  optionKey   String          @map("option_key") @db.VarChar(100)
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  feedback    ReadingFeedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@unique([feedbackId, polarity, optionKey])
+  @@map("reading_feedback_aspects")
+}

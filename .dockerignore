@@ -1,0 +1,8 @@
+node_modules
+frontend/node_modules
+frontend/dist
+frontend/.angular
+dist
+.git
+.env
+coverage
