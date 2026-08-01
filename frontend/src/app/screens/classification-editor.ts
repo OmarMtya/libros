@@ -40,6 +40,7 @@ const clamp = (raw: string | number, min: number, max: number): number => {
           <div class="flex gap-2">
             <button type="button" class="rounded-sm border border-[#7d9ab0] px-4 py-2 text-sm font-bold text-ink transition hover:bg-[#e6eef3]" (click)="back()">Cerrar</button>
             @if (ed.status === 'draft') {
+              <button type="button" class="rounded-sm border border-[#7d9ab0] px-4 py-2 text-sm font-bold text-ink transition hover:bg-[#e6eef3]" (click)="discard()" [disabled]="busy()">Descartar borrador</button>
               <button type="button" class="rounded-sm bg-ink px-4 py-2 text-sm font-bold text-white hover:bg-ink-soft disabled:cursor-wait disabled:opacity-60" (click)="save()" [disabled]="busy()">Guardar borrador</button>
               <button
                 type="button"
@@ -554,6 +555,16 @@ export class ClassificationEditorScreen {
       const corrected = await this.api.correctAdminClassification(editor.id);
       this.toast.success(`Revisión ${corrected.revision} creada con los valores precargados.`);
       void this.router.navigate(['/admin/clasificacion', corrected.id]);
+    });
+  }
+
+  async discard(): Promise<void> {
+    const editor = this.editor();
+    if (!editor) return;
+    await this.run(async () => {
+      await this.api.deleteAdminClassification(editor.id);
+      this.toast.success('Borrador descartado.');
+      void this.router.navigate(['/admin']);
     });
   }
 

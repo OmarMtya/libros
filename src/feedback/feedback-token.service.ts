@@ -19,6 +19,8 @@ const ASSIGNMENT_INCLUDE = {
     select: {
       orderId: true,
       status: true,
+      shippedAt: true,
+      deliveredAt: true,
       order: { select: { userId: true } },
     },
   },
@@ -29,6 +31,7 @@ const ASSIGNMENT_INCLUDE = {
     },
   },
   classification: { include: { features: true, tags: true } },
+  recommendationCandidate: { select: { recommendationId: true } },
 } as const;
 
 @Injectable()
@@ -54,9 +57,7 @@ export class FeedbackTokenService {
         include: ASSIGNMENT_INCLUDE,
       });
       if (!assignment) throw new NotFoundException('La invitación no tiene una asignación válida.');
-      if (assignment.fulfillment.status !== 'delivered') {
-        throw new BadRequestException('El libro aún no ha sido entregado.');
-      }
+      this.assertLogisticsReady(assignment.fulfillment.status);
       const authors = await tx.bookAuthor.findMany({
         where: { bookId: assignment.edition.bookId },
         include: { author: { select: { canonicalName: true } } },
@@ -69,6 +70,7 @@ export class FeedbackTokenService {
       });
       return {
         received: invitation.status === 'used' || existingFeedback !== null,
+        deliveryChangedAt: assignment.fulfillment.deliveredAt ?? assignment.fulfillment.shippedAt,
         book: {
           title: assignment.edition.book.canonicalTitle,
           editionTitle: assignment.edition.title,
@@ -104,9 +106,7 @@ export class FeedbackTokenService {
         include: ASSIGNMENT_INCLUDE,
       });
       if (!assignment) throw new NotFoundException('La invitación no tiene una asignación válida.');
-      if (assignment.fulfillment.status !== 'delivered') {
-        throw new BadRequestException('El libro aún no ha sido entregado.');
-      }
+      this.assertLogisticsReady(assignment.fulfillment.status);
       if (assignment.feedbackCycleStatus === 'final_received') throw new ConflictException('Ya se recibió el feedback final.');
       if (assignment.feedbackCycleStatus === 'closed_without_feedback') throw new ConflictException('El ciclo de aprendizaje está cerrado.');
       if (authenticatedUserId !== null && authenticatedUserId !== assignment.fulfillment.order.userId) {
@@ -136,6 +136,7 @@ export class FeedbackTokenService {
           bookId: assignment.edition.bookId,
           bookEditionId: assignment.edition.id,
           bookClassificationVersionId: assignment.classification.id,
+          recommendationId: assignment.recommendationCandidate?.recommendationId ?? null,
           feedbackInvitationId: invitation.id,
           feedbackVersion: 'feedback/1.0',
           started: dto.started,
@@ -164,6 +165,9 @@ export class FeedbackTokenService {
       await tx.feedbackInvitation.update({ where: { id: invitation.id }, data: { status: 'used', usedAt: now, optimisticLockVersion: { increment: 1 } } });
       const nextCycle = isFinal ? 'final_received' : 'provisional_received';
       await tx.curationAssignment.update({ where: { id: assignment.id }, data: { feedbackCycleStatus: nextCycle, optimisticLockVersion: { increment: 1 } } });
+      if (assignment.fulfillment.status !== 'delivered') {
+        await tx.fulfillment.update({ where: { id: assignment.fulfillmentId }, data: { status: 'delivered', deliveredAt: now } });
+      }
 
       const context = this.contextResolver.resolve(
         {
@@ -192,6 +196,12 @@ export class FeedbackTokenService {
       return { feedback: learned.feedback, learningStatus: learned.learningStatus, recompute: learned.recompute, context: result.context };
     }
     return { feedback: result.feedback, learningStatus: result.feedback.learningStatus, recompute: null, context: result.context };
+  }
+
+  private assertLogisticsReady(status: string) {
+    if (status !== 'shipped' && status !== 'in_delivery' && status !== 'delivered') {
+      throw new BadRequestException('El libro aún no ha sido enviado.');
+    }
   }
 
   private async lockInvitation(tx: Prisma.TransactionClient, token: string): Promise<LockedInvitation | null> {

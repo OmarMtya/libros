@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { BOOK_FEATURE_DEFINITIONS } from '../catalog/book-feature-definitions';
 import { featureUiMetadata } from '../catalog/feature-ui-catalog';
@@ -65,6 +65,16 @@ export class CatalogService {
 
   async createBook(actorId: string, dto: CreateBookDto) {
     const editionDetail = dto.openLibraryEditionId ? await this.books.fetchEdition(dto.openLibraryEditionId) : null;
+    const isbn = editionDetail?.isbn ? normalizeIsbn(editionDetail.isbn) : null;
+    if (isbn) {
+      const existing = await this.prisma.bookEdition.findFirst({
+        where: { isbn },
+        select: { book: { select: { id: true, canonicalTitle: true } } },
+      });
+      if (existing) {
+        throw new ConflictException(`«${dto.canonicalTitle.trim()}» ya está en el catálogo como «${existing.book.canonicalTitle}».`);
+      }
+    }
     const book = await this.prisma.$transaction(async (tx) => {
       const created = await tx.book.create({
         data: { canonicalTitle: dto.canonicalTitle.trim(), originalLanguage: dto.originalLanguage },
@@ -325,6 +335,12 @@ export class CatalogService {
     if (classification.status === 'draft') {
       throw new BadRequestException('La clasificación ya está en borrador; edítala directamente.');
     }
+    const existingDraft = await this.prisma.bookClassificationVersion.findFirst({
+      where: { bookEditionId: classification.bookEditionId, status: 'draft' },
+      include: { features: true, tags: true },
+      orderBy: { revision: 'desc' },
+    });
+    if (existingDraft) return this.buildEditor(existingDraft);
     const created = await this.prisma.$transaction(async (tx) => {
       const latest = await tx.bookClassificationVersion.findFirst({ where: { bookEditionId: classification.bookEditionId }, orderBy: { revision: 'desc' }, select: { revision: true } });
       const revision = (latest?.revision ?? 0) + 1;
@@ -357,6 +373,31 @@ export class CatalogService {
       });
     });
     return this.buildEditor(created);
+  }
+
+  async deleteClassification(classificationId: string) {
+    const classification = await this.prisma.bookClassificationVersion.findUnique({
+      where: { id: classificationId },
+      select: { id: true, status: true },
+    });
+    if (!classification) throw new NotFoundException('No se encontró la clasificación.');
+    if (classification.status !== 'draft') {
+      throw new BadRequestException('Solo se pueden eliminar revisiones en borrador. Para corregir una aprobada, usa «Corregir».');
+    }
+    const [assignmentCount, candidateCount, feedbackCount] = await Promise.all([
+      this.prisma.curationAssignment.count({ where: { classificationVersionId: classificationId } }),
+      this.prisma.recommendationCandidate.count({ where: { classificationVersionId: classificationId } }),
+      this.prisma.readingFeedback.count({ where: { bookClassificationVersionId: classificationId } }),
+    ]);
+    if (assignmentCount > 0 || candidateCount > 0 || feedbackCount > 0) {
+      throw new BadRequestException('No se puede eliminar: la revisión ya está en uso (asignación, candidato o feedback).');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      await tx.bookTag.deleteMany({ where: { classificationVersionId: classificationId } });
+      await tx.bookFeature.deleteMany({ where: { classificationVersionId: classificationId } });
+      await tx.bookClassificationVersion.delete({ where: { id: classificationId } });
+      return { deleted: true, classificationId };
+    });
   }
 
   private async assertContentType(contentTypeKey: string, contentTypeSchemaVersion: string) {

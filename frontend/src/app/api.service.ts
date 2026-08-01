@@ -410,6 +410,10 @@ export class ApiService {
     return firstValueFrom(this.http.post<ClassificationEditor>(`${this.baseUrl}/admin/classifications/${id}/correct`, {}, this.options()));
   }
 
+  deleteAdminClassification(id: string): Promise<{ deleted: boolean; classificationId: string }> {
+    return firstValueFrom(this.http.delete<{ deleted: boolean; classificationId: string }>(`${this.baseUrl}/admin/classifications/${id}`, this.options()));
+  }
+
   getAdminClassificationDiagnostics(id: string): Promise<ClassificationDiagnostics> {
     return firstValueFrom(this.http.get<ClassificationDiagnostics>(`${this.baseUrl}/admin/classifications/${id}/diagnostics`, this.options()));
   }
@@ -446,8 +450,8 @@ export class ApiService {
     return firstValueFrom(this.http.post<{ plainToken: string; url: string }>(`${this.baseUrl}/admin/assignments/${assignmentId}/reopen-learning`, { reason }, this.options()));
   }
 
-  getFeedbackInvitation(token: string): Promise<{ received: boolean; book: { title: string; editionTitle: string; languageCode: string; authors: string[]; contributors: string[] } }> {
-    return firstValueFrom(this.http.get<{ received: boolean; book: { title: string; editionTitle: string; languageCode: string; authors: string[]; contributors: string[] } }>(`${this.baseUrl}/feedback/${encodeURIComponent(token)}`, this.options()));
+  getFeedbackInvitation(token: string): Promise<{ received: boolean; deliveryChangedAt: string | null; book: { title: string; editionTitle: string; languageCode: string; authors: string[]; contributors: string[] } }> {
+    return firstValueFrom(this.http.get<{ received: boolean; deliveryChangedAt: string | null; book: { title: string; editionTitle: string; languageCode: string; authors: string[]; contributors: string[] } }>(`${this.baseUrl}/feedback/${encodeURIComponent(token)}`, this.options()));
   }
 
   submitFeedbackByToken(token: string, body: Record<string, unknown>): Promise<unknown> {

@@ -131,7 +131,7 @@ export const FEEDBACK_MAPPINGS: Record<'positive' | 'negative', Record<string, F
     characters: [{ dimensionKey: 'character_depth_need', observedValue: 0.85, reasonCode: 'f05_characters_pos', baseWeight: 1.4, direction: 1 }, { dimensionKey: 'character_agency_preference', observedValue: 0.75, reasonCode: 'f05_agency_pos', baseWeight: 1.4, direction: 1 }],
     character_relationships: [{ dimensionKey: 'relationship_focus_preference', observedValue: 0.85, reasonCode: 'f05_relationships_pos', baseWeight: 1.4, direction: 1 }],
     writing_style: [{ dimensionKey: 'style_clarity_preference', observedValue: 0.85, reasonCode: 'f05_style_clarity_pos', baseWeight: 1.4, direction: 1 }],
-    atmosphere: [{ dimensionKey: 'descriptive_density_preference', observedValue: 0.8, reasonCode: 'f05_atmosphere_pos', baseWeight: 1.4, direction: 1 }],
+    atmosphere: [],
     ideas_reflection: [{ dimensionKey: 'conceptual_depth_appreciation', observedValue: 0.85, reasonCode: 'f05_ideas_pos', baseWeight: 1.4, direction: 1 }, { dimensionKey: 'introspection_tolerance', observedValue: 0.75, reasonCode: 'f05_reflection_pos', baseWeight: 1.4, direction: 1 }],
     emotional_effect: [{ dimensionKey: 'emotional_intensity_preference', observedValue: 0.85, reasonCode: 'f05_emotional_effect_pos', baseWeight: 1.4, direction: 1 }],
     setting_world: [{ dimensionKey: 'worldbuilding_load_tolerance', observedValue: 0.8, reasonCode: 'f05_setting_pos', baseWeight: 1.4, direction: 1 }],

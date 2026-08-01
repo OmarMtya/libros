@@ -136,6 +136,7 @@ const TAG_TAXONOMY_VERSION = 'tag-tax/1.0.1';
                           <span class="font-mono text-[#567088]">{{ classification.contentTypeKey }}</span>
                           @if (classification.status === 'draft') {
                             <button type="button" class="rounded-sm border border-[#9eb2c1] px-2 py-1 hover:bg-[#e6eef3]" (click)="openEditor(classification.id)">Editar</button>
+                            <button type="button" class="rounded-sm border border-[#9eb2c1] px-2 py-1 text-[#7a2c1f] hover:bg-[#fbe9e6]" (click)="deleteClassification(classification.id)">Eliminar</button>
                           } @else {
                             <button type="button" class="rounded-sm border border-[#9eb2c1] px-2 py-1 hover:bg-[#e6eef3]" (click)="correct(classification.id)">Corregir</button>
                           }
@@ -161,145 +162,157 @@ const TAG_TAXONOMY_VERSION = 'tag-tax/1.0.1';
 
       @if (tab() === 'curation') {
         <section class="space-y-4">
-          <div class="rounded-sm border border-[#cad7df] bg-white p-4">
-            <h2 class="mb-1 font-semibold text-ink">Asignar libro a un pedido</h2>
-            <p class="mb-3 text-sm text-[#536875]">Busca la persona con pedido activo y el libro del catálogo, y conéctalos sin puntuación.</p>
-            <div class="grid gap-4 sm:grid-cols-2">
-              <div>
-                <span class="text-sm font-semibold text-ink">Pedido activo</span>
-                @if (selectedOrder(); as order) {
-                  <div class="mt-1 flex items-center justify-between gap-2 rounded-sm border border-[#9eb2c1] bg-[#f2f6f9] px-3 py-2">
-                    <span class="min-w-0 truncate">
-                      <strong class="block truncate text-ink">{{ order.user.displayName || order.user.email || 'Sin nombre' }}</strong>
-                      <small class="text-[#566e80]">{{ order.packageName }} · {{ order.id.slice(0, 8) }} · {{ order.fulfillment?.status }}</small>
-                    </span>
-                    <button type="button" class="shrink-0 rounded-sm border border-[#7d9ab0] px-2 py-1 text-xs font-bold hover:bg-[#e6eef3]" (click)="clearOrder()">Cambiar</button>
-                  </div>
-                } @else {
-                  <div class="relative">
-                    <input
-                      [(ngModel)]="assignOrderQuery"
-                      (ngModelChange)="onOrderQuery()"
-                      placeholder="Busca por nombre o correo…"
-                      class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
-                    @if (assignOrderResults().length > 0 && !assignOrderSearch().loading && !assignOrderSearch().error) {
-                      <ul class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-sm border border-[#9eb2c1] bg-white shadow">
-                        @for (order of assignOrderResults(); track order.id) {
-                          <li>
-                            <button type="button" (click)="pickOrder(order)" class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-[#eaf1f6]">
-                              <span class="min-w-0">
-                                <strong class="block truncate text-ink">{{ order.user.displayName || order.user.email || 'Sin nombre' }}</strong>
-                                <small class="text-[#566e80]">{{ order.packageName }} · {{ order.id.slice(0, 8) }}</small>
-                              </span>
-                              <span class="shrink-0 font-mono text-xs text-[#7d9ab0]">{{ order.fulfillment?.status }}</span>
-                            </button>
-                          </li>
-                        }
-                      </ul>
-                    }
-                  </div>
-                }
-              </div>
-              <div>
-                <span class="text-sm font-semibold text-ink">Libro del catálogo</span>
-                @if (selectedBook(); as book) {
-                  <div class="mt-1 flex items-center justify-between gap-2 rounded-sm border border-[#9eb2c1] bg-[#f2f6f9] px-3 py-2">
-                    <span class="min-w-0 truncate">
-                      <strong class="block truncate text-ink">{{ book.canonicalTitle }}</strong>
-                      <small class="text-[#566e80]">{{ authorNames(book) }}</small>
-                    </span>
-                    <button type="button" class="shrink-0 rounded-sm border border-[#7d9ab0] px-2 py-1 text-xs font-bold hover:bg-[#e6eef3]" (click)="clearBook()">Cambiar</button>
-                  </div>
-                } @else {
-                  <div class="relative">
-                    <input
-                      [(ngModel)]="assignBookQuery"
-                      (ngModelChange)="onBookQuery()"
-                      placeholder="Busca un título…"
-                      class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
-                    @if (assignBookResults().length > 0 && !assignBookSearch().loading && !assignBookSearch().error) {
-                      <ul class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-sm border border-[#9eb2c1] bg-white shadow">
-                        @for (book of assignBookResults(); track book.id) {
-                          <li>
-                            <button type="button" (click)="pickBook(book)" class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-[#eaf1f6]">
-                              <span class="min-w-0">
-                                <strong class="block truncate text-ink">{{ book.canonicalTitle }}</strong>
-                                <small class="text-[#566e80]">{{ authorNames(book) }}</small>
-                              </span>
-                            </button>
-                          </li>
-                        }
-                      </ul>
-                    }
-                  </div>
-                }
-              </div>
-            </div>
-
-            @if (selectedBook(); as book) {
-              <label class="mt-3 block">
-                <span class="text-sm font-semibold text-ink">Edición (clasificación aprobada)</span>
-                <select [(ngModel)]="assignEditionId" class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
-                  <option value="">Selecciona…</option>
-                  @for (edition of assignableEditions(); track edition.id) {
-                    <option [value]="edition.id">{{ edition.title }} ({{ edition.languageCode }})</option>
-                  }
-                </select>
-              </label>
-            }
-
-            <div class="mt-3">
-              <button
-                type="button"
-                class="rounded-sm bg-coral px-5 py-2 text-sm font-bold text-white transition hover:bg-coral-deep disabled:cursor-wait disabled:opacity-60"
-                (click)="assignDirect()"
-                [disabled]="loading() || !selectedOrder() || !selectedBook() || !assignEditionId()">
-                Asignar libro
-              </button>
-            </div>
-          </div>
-
           <p class="text-sm text-[#536875]">Puntúa candidatos y asigna el libro a un fulfillment (el estado logístico vive en el fulfillment).</p>
 
-          @if (fulfillments().length > 0) {
-            <div class="rounded-sm border border-[#cad7df] bg-white p-4">
+          <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+            <aside class="rounded-sm border border-[#cad7df] bg-white p-4">
               <h2 class="mb-3 font-semibold text-ink">Fulfillments pendientes</h2>
-              @for (fulfillment of fulfillments(); track fulfillment.id) {
-                <div class="border-t border-[#e3ebf0] py-3">
-                  <div class="flex flex-wrap items-center gap-3">
-                    <strong class="text-ink">{{ fulfillment.order.user.displayName || fulfillment.order.user.email || 'Sin nombre' }}</strong>
-                    <span class="font-mono text-xs text-[#567088]">{{ fulfillment.order.packageName }} · {{ fulfillment.status }}</span>
-                    <span class="font-mono text-xs text-[#567088]">pedido: {{ fulfillment.order.id.slice(0, 8) }}</span>
-                    <button type="button" class="rounded-sm bg-ink px-3 py-1 text-sm font-bold text-white hover:bg-ink-soft disabled:opacity-60" (click)="score(fulfillment.id)" [disabled]="loading()">Puntuar</button>
-                  </div>
-                  @if (scoredFor(fulfillment.id); as candidates) {
-                    @for (candidate of candidates; track candidate.candidateId) {
-                      <div class="mt-2 rounded-sm border border-[#d6e1e8] p-3">
-                        <div class="flex flex-wrap items-center gap-3">
-                          <span class="font-mono text-xs text-[#567088]">#{{ candidate.rankPosition }}</span>
-                          <strong class="text-ink">{{ candidate.title }}</strong>
-                          <span class="text-xs text-[#536875]">{{ candidate.editionTitle }}</span>
-                          <span class="font-mono text-xs text-[#567088]">score {{ (candidate.finalScore ?? 0).toFixed(4) }}</span>
-                          @if (candidate.recommendationEvidenceCoverage !== null && candidate.recommendationEvidenceCoverage < 0.45) {
-                            <span class="rounded-full bg-[#fbe9e6] px-2 py-0.5 text-xs font-semibold text-[#7a2c1f]">baja cobertura</span>
-                          }
-                          <button type="button" class="rounded-sm bg-coral px-3 py-1 text-sm font-bold text-white hover:bg-coral-deep disabled:opacity-60" (click)="assignCandidate(fulfillment.id, candidate)" [disabled]="loading()">Asignar</button>
+              @if (fulfillments().length > 0) {
+                <div class="space-y-3">
+                  @for (fulfillment of fulfillments(); track fulfillment.id) {
+                    <div class="rounded-sm border border-[#d6e1e8] p-3">
+                      <div class="flex items-center justify-between gap-2">
+                        <div class="min-w-0">
+                          <strong class="block truncate text-sm text-ink">{{ fulfillment.order.user.displayName || fulfillment.order.user.email || 'Sin nombre' }}</strong>
+                          <span class="font-mono text-[11px] text-[#567088]">{{ fulfillment.order.packageName }}</span>
                         </div>
-                        @if (candidate.explanation.reasons.length > 0 || candidate.explanation.tagMatches.length > 0) {
-                          <details class="mt-1">
-                            <summary class="cursor-pointer text-xs text-[#567088]">Desglose y explicación</summary>
-                            <pre class="mt-1 max-h-64 overflow-auto rounded-sm bg-[#142c3e] p-2 font-mono text-[11px] text-[#e4eff5]">{{ breakdown(candidate) }}</pre>
-                          </details>
+                        <span class="shrink-0 font-mono text-[11px] text-[#7d9ab0]">pedido {{ fulfillment.order.id.slice(0, 8) }}</span>
+                      </div>
+                      <button type="button" class="mt-2 rounded-sm bg-ink px-3 py-1 text-xs font-bold text-white hover:bg-ink-soft disabled:opacity-60" (click)="score(fulfillment.id)" [disabled]="loading()">Puntuar</button>
+                      @if (scoredFor(fulfillment.id); as candidates) {
+                        @for (candidate of candidates; track candidate.candidateId) {
+                          <div class="mt-2 rounded-sm border border-[#e3ebf0] p-2">
+                            <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                              <span class="font-mono text-[10px] text-[#567088]">#{{ candidate.rankPosition }}</span>
+                              <strong class="text-ink">{{ candidate.title }}</strong>
+                              <span class="font-mono text-[10px] text-[#567088]">score {{ (candidate.finalScore ?? 0).toFixed(4) }}</span>
+                              @if (candidate.recommendationEvidenceCoverage !== null && candidate.recommendationEvidenceCoverage < 0.45) {
+                                <span class="rounded-full bg-[#fbe9e6] px-2 py-0.5 text-[10px] font-semibold text-[#7a2c1f]">baja cobertura</span>
+                              }
+                            </p>
+                            <button type="button" class="mt-2 rounded-sm bg-coral px-3 py-1 text-xs font-bold text-white hover:bg-coral-deep disabled:opacity-60" (click)="assignCandidate(fulfillment.id, candidate)" [disabled]="loading()">Asignar</button>
+                            @if (candidate.explanation.reasons.length > 0 || candidate.explanation.tagMatches.length > 0) {
+                              <details class="mt-1">
+                                <summary class="cursor-pointer text-[11px] text-[#567088]">Desglose y explicación</summary>
+                                <pre class="mt-1 max-h-48 overflow-auto rounded-sm bg-[#142c3e] p-2 font-mono text-[10px] text-[#e4eff5]">{{ breakdown(candidate) }}</pre>
+                              </details>
+                            }
+                          </div>
+                        }
+                      }
+                    </div>
+                  }
+                </div>
+              } @else {
+                <p class="text-sm text-[#7d9ab0]">No hay fulfillments pendientes.</p>
+              }
+            </aside>
+
+            <div class="min-w-0 space-y-4">
+              <div class="rounded-sm border border-[#cad7df] bg-white p-4">
+                <h2 class="mb-1 font-semibold text-ink">Asignar libro a un pedido</h2>
+                <p class="mb-3 text-sm text-[#536875]">Busca la persona con pedido activo y el libro del catálogo, y conéctalos sin puntuación.</p>
+                <div class="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <span class="text-sm font-semibold text-ink">Pedido activo</span>
+                    @if (selectedOrder(); as order) {
+                      <div class="mt-1">
+                        <div class="flex items-center justify-between gap-2 rounded-sm border border-[#9eb2c1] bg-[#f2f6f9] px-3 py-2">
+                          <span class="min-w-0 truncate">
+                            <strong class="block truncate text-ink">{{ order.user.displayName || order.user.email || 'Sin nombre' }}</strong>
+                            <small class="text-[#566e80]">{{ order.packageName }} · {{ order.id.slice(0, 8) }} · {{ order.fulfillment?.status }}</small>
+                          </span>
+                          <button type="button" class="shrink-0 rounded-sm border border-[#7d9ab0] px-2 py-1 text-xs font-bold hover:bg-[#e6eef3]" (click)="clearOrder()">Cambiar</button>
+                        </div>
+                        @if (order.activeAssignment) {
+                          <p class="mt-1 rounded-sm bg-[#fbe9e6] px-2 py-1 text-xs leading-snug text-[#7a2c1f]">Ya tiene un libro asignado; al reasignar se reemplazará.</p>
+                        }
+                      </div>
+                    } @else {
+                      <div class="relative">
+                        <input
+                          [(ngModel)]="assignOrderQuery"
+                          (ngModelChange)="onOrderQuery()"
+                          placeholder="Busca por nombre o correo…"
+                          class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
+                        @if (assignOrderResults().length > 0 && !assignOrderSearch().loading && !assignOrderSearch().error) {
+                          <ul class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-sm border border-[#9eb2c1] bg-white shadow">
+                            @for (order of assignOrderResults(); track order.id) {
+                              <li>
+                                <button type="button" (click)="pickOrder(order)" class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-[#eaf1f6]">
+                                  <span class="min-w-0">
+                                    <strong class="block truncate text-ink">{{ order.user.displayName || order.user.email || 'Sin nombre' }}</strong>
+                                    <small class="text-[#566e80]">{{ order.packageName }} · {{ order.id.slice(0, 8) }}</small>
+                                  </span>
+                                  <span class="shrink-0 font-mono text-xs text-[#7d9ab0]">{{ order.fulfillment?.status }}</span>
+                                </button>
+                              </li>
+                            }
+                          </ul>
                         }
                       </div>
                     }
-                  }
+                  </div>
+                  <div>
+                    <span class="text-sm font-semibold text-ink">Libro del catálogo</span>
+                    @if (selectedBook(); as book) {
+                      <div class="mt-1 flex items-center justify-between gap-2 rounded-sm border border-[#9eb2c1] bg-[#f2f6f9] px-3 py-2">
+                        <span class="min-w-0 truncate">
+                          <strong class="block truncate text-ink">{{ book.canonicalTitle }}</strong>
+                          <small class="text-[#566e80]">{{ authorNames(book) }}</small>
+                        </span>
+                        <button type="button" class="shrink-0 rounded-sm border border-[#7d9ab0] px-2 py-1 text-xs font-bold hover:bg-[#e6eef3]" (click)="clearBook()">Cambiar</button>
+                      </div>
+                    } @else {
+                      <div class="relative">
+                        <input
+                          [(ngModel)]="assignBookQuery"
+                          (ngModelChange)="onBookQuery()"
+                          placeholder="Busca un título…"
+                          class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
+                        @if (assignBookResults().length > 0 && !assignBookSearch().loading && !assignBookSearch().error) {
+                          <ul class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-sm border border-[#9eb2c1] bg-white shadow">
+                            @for (book of assignBookResults(); track book.id) {
+                              <li>
+                                <button type="button" (click)="pickBook(book)" class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-[#eaf1f6]">
+                                  <span class="min-w-0">
+                                    <strong class="block truncate text-ink">{{ book.canonicalTitle }}</strong>
+                                    <small class="text-[#566e80]">{{ authorNames(book) }}</small>
+                                  </span>
+                                </button>
+                              </li>
+                            }
+                          </ul>
+                        }
+                      </div>
+                    }
+                  </div>
                 </div>
-              }
-            </div>
-          }
 
-          @for (assignment of assignments(); track assignment.id) {
+                @if (selectedBook(); as book) {
+                  <label class="mt-3 block">
+                    <span class="text-sm font-semibold text-ink">Edición (clasificación aprobada)</span>
+                    <select [(ngModel)]="assignEditionId" class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
+                      <option value="">Selecciona…</option>
+                      @for (edition of assignableEditions(); track edition.id) {
+                        <option [value]="edition.id">{{ edition.title }} ({{ edition.languageCode }})</option>
+                      }
+                    </select>
+                  </label>
+                }
+
+                <div class="mt-3">
+                  <button
+                    type="button"
+                    class="rounded-sm bg-coral px-5 py-2 text-sm font-bold text-white transition hover:bg-coral-deep disabled:cursor-wait disabled:opacity-60"
+                    (click)="assignDirect()"
+                    [disabled]="loading() || !selectedOrder() || !selectedBook() || !assignEditionId()">
+                    {{ selectedOrder()?.activeAssignment ? 'Reasignar libro' : 'Asignar libro' }}
+                  </button>
+                </div>
+              </div>
+
+              @for (assignment of assignments(); track assignment.id) {
             <div class="rounded-sm border border-[#cad7df] bg-white p-4">
               <div class="flex flex-wrap items-center gap-3">
                 <strong class="text-ink">{{ assignment.edition.title }}</strong>
@@ -317,8 +330,8 @@ const TAG_TAXONOMY_VERSION = 'tag-tax/1.0.1';
               }
               <div class="mt-2 flex flex-wrap gap-2">
                 @if (assignment.fulfillment.status === 'assigned') {
-                  <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="startReplace(assignment.id)">Reemplazar</button>
-                  <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="action('pack', assignment.id)">Empaquetar</button>
+                  <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="startReplace(assignment.id)">Reasignar</button>
+                  <button type="button" class="rounded-sm bg-ink px-3 py-1 text-sm font-bold text-white hover:bg-ink-soft" (click)="action('pack', assignment.id)">Empaquetar</button>
                 }
                 @if (assignment.fulfillment.status === 'packed') {
                   <button type="button" class="rounded-sm bg-coral px-3 py-1 text-sm font-bold text-white" (click)="action('ship', assignment.id)">Enviar</button>
@@ -345,18 +358,26 @@ const TAG_TAXONOMY_VERSION = 'tag-tax/1.0.1';
                   <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="reopenLearning(assignment.id)">Reabrir aprendizaje</button>
                 }
               </div>
-              @if (replaceTarget() === assignment.id && scoredFor(assignment.fulfillment.id); as candidates) {
-                <div class="mt-3 rounded-sm border border-[#d6e1e8] p-3">
-                  <p class="mb-2 text-xs font-semibold text-ink">Elige el reemplazo</p>
-                  @for (candidate of candidates; track candidate.candidateId) {
-                    <div class="flex flex-wrap items-center gap-3 border-t border-[#e3ebf0] py-2 text-sm">
-                      <span class="font-mono text-xs text-[#567088]">#{{ candidate.rankPosition }}</span>
-                      <strong class="text-ink">{{ candidate.title }}</strong>
-                      <span class="font-mono text-xs text-[#567088]">score {{ (candidate.finalScore ?? 0).toFixed(4) }}</span>
-                      <button type="button" class="rounded-sm bg-coral px-3 py-1 text-sm font-bold text-white" (click)="replaceWithCandidate(assignment.id, candidate)">Usar este</button>
+              @if (replaceTarget() === assignment.id) {
+                @if (replacementCandidates(assignment); as candidates) {
+                  @if (candidates.length > 0) {
+                    <div class="mt-3 rounded-sm border border-[#d6e1e8] p-3">
+                      <p class="mb-2 text-xs font-semibold text-ink">Elige el reemplazo</p>
+                      @for (candidate of candidates; track candidate.candidateId) {
+                        <div class="flex flex-wrap items-center gap-3 border-t border-[#e3ebf0] py-2 text-sm">
+                          <span class="font-mono text-xs text-[#567088]">#{{ candidate.rankPosition }}</span>
+                          <strong class="text-ink">{{ candidate.title }}</strong>
+                          <span class="font-mono text-xs text-[#567088]">score {{ (candidate.finalScore ?? 0).toFixed(4) }}</span>
+                          <button type="button" class="rounded-sm bg-coral px-3 py-1 text-sm font-bold text-white" (click)="replaceWithCandidate(assignment.id, candidate)">Usar este</button>
+                        </div>
+                      }
+                    </div>
+                  } @else {
+                    <div class="mt-3 rounded-sm border border-[#d6e1e8] p-3">
+                      <p class="text-sm text-[#536875]">No hay otro libro para asignar en la recomendación actual. Puedes reasignar desde «Asignar libro a un pedido».</p>
                     </div>
                   }
-                </div>
+                }
               }
               @if (assignment.feedbacks.length > 0) {
                 <ul class="mt-2 space-y-1 text-xs text-[#536875]">
@@ -375,6 +396,8 @@ const TAG_TAXONOMY_VERSION = 'tag-tax/1.0.1';
           @if (assignments().length === 0 && !loading()) {
             <p class="text-sm text-[#7d9ab0]">No hay asignaciones.</p>
           }
+            </div>
+          </div>
         </section>
       }
 
@@ -578,7 +601,7 @@ export class AdminScreen {
     await this.run(async () => {
       const [assignments, fulfillments] = await Promise.all([this.api.listAdminAssignments(), this.api.listAdminFulfillments()]);
       this.assignments.set(assignments);
-      this.fulfillments.set(fulfillments.filter((fulfillment) => fulfillment.status === 'curation_pending' || fulfillment.status === 'assigned'));
+      this.fulfillments.set(fulfillments.filter((fulfillment) => fulfillment.status === 'curation_pending'));
     });
   }
 
@@ -698,13 +721,29 @@ export class AdminScreen {
     if (!order || !book || !fulfillmentId || !edition) return;
     const approved = [...edition.classifications].filter((classification) => classification.status === 'approved').sort((a, b) => b.revision - a.revision)[0];
     if (!approved) return;
+    if (order.activeAssignment) {
+      const confirmed = await this.dialog.confirm({
+        title: 'Reasignar libro',
+        message: `${order.user.displayName || order.user.email || 'Este pedido'} ya tiene un libro asignado. Se reemplazará la asignación actual. ¿Continuar?`,
+        confirmLabel: 'Reasignar',
+        cancelLabel: 'Cancelar',
+        danger: true,
+      });
+      if (!confirmed) return;
+    }
     await this.run(async () => {
-      await this.api.adminAssign(fulfillmentId, {
+      const payload = {
         bookEditionId: edition.id,
         classificationVersionId: approved.id,
         reason: 'Asignación directa desde catálogo',
-      });
-      this.toast.success(`Asignado: ${book.canonicalTitle}`);
+      };
+      if (order.activeAssignment) {
+        await this.api.adminReplace(order.activeAssignment.id, payload);
+        this.toast.success(`Reasignado: ${book.canonicalTitle}`);
+      } else {
+        await this.api.adminAssign(fulfillmentId, payload);
+        this.toast.success(`Asignado: ${book.canonicalTitle}`);
+      }
       this.selectedOrder.set(null);
       this.selectedBook.set(null);
       this.assignEditionId.set('');
@@ -719,17 +758,32 @@ export class AdminScreen {
       this.replaceTarget.set(null);
       return;
     }
-    this.replaceTarget.set(assignmentId);
     await this.score(assignment.fulfillment.id);
+    this.replaceTarget.set(assignmentId);
+  }
+
+  replacementCandidates(assignment: AdminAssignment): AdminCandidate[] {
+    const candidates = this.scoredFor(assignment.fulfillment.id) ?? [];
+    return candidates.filter((candidate) => candidate.bookEditionId !== assignment.edition.id);
   }
 
   async replaceWithCandidate(assignmentId: string, candidate: AdminCandidate): Promise<void> {
+    const assignment = this.assignments().find((item) => item.id === assignmentId);
+    if (!assignment) return;
+    const confirmed = await this.dialog.confirm({
+      title: 'Reasignar libro',
+      message: `¿Estás seguro de que quieres reemplazar «${assignment.edition.title}» por «${candidate.title}»?`,
+      confirmLabel: 'Reasignar',
+      cancelLabel: 'Cancelar',
+      danger: true,
+    });
+    if (!confirmed) return;
     const reason = await this.dialog.prompt({
-      title: 'Reemplazar libro',
+      title: 'Reasignar libro',
       message: `Se reemplazará con «${candidate.title}».`,
       inputLabel: 'Razón del reemplazo (opcional)',
       placeholder: 'Opcional',
-      confirmLabel: 'Reemplazar',
+      confirmLabel: 'Reasignar',
     });
     if (reason === null) return;
     await this.run(async () => {
@@ -739,7 +793,7 @@ export class AdminScreen {
         candidateId: candidate.candidateId,
         reason: reason || undefined,
       });
-      this.toast.success(`Reemplazado con: ${candidate.title}`);
+      this.toast.success(`Reasignado: ${candidate.title}`);
       this.replaceTarget.set(null);
       await this.loadAssignments();
     });
@@ -854,6 +908,22 @@ export class AdminScreen {
       const corrected = await this.api.correctAdminClassification(classificationId);
       this.toast.success(`Revisión ${corrected.revision} creada con los valores precargados.`);
       void this.router.navigate(['/admin/clasificacion', corrected.id]);
+    });
+  }
+
+  async deleteClassification(classificationId: string): Promise<void> {
+    const confirmed = await this.dialog.confirm({
+      title: 'Eliminar revisión',
+      message: '¿Eliminar esta revisión en borrador? Solo se descarta el borrador; las revisiones aprobadas no se afectan.',
+      confirmLabel: 'Eliminar',
+      cancelLabel: 'Cancelar',
+      danger: true,
+    });
+    if (!confirmed) return;
+    await this.run(async () => {
+      await this.api.deleteAdminClassification(classificationId);
+      this.toast.success('Borrador eliminado.');
+      await this.loadBooks();
     });
   }
 

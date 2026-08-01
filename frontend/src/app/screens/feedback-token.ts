@@ -69,12 +69,27 @@ const COMPLETION_LABELS: Record<number, string> = {
       } @else if (book()) {
         <p class="mb-2 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Tu ficha de lectura</p>
         <h1 class="mb-2 font-display text-4xl font-bold tracking-[-0.045em] text-ink sm:text-5xl">Cuéntanos cómo te fue con «{{ book()!.title }}»</h1>
-        <p class="mb-8 text-[#536875]">
+        <p class="mb-4 text-[#536875]">
           @for (author of book()!.authors; track author) { {{ author }}{{ $last ? '' : ', ' }} }
           @if (book()!.contributors.length > 0) {
             · Trad. @for (contributor of book()!.contributors; track contributor) { {{ contributor }}{{ $last ? '' : ', ' }} }
           }
         </p>
+
+        @if (tooEarlyToAnswer()) {
+          <section class="mb-6 rounded-sm border border-[#e2d5a8] bg-[#fbf6e3] p-4 text-sm text-[#6b5d2a]">
+            <p class="font-bold">Parece que te acaba de llegar.</p>
+            <p class="mt-1">No hay prisa: tómate unos días para leerlo si lo necesitas. Aun así, puedes responder ahora si ya tienes una impresión.</p>
+          </section>
+        }
+
+        <section class="mb-6 rounded-sm border border-[#cad7df] bg-[#eef4f8] p-4 text-sm text-[#3c5568]">
+          <h2 class="font-display text-lg font-bold tracking-[-0.03em] text-ink">Responde cuando termines o abandones el libro</h2>
+          <p class="mt-1">
+            Cuando termines el libro —o si no lo terminas y en algún momento quieres volver a pedir otro—, responde esta
+            encuesta: es lo que usamos para seguir aprendiendo de tu lectura y afinar tus próximas sorpresas.
+          </p>
+        </section>
 
         <section class="space-y-6 rounded-sm border border-[#cad7df] bg-white p-6 sm:p-8">
           <div class="flex flex-wrap gap-3">
@@ -97,29 +112,18 @@ const COMPLETION_LABELS: Record<number, string> = {
           }
 
           @if (feedback.started) {
-            <div class="grid gap-6 sm:grid-cols-2">
-              <label class="block">
-                <span class="text-sm font-semibold text-ink">¿En qué estado quedó?</span>
-                <select [(ngModel)]="feedback.readingStatus" (ngModelChange)="onStatusChange($event)" class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
-                  <option value="completed">Terminado</option>
-                  <option value="in_progress">En progreso</option>
-                  <option value="paused">Pausado</option>
-                  <option value="abandoned">Abandonado</option>
-                </select>
-              </label>
-              <label class="block">
-                <span class="text-sm font-semibold text-ink">¿Cuánto avanzaste?</span>
-                <input type="range" min="5" max="100" step="1" [value]="feedback.completionPercentage" (input)="onCompletionInput($event)" (change)="onCompletionChange($event)" aria-label="Cuánto avanzaste" class="mt-4 w-full accent-coral" />
-                <div class="mt-1 flex justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-[#567088]">
-                  <span>Inicio</span>
-                  <span>Fin</span>
-                </div>
-                <p class="mt-3 text-center text-sm font-bold text-ink">{{ completionLabel() }}</p>
-              </label>
-            </div>
+            <label class="block">
+              <span class="text-sm font-semibold text-ink">¿Cuánto avanzaste?</span>
+              <input type="range" min="5" max="100" step="1" [value]="feedback.completionPercentage" (input)="onCompletionInput($event)" (change)="onCompletionChange($event)" aria-label="Cuánto avanzaste" class="mt-4 w-full accent-coral" />
+              <div class="mt-1 flex justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-[#567088]">
+                <span>Inicio</span>
+                <span>Fin</span>
+              </div>
+              <p class="mt-3 text-center text-sm font-bold text-ink">{{ completionLabel() }}</p>
+            </label>
 
             <div>
-              <span class="text-sm font-semibold text-ink">Lo que funcionó</span>
+              <span class="text-sm font-semibold text-ink">Lo que SÍ me gustó</span>
               <div class="mt-2 flex flex-wrap gap-2">
                 @for (item of positiveAspects; track item.key) {
                   <button type="button" class="rounded-full border px-3 py-1.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-40" [class.bg-ink]="feedback.positiveAspects.includes(item.key)" [class.text-white]="feedback.positiveAspects.includes(item.key)" [class.border-ink]="feedback.positiveAspects.includes(item.key)" [class.bg-white]="!feedback.positiveAspects.includes(item.key)" [class.text-ink]="!feedback.positiveAspects.includes(item.key)" [class.border-[#7d9ab0]]="!feedback.positiveAspects.includes(item.key)" [disabled]="aspectDisabled('positiveAspects', item.key)" (click)="toggleAspect('positiveAspects', item.key)">{{ item.label }}</button>
@@ -128,7 +132,7 @@ const COMPLETION_LABELS: Record<number, string> = {
             </div>
 
             <div>
-              <span class="text-sm font-semibold text-ink">Lo que no funcionó</span>
+              <span class="text-sm font-semibold text-ink">Lo que NO me gustó</span>
               <div class="mt-2 flex flex-wrap gap-2">
                 @for (item of negativeAspects; track item.key) {
                   <button type="button" class="rounded-full border px-3 py-1.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-40" [class.bg-coral]="feedback.negativeAspects.includes(item.key)" [class.text-white]="feedback.negativeAspects.includes(item.key)" [class.border-coral]="feedback.negativeAspects.includes(item.key)" [class.bg-white]="!feedback.negativeAspects.includes(item.key)" [class.text-ink]="!feedback.negativeAspects.includes(item.key)" [class.border-[#7d9ab0]]="!feedback.negativeAspects.includes(item.key)" [disabled]="aspectDisabled('negativeAspects', item.key)" (click)="toggleAspect('negativeAspects', item.key)">{{ item.label }}</button>
@@ -137,13 +141,13 @@ const COMPLETION_LABELS: Record<number, string> = {
             </div>
 
             <label class="block">
-              <span class="text-sm font-semibold text-ink">¿A qué atribuyes el resultado?</span>
+              <span class="text-sm font-semibold text-ink">¿Qué hizo que te gustara o no el libro?</span>
               <select [(ngModel)]="feedback.outcomeAttribution" class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
                 <option value="mostly_book">Principalmente el libro</option>
                 <option value="mixed">Mezcla</option>
                 <option value="mostly_timing">Principalmente el momento</option>
                 <option value="external_circumstance">Circunstancia externa</option>
-                <option value="no_problem">No hubo problema</option>
+                <option value="no_problem">Nada en particular</option>
               </select>
             </label>
 
@@ -163,7 +167,16 @@ const COMPLETION_LABELS: Record<number, string> = {
             <textarea [(ngModel)]="feedback.freeText" rows="4" class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2" placeholder="Cuéntanos cualquier detalle…"></textarea>
           </label>
 
-          <button type="button" class="rounded-sm bg-coral px-6 py-3 text-sm font-bold text-white transition hover:bg-coral-deep disabled:cursor-wait disabled:opacity-60" (click)="submit()" [disabled]="submitting()">Enviar feedback</button>
+          <button type="button" class="rounded-sm bg-coral px-6 py-3 text-sm font-bold text-white transition hover:bg-coral-deep disabled:opacity-60" (click)="submit()" [disabled]="submitting() || !canSubmit()">Enviar feedback</button>
+          @if (!canSubmit()) {
+            <p class="mt-2 text-xs text-[#567088]">
+              @if (!feedback.started) {
+                Selecciona el motivo por el que no lo empezaste para enviar.
+              } @else {
+                Para enviar, marca al menos un aspecto (que te haya gustado o no) y califica qué tan buena fue la selección.
+              }
+            </p>
+          }
         </section>
       }
     </div>
@@ -184,6 +197,18 @@ export class FeedbackToken {
   readonly invalid = signal(false);
   readonly invalidMessage = signal('La invitación no es válida o ya fue utilizada.');
   readonly dragValue = signal(100);
+  private deliveryChangedAt: string | null = null;
+
+  readonly tooEarlyToAnswer = () => {
+    if (!this.deliveryChangedAt) return false;
+    const changed = new Date(this.deliveryChangedAt);
+    const now = new Date();
+    return (
+      changed.getFullYear() === now.getFullYear() &&
+      changed.getMonth() === now.getMonth() &&
+      changed.getDate() === now.getDate()
+    );
+  };
 
   feedback: FeedbackForm = {
     started: true,
@@ -193,7 +218,7 @@ export class FeedbackToken {
     positiveAspects: [] as string[],
     negativeAspects: [] as string[],
     selectionFitRating: null,
-    outcomeAttribution: 'mostly_book',
+    outcomeAttribution: 'no_problem',
     freeText: '',
   };
 
@@ -207,6 +232,7 @@ export class FeedbackToken {
   async load(): Promise<void> {
     try {
       const result = await this.api.getFeedbackInvitation(this.token);
+      this.deliveryChangedAt = result.deliveryChangedAt;
       if (result.received) {
         this.received.set(true);
       } else {
@@ -224,23 +250,13 @@ export class FeedbackToken {
   setStarted(value: boolean): void {
     this.feedback.started = value;
     if (value) {
-      this.feedback.readingStatus = 'in_progress';
-      this.feedback.completionPercentage = 38;
+      this.feedback.readingStatus = 'completed';
+      this.feedback.completionPercentage = 100;
       this.feedback.notStartedReason = null;
     } else {
       this.feedback.readingStatus = 'not_started';
       this.feedback.completionPercentage = 0;
       this.feedback.selectionFitRating = null;
-    }
-    this.dragValue.set(this.feedback.completionPercentage);
-  }
-
-  onStatusChange(status: FeedbackStatus): void {
-    this.feedback.readingStatus = status;
-    if (status === 'completed') {
-      this.feedback.completionPercentage = 100;
-    } else if (this.feedback.completionPercentage === 100) {
-      this.feedback.completionPercentage = 88;
     }
     this.dragValue.set(this.feedback.completionPercentage);
   }
@@ -252,15 +268,18 @@ export class FeedbackToken {
   onCompletionChange(event: Event): void {
     const value = Number((event.target as HTMLInputElement).value);
     this.feedback.completionPercentage = this.nearestCompletionStep(value);
+    this.feedback.readingStatus = this.feedback.completionPercentage === 100 ? 'completed' : 'abandoned';
     this.dragValue.set(this.feedback.completionPercentage);
-    if (this.feedback.readingStatus === 'completed' && this.feedback.completionPercentage !== 100) {
-      this.feedback.readingStatus = 'in_progress';
-    }
   }
 
   completionLabel(): string {
     const step = this.nearestCompletionStep(this.dragValue());
     return COMPLETION_LABELS[step] ?? `${step}%`;
+  }
+
+  canSubmit(): boolean {
+    if (!this.feedback.started) return this.feedback.notStartedReason !== null;
+    return (this.feedback.positiveAspects.length > 0 || this.feedback.negativeAspects.length > 0) && this.feedback.selectionFitRating !== null;
   }
 
   private nearestCompletionStep(value: number): number {

@@ -38,7 +38,7 @@ export const FEEDBACK_LEARNING_MAPPINGS: Record<'positive' | 'negative', Record<
       { targetDimension: 'conceptual_depth_appreciation', bookFeatureKey: 'conceptual_depth', operation: 'reinforce_near_book_value', margin: 0, baseWeight: 1.4, reasonCode: 'f05_ideas_learn' },
       { targetDimension: 'introspection_tolerance', bookFeatureKey: 'introspection_density', operation: 'reinforce_near_book_value', margin: 0, baseWeight: 1.4, reasonCode: 'f05_reflection_learn' },
     ],
-    atmosphere: [{ targetDimension: 'descriptive_density_preference', bookFeatureKey: 'descriptive_density', operation: 'reinforce_near_book_value', margin: 0, baseWeight: 1.4, reasonCode: 'f05_atmosphere_learn' }],
+    atmosphere: [],
     emotional_effect: [{ targetDimension: 'emotional_intensity_preference', bookFeatureKey: 'emotional_intensity', operation: 'reinforce_near_book_value', margin: 0, baseWeight: 1.4, reasonCode: 'f05_emotional_effect_learn' }],
     setting_world: [{ targetDimension: 'worldbuilding_load_tolerance', bookFeatureKey: 'worldbuilding_load', operation: 'reinforce_near_book_value', margin: 0, baseWeight: 1.4, reasonCode: 'f05_setting_learn' }],
     length: [],

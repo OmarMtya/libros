@@ -6,7 +6,7 @@ export type FeedbackVerdict = 'ready' | 'needs_review' | 'needs_clarification' |
 export type VerdictInput = {
   started: boolean;
   hasAspects: boolean;
-  hasMappedAspects: boolean;
+  hasRecognizedAspects: boolean;
   classificationApproved: boolean;
   requiredFeaturesPresent: boolean;
 };
@@ -15,7 +15,7 @@ export function deriveVerdict(input: VerdictInput): FeedbackVerdict {
   if (!input.started) return 'commercial_only';
   if (!input.classificationApproved) return 'needs_review';
   if (!input.hasAspects) return 'needs_clarification';
-  if (!input.hasMappedAspects) return 'needs_review';
+  if (!input.hasRecognizedAspects) return 'needs_review';
   if (!input.requiredFeaturesPresent) return 'needs_review';
   return 'ready';
 }
@@ -36,6 +36,11 @@ export function learningStatusFor(verdict: FeedbackVerdict): { learningStatus: '
 }
 
 const dimensionByKey = new Map(DIMENSIONS.map((dimension) => [dimension.key, dimension]));
+
+const RECOGNIZED_ASPECT_KEYS = new Set<string>([
+  ...Object.keys(FEEDBACK_MAPPINGS.positive),
+  ...Object.keys(FEEDBACK_MAPPINGS.negative),
+]);
 
 export function mappingBookFeatureKeys(polarity: 'positive' | 'negative', aspectKeys: string[]): Set<string> {
   const keys = new Set<string>();
@@ -89,19 +94,20 @@ export class FeedbackContextResolver {
     const classification = assignment.classification;
     const positiveAspects = feedback.positiveAspects?.map((aspect) => aspect.optionKey) ?? [];
     const negativeAspects = feedback.negativeAspects?.map((aspect) => aspect.optionKey) ?? [];
-    const hasAspects = positiveAspects.length > 0 || negativeAspects.length > 0;
+    const aspectKeys = [...positiveAspects, ...negativeAspects];
+    const hasAspects = aspectKeys.length > 0;
+    const hasRecognizedAspects = hasAspects && aspectKeys.every((key) => RECOGNIZED_ASPECT_KEYS.has(key));
     const requiredFeatures = new Set<string>([
       ...mappingBookFeatureKeys('positive', positiveAspects),
       ...mappingBookFeatureKeys('negative', negativeAspects),
     ]);
     const presentFeatures = new Set(classification.features.map((feature) => feature.featureKey));
-    const hasMappedAspects = requiredFeatures.size > 0;
     const requiredFeaturesPresent = [...requiredFeatures].every((featureKey) => presentFeatures.has(featureKey));
 
     const verdict = deriveVerdict({
       started: feedback.started,
       hasAspects,
-      hasMappedAspects,
+      hasRecognizedAspects,
       classificationApproved: classification.status === 'approved',
       requiredFeaturesPresent,
     });

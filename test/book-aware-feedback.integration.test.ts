@@ -193,6 +193,52 @@ run('cadena envío -> invitación -> feedback', () => {
     expect(resolved.book.contributors).toEqual(['Traductor T']);
   });
 
+  it('la invitación es válida desde shipped (sin esperar delivered); GET resuelve el libro', async () => {
+    const { edition, classification } = await makeApprovedEdition();
+    const userId = '22222222-2222-2222-2222-222222222222';
+    await prisma!.user.create({ data: { id: userId } });
+    const { fulfillment } = await makeOrderFulfillment(userId);
+    const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
+    await curationService!.pack(assignment.id);
+    const shipped = await curationService!.ship(assignment.id);
+    expect((await prisma!.fulfillment.findUnique({ where: { id: fulfillment.id } }))?.status).toBe('shipped');
+
+    const resolved = await tokenService!.resolveInvitation(shipped.plainToken);
+    expect(resolved.received).toBe(false);
+    expect(resolved.book.title).toBe('Eligh');
+  });
+
+  it('invitación válida también en in_delivery', async () => {
+    const { edition, classification } = await makeApprovedEdition();
+    const userId = '22222222-2222-2222-2222-222222222223';
+    await prisma!.user.create({ data: { id: userId } });
+    const { fulfillment } = await makeOrderFulfillment(userId);
+    const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
+    await curationService!.pack(assignment.id);
+    const shipped = await curationService!.ship(assignment.id);
+    await curationService!.startDelivery(assignment.id);
+
+    const resolved = await tokenService!.resolveInvitation(shipped.plainToken);
+    expect(resolved.received).toBe(false);
+    expect(resolved.book.title).toBe('Eligh');
+  });
+
+  it('feedback con logística en shipped marca el envío como entregado (edge case)', async () => {
+    const { edition, classification } = await makeApprovedEdition();
+    const userId = '22222222-2222-2222-2222-222222222224';
+    await prisma!.user.create({ data: { id: userId } });
+    const { fulfillment } = await makeOrderFulfillment(userId);
+    const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
+    await curationService!.pack(assignment.id);
+    const { plainToken } = await curationService!.ship(assignment.id);
+
+    const result = await tokenService!.submitByToken(plainToken, feedbackPayload({ idempotencyKey: nextKey() }), userId);
+    expect(result.feedback.id).toBeTruthy();
+    expect((await prisma!.fulfillment.findUnique({ where: { id: fulfillment.id } }))?.status).toBe('delivered');
+    const cycle = await prisma!.curationAssignment.findUnique({ where: { id: assignment.id } });
+    expect(cycle?.feedbackCycleStatus).toBe('final_received');
+  });
+
   it('no se puede asignar ni enviar sin clasificación aprobada; no se puede reemplazar después de shipped', async () => {
     const catalog = catalogService!;
     const actor = '00000000-0000-0000-0000-0000000000aa';
@@ -489,6 +535,72 @@ run('cadena envío -> invitación -> feedback', () => {
 
     const topic = await runFor(feedbackPayload({ negativeAspects: ['topic_no_interest'], idempotencyKey: nextKey() }));
     expect(topic.learningStatus).toBe('needs_review');
+  });
+
+  it('atmosphere sigue siendo válido: se guarda como aspecto, no genera evidencia ni toca descriptive_density_preference', async () => {
+    const { edition } = await makeApprovedEdition();
+    const userId = 'cccc1111-2222-3333-4444-555566667777';
+    await prisma!.user.create({ data: { id: userId } });
+    const { fulfillment } = await makeOrderFulfillment(userId);
+    const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: (await prisma!.bookClassificationVersion.findFirstOrThrow({ where: { bookEditionId: edition.id, status: 'approved' } })).id });
+    await curationService!.pack(assignment.id);
+    const { plainToken } = await curationService!.ship(assignment.id);
+    await curationService!.startDelivery(assignment.id);
+    await curationService!.delivered(assignment.id);
+
+    const result = await tokenService!.submitByToken(plainToken, feedbackPayload({ positiveAspects: ['atmosphere'], negativeAspects: [], idempotencyKey: nextKey() }), userId);
+    expect(result.learningStatus).toBe('processed');
+    expect(result.feedback.processingOutcome).toBe('learned_without_evidence');
+
+    const aspects = await prisma!.readingFeedbackAspect.findMany({ where: { feedbackId: result.feedback.id } });
+    expect(aspects).toEqual([expect.objectContaining({ polarity: 'positive', optionKey: 'atmosphere' })]);
+
+    const evidence = await prisma!.readerEvidence.findMany({ where: { sourceId: result.feedback.id } });
+    expect(evidence).toEqual([]);
+
+    const profile = await prisma!.readerProfile.findUniqueOrThrow({ where: { userId } });
+    const descriptiveDensity = await prisma!.readerProfileDimension.findUniqueOrThrow({
+      where: { profileId_dimensionKey: { profileId: profile.id, dimensionKey: 'descriptive_density_preference' } },
+    });
+    expect(descriptiveDensity.value).toBeNull();
+    expect(descriptiveDensity.evidenceCount).toBe(0);
+  });
+
+  it('combinar atmosphere con tension_curiosity solo genera evidencia de tensión', async () => {
+    const { edition } = await makeApprovedEdition();
+    const userId = 'dddd2222-3333-4444-5555-666677778888';
+    await prisma!.user.create({ data: { id: userId } });
+    const { fulfillment } = await makeOrderFulfillment(userId);
+    const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: (await prisma!.bookClassificationVersion.findFirstOrThrow({ where: { bookEditionId: edition.id, status: 'approved' } })).id });
+    await curationService!.pack(assignment.id);
+    const { plainToken } = await curationService!.ship(assignment.id);
+    await curationService!.startDelivery(assignment.id);
+    await curationService!.delivered(assignment.id);
+
+    const result = await tokenService!.submitByToken(plainToken, feedbackPayload({ positiveAspects: ['atmosphere', 'tension_curiosity'], negativeAspects: [], idempotencyKey: nextKey() }), userId);
+    expect(result.learningStatus).toBe('processed');
+    expect(result.feedback.processingOutcome).toBe('learned');
+    const evidence = await prisma!.readerEvidence.findMany({ where: { sourceId: result.feedback.id } });
+    expect(evidence.map((item) => item.dimensionKey)).toEqual(['tension_preference']);
+    expect(evidence.every((item) => item.reasonCode !== 'f05_atmosphere_learn')).toBe(true);
+  });
+
+  it('asignación legacy sin candidato ligado deja recommendationId null', async () => {
+    const { edition } = await makeApprovedEdition();
+    const userId = 'eeee3333-4444-5555-6666-777788889999';
+    await prisma!.user.create({ data: { id: userId } });
+    const { fulfillment } = await makeOrderFulfillment(userId);
+    const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: (await prisma!.bookClassificationVersion.findFirstOrThrow({ where: { bookEditionId: edition.id, status: 'approved' } })).id });
+    await curationService!.pack(assignment.id);
+    const { plainToken } = await curationService!.ship(assignment.id);
+    await curationService!.startDelivery(assignment.id);
+    await curationService!.delivered(assignment.id);
+
+    expect(assignment.recommendationCandidateId).toBeNull();
+    const result = await tokenService!.submitByToken(plainToken, feedbackPayload({ positiveAspects: ['tension_curiosity'], negativeAspects: [], idempotencyKey: nextKey() }), userId);
+    expect(result.feedback.recommendationId).toBeNull();
+    const stored = await prisma!.readingFeedback.findUniqueOrThrow({ where: { id: result.feedback.id } });
+    expect(stored.recommendationId).toBeNull();
   });
 
   it('close-without-feedback revoca la invitación y genera 0 evidencias; reissue bloqueado', async () => {

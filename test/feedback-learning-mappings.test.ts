@@ -38,6 +38,13 @@ describe('FEEDBACK_LEARNING_MAPPINGS', () => {
     expect(FEEDBACK_LEARNING_MAPPINGS.positive.nothing_in_particular ?? []).toEqual([]);
     expect(FEEDBACK_LEARNING_MAPPINGS.negative.topic_no_interest ?? []).toEqual([]);
   });
+
+  it('atmosphere no genera evidencia dimensional (ni descriptive_density_preference)', () => {
+    const mappings = FEEDBACK_LEARNING_MAPPINGS.positive.atmosphere!;
+    expect(mappings).toEqual([]);
+    const targets = FEEDBACK_LEARNING_MAPPINGS.positive.atmosphere!.map((mapping) => mapping.targetDimension);
+    expect(targets).not.toContain('descriptive_density_preference');
+  });
 });
 
 describe('observedValueFor', () => {

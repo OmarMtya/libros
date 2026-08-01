@@ -66,6 +66,11 @@ export class CatalogController {
     return this.catalog.correct(user.id, classificationId);
   }
 
+  @Delete('classifications/:id')
+  deleteClassification(@Param('id', ParseUUIDPipe) classificationId: string) {
+    return this.catalog.deleteClassification(classificationId);
+  }
+
   @Get('classifications/:id/diagnostics')
   diagnostics(@Param('id', ParseUUIDPipe) classificationId: string) {
     return this.catalog.diagnostics(classificationId);

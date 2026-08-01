@@ -217,6 +217,32 @@ run('editor manual de clasificaciones', () => {
     await expect(catalog!.saveDraft(ACTOR, approved.id, { ...DRAFT_DTO, features: [], tags: [] })).rejects.toThrow(/no se modifica/);
   });
 
+  it('corregir de nuevo reutiliza el borrador pendiente en lugar de acumular revisiones', async () => {
+    const { approved } = await makeApprovedFiction();
+    const first = await catalog!.correct(ACTOR, approved.id);
+    const second = await catalog!.correct(ACTOR, approved.id);
+    expect(second.id).toBe(first.id);
+    expect(second.revision).toBe(first.revision);
+    const drafts = await prisma!.bookClassificationVersion.findMany({ where: { bookEditionId: first.bookEditionId, status: 'draft' } });
+    expect(drafts).toHaveLength(1);
+  });
+
+  it('se puede eliminar una revisión en borrador', async () => {
+    const { approved } = await makeApprovedFiction();
+    const corrected = await catalog!.correct(ACTOR, approved.id);
+    const result = await catalog!.deleteClassification(corrected.id);
+    expect(result.deleted).toBe(true);
+    await expect(prisma!.bookClassificationVersion.findUniqueOrThrow({ where: { id: corrected.id } })).rejects.toThrow();
+    const remaining = await prisma!.bookClassificationVersion.findMany({ where: { bookEditionId: corrected.bookEditionId } });
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0]!.status).toBe('approved');
+  });
+
+  it('no se puede eliminar una revisión aprobada', async () => {
+    const { approved } = await makeApprovedFiction();
+    await expect(catalog!.deleteClassification(approved.id)).rejects.toThrow(/borrador/);
+  });
+
   it('subgenreApplicable es true cuando el genre seleccionado tiene subgéneros y exige al menos uno', async () => {
     const { edition } = await makeEdition();
     const draft = await catalog!.getOrCreateDraft(ACTOR, edition.id, DRAFT_DTO);
