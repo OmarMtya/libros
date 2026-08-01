@@ -4,6 +4,8 @@ import { QUESTIONNAIRE_VERSION } from '../profile/catalog';
 import { slowBurnCompensatorsRuleFor } from '../profile/conditional-rules';
 import { EvidenceFactory, EvidenceInput } from '../profile/evidence.factory';
 import { aggregateDimension, evidenceFingerprint, round } from '../profile/profile-calculation';
+import { buildPriorityVector, PRIORITY_VECTOR_MAPPING_VERSION, PRIORITY_VECTOR_NORMALIZATION_METHOD, PriorityFactor, PriorityVector } from '../scoring/priority-vector';
+import { deriveTagPreferences, tagEvidenceFingerprint } from '../feedback/feedback-tag-preferences';
 import { ProfileService } from '../profile/profile.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -17,6 +19,35 @@ export class QuestionnaireService {
     private readonly profiles: ProfileService,
     private readonly evidenceFactory: EvidenceFactory,
   ) {}
+
+  async reset(userId: string) {
+    const profile = await this.profiles.ensureProfile(userId);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.questionnaireSession.deleteMany({ where: { userId } });
+      await tx.readerTagPreference.deleteMany({ where: { profileId: profile.id } });
+      await tx.readerOperationalConstraints.deleteMany({ where: { profileId: profile.id } });
+      await tx.readerConditionalRule.deleteMany({ where: { profileId: profile.id } });
+      await tx.readerPositiveTrigger.deleteMany({ where: { profileId: profile.id } });
+      const questionnaireEvidence = await tx.readerEvidence.findMany({
+        where: { profileId: profile.id, sourceType: 'questionnaire_answer' },
+        select: { id: true },
+      });
+      const ids = questionnaireEvidence.map((item) => item.id);
+      if (ids.length > 0) {
+        await tx.readerEvidence.updateMany({ where: { supersededById: { in: ids } }, data: { supersededById: null } });
+        await tx.readerEvidence.updateMany({ where: { id: { in: ids } }, data: { status: 'rejected', deactivatedAt: new Date() } });
+      }
+    });
+    return this.profiles.recompute(userId, 'questionnaire_reset');
+  }
+
+  async listSessions(userId: string) {
+    return this.prisma.questionnaireSession.findMany({
+      where: { userId },
+      orderBy: { startedAt: 'desc' },
+      include: { answers: { select: { id: true, questionKey: true, answeredAt: true }, orderBy: { answeredAt: 'asc' } } },
+    });
+  }
 
   async createSession(userId: string) {
     await this.profiles.ensureProfile(userId);
@@ -34,14 +65,33 @@ export class QuestionnaireService {
     this.assertSessionOwner(session.userId, userId);
     if (session.status !== 'started') return null;
     const answered = new Map(session.answers.map((answer) => [answer.questionKey, answer.normalizedResponse]));
-    const definitions = await this.prisma.questionDefinition.findMany({
-      where: { questionnaireVersion: session.questionnaireVersion, isActive: true },
-      include: { optionMappings: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } } },
-      orderBy: { displayOrder: 'asc' },
-    });
-    const next = definitions.find((question) => !answered.has(question.questionKey) && this.isVisible(question, answered));
+    const visible = await this.visibleDefinitions(session, answered);
+    const index = visible.findIndex((question) => !answered.has(question.questionKey));
+    const next = index === -1 ? null : visible[index];
     if (!next) return null;
-    return this.publicQuestion(next);
+    return { ...this.publicQuestion(next), position: index + 1, totalQuestions: visible.length };
+  }
+
+  async getQuestionWithResponse(sessionId: string, questionKey: string, userId: string) {
+    const session = await this.prisma.questionnaireSession.findUnique({ where: { id: sessionId }, include: { answers: true } });
+    if (!session) throw new NotFoundException('Questionnaire session not found.');
+    this.assertSessionOwner(session.userId, userId);
+    if (session.status !== 'started') throw new ConflictException('Questionnaire session is not active.');
+    const question = await this.prisma.questionDefinition.findUnique({
+      where: { questionKey_questionnaireVersion: { questionKey, questionnaireVersion: session.questionnaireVersion } },
+      include: { optionMappings: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } } },
+    });
+    if (!question) throw new NotFoundException('Question is not defined for this session version.');
+    const answered = new Map(session.answers.map((answer) => [answer.questionKey, answer.normalizedResponse]));
+    const visible = await this.visibleDefinitions(session, answered);
+    const index = visible.findIndex((item) => item.questionKey === questionKey);
+    const answer = session.answers.find((item) => item.questionKey === questionKey);
+    return {
+      ...this.publicQuestion(question),
+      position: index === -1 ? visible.length + 1 : index + 1,
+      totalQuestions: visible.length,
+      response: answer?.rawResponse ?? null,
+    };
   }
 
   async submitAnswer(sessionId: string, questionKey: string, body: { response: unknown; stimulusHash?: string; idempotencyKey?: string }, userId: string) {
@@ -62,6 +112,15 @@ export class QuestionnaireService {
     const profile = await this.profiles.ensureProfile(session.userId);
 
     const answer = await this.prisma.$transaction(async (tx) => {
+      const previous = await tx.questionAnswer.findMany({ where: { sessionId, questionKey } });
+      const previousIds = previous.map((answer) => answer.id);
+      if (previousIds.length > 0) {
+        await tx.readerEvidence.updateMany({ where: { supersededById: { in: previousIds } }, data: { supersededById: null } });
+        await tx.readerEvidence.updateMany({ where: { sourceId: { in: previousIds } }, data: { status: 'rejected', deactivatedAt: new Date() } });
+        await tx.readerPositiveTriggerEvidence.deleteMany({ where: { sourceId: { in: previousIds } } });
+        await tx.readerConditionalRule.deleteMany({ where: { sourceId: { in: previousIds } } });
+        await tx.questionAnswer.deleteMany({ where: { sessionId, questionKey } });
+      }
       const created = await tx.questionAnswer.create({
         data: {
           sessionId,
@@ -76,17 +135,20 @@ export class QuestionnaireService {
         },
       });
       const mappings = this.resolveMappings(question, normalized);
-      await this.evidenceFactory.createMany(tx, {
-        userId: session.userId,
-        profileId: profile.id,
-        sourceType: 'questionnaire_answer',
-        sourceId: created.id,
-        evidence: mappings,
-      });
-      await this.applyTagPreferences(tx, profile.id, question.questionKey, normalized);
+      if (mappings.length > 0) {
+        await this.evidenceFactory.createMany(tx, {
+          userId: session.userId,
+          profileId: profile.id,
+          sourceType: 'questionnaire_answer',
+          sourceId: created.id,
+          evidence: mappings,
+        });
+      }
+      await this.applyTagPreferences(tx, profile.id, question.questionKey, normalized, created.id);
       await this.applyOperationalConstraints(tx, profile.id, question.questionKey, normalized);
       await this.createConditionalRules(tx, profile.id, created.id, question.questionKey, normalized);
       await this.createPositiveTriggers(tx, profile.id, created.id, question, normalized);
+      await tx.readerPositiveTrigger.deleteMany({ where: { evidence: { none: {} } } });
       return created;
     });
     await this.profiles.recompute(session.userId, 'questionnaire_answer', answer.id);
@@ -128,14 +190,22 @@ export class QuestionnaireService {
       const ranking = Array.isArray(response) ? response : this.readStrings(response, 'ranking');
       const validation = question.validationJson as { allowed?: string[]; maxItems?: number } | null;
       if (ranking.length !== 3 || new Set(ranking).size !== ranking.length || !ranking.every((item) => validation?.allowed?.includes(item))) throw new BadRequestException('Ranking must contain three distinct allowed values.');
-      return { ranking };
+      let priorityVector: PriorityVector;
+      try {
+        priorityVector = buildPriorityVector(ranking as PriorityFactor[]);
+      } catch (error) {
+        throw new BadRequestException(error instanceof Error ? error.message : 'Ranking is invalid.');
+      }
+      return { ranking, priorityVector, normalizationMethod: PRIORITY_VECTOR_NORMALIZATION_METHOD, mappingVersion: PRIORITY_VECTOR_MAPPING_VERSION };
     }
     if (response === null || typeof response !== 'object' || Array.isArray(response)) throw new BadRequestException('A structured response must be an object.');
     if (question.responseType === ResponseType.book_search) return this.normalizeBookSearch(question, response as Record<string, unknown>);
     if (question.questionKey === 'Q15_ADDITIONAL_COMMENTS') {
       const comment = (response as Record<string, unknown>)['comment'];
-      if (typeof comment !== 'string' || comment.trim().length > 2000) throw new BadRequestException('El comentario adicional debe tener hasta 2000 caracteres.');
-      return { comment: comment.trim() };
+      if (comment !== undefined && comment !== null && typeof comment !== 'string') throw new BadRequestException('El comentario adicional debe ser texto.');
+      const trimmed = typeof comment === 'string' ? comment.trim() : '';
+      if (trimmed.length > 2000) throw new BadRequestException('El comentario adicional debe tener hasta 2000 caracteres.');
+      return trimmed ? { comment: trimmed } : { skipped: true };
     }
     if (question.questionKey === 'Q07_COMPLEXITY') {
       return { linguistic: this.readScaleValue(response, 'linguistic'), structural: this.readScaleValue(response, 'structural') };
@@ -152,6 +222,7 @@ export class QuestionnaireService {
 
   private resolveMappings(question: QuestionWithOptions, normalized: Record<string, unknown>): EvidenceInput[] {
     if (normalized.skipped === true) return [];
+    if (question.questionKey === 'Q03_PRIORITY_RANKING') return [];
     if (question.questionKey === 'Q07_COMPLEXITY') {
       return [
         { dimensionKey: 'linguistic_complexity_tolerance', observedValue: this.readNumber(normalized, 'linguistic'), reasonCode: 'q07_linguistic_complexity', baseWeight: 0.6, rawPayload: { question_key: question.questionKey, normalized_response: normalized } },
@@ -167,16 +238,42 @@ export class QuestionnaireService {
     }));
   }
 
-  private async applyTagPreferences(tx: Prisma.TransactionClient, profileId: string, questionKey: string, normalized: Record<string, unknown>) {
+  private async applyTagPreferences(tx: Prisma.TransactionClient, profileId: string, questionKey: string, normalized: Record<string, unknown>, sourceId: string) {
     const requested = questionKey === 'Q11_GENRES_THEMES' ? this.tagSelections(normalized) : [];
-    for (const preference of requested) {
-      const tag = await tx.tagVersion.findFirst({ where: { tagKey: preference.tagKey, taxonomicVersion: 'tag-tax/1.0.1', status: 'active' } });
-      if (!tag) throw new BadRequestException(`Unknown or inactive tag: ${preference.tagKey}.`);
-      await tx.readerTagPreference.upsert({
-        where: { profileId_tagKey: { profileId, tagKey: preference.tagKey } },
-        create: { profileId, tagKey: preference.tagKey, tagType: tag.tagType, affinity: preference.affinity, confidence: 0.4, evidenceCount: 1 },
-        update: { affinity: preference.affinity, confidence: 0.4, evidenceCount: { increment: 1 } },
+    if (questionKey === 'Q11_GENRES_THEMES') {
+      const profile = await tx.readerProfile.findUniqueOrThrow({ where: { id: profileId }, select: { userId: true } });
+      await tx.readerTagEvidence.updateMany({
+        where: { profileId, sourceType: 'questionnaire' },
+        data: { status: 'rejected' },
       });
+      for (const preference of requested) {
+        const tag = await tx.tagVersion.findFirst({ where: { tagKey: preference.tagKey, taxonomicVersion: 'tag-tax/1.0.1', status: 'active' } });
+        if (!tag) throw new BadRequestException(`Unknown or inactive tag: ${preference.tagKey}.`);
+        const adjustment = preference.affinity;
+        const rawPayload = { questionnaire_version: QUESTIONNAIRE_VERSION, question_key: 'Q11_GENRES_THEMES', tag_key: preference.tagKey, affinity: preference.affinity };
+        const fingerprint = tagEvidenceFingerprint('questionnaire', sourceId, preference.tagKey, 'q11_initial', adjustment, rawPayload);
+        await tx.readerTagEvidence.upsert({
+          where: { sourceType_sourceId_tagKey_reasonCode: { sourceType: 'questionnaire', sourceId, tagKey: preference.tagKey, reasonCode: 'q11_initial' } },
+          create: {
+            userId: profile.userId,
+            profileId,
+            sourceType: 'questionnaire',
+            sourceId,
+            tagKey: preference.tagKey,
+            adjustment,
+            direction: adjustment < 0 ? -1 : 1,
+            baseWeight: 1,
+            finalWeight: 1,
+            reasonCode: 'q11_initial',
+            mappingVersion: 'questionnaire-tag/1.0',
+            rawPayload: rawPayload as Prisma.InputJsonValue,
+            evidenceFingerprint: fingerprint,
+            status: 'active',
+          },
+          update: { adjustment, evidenceFingerprint: fingerprint },
+        });
+      }
+      await deriveTagPreferences(tx, profileId);
     }
   }
 
@@ -223,6 +320,15 @@ export class QuestionnaireService {
     return { languages, acceptedFormats: requestedFormats.length ? requestedFormats : ['physical'], formatSource: requestedFormats.length ? 'user_selected' : 'product_default' };
   }
 
+  private async visibleDefinitions(session: { questionnaireVersion: string }, answered: Map<string, Prisma.JsonValue>): Promise<QuestionWithOptions[]> {
+    const definitions = await this.prisma.questionDefinition.findMany({
+      where: { questionnaireVersion: session.questionnaireVersion, isActive: true },
+      include: { optionMappings: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } } },
+      orderBy: { displayOrder: 'asc' },
+    });
+    return definitions.filter((question) => this.isVisible(question, answered));
+  }
+
   private isVisible(question: QuestionDefinition, answered: Map<string, Prisma.JsonValue>): boolean {
     if (question.questionKey !== 'Q05A_SLOW_BURN_CONDITIONS') return true;
     const answer = answered.get('Q05_SLOW_BURN_TOLERANCE') as { value?: number } | undefined;
@@ -236,9 +342,11 @@ export class QuestionnaireService {
   private normalizeBookSearch(question: QuestionWithOptions, response: Record<string, unknown>): Record<string, unknown> {
     const books = response['books'];
     if (Array.isArray(books) && books.length > 0) {
-      const validation = question.validationJson as { maxItems?: number } | null;
-      const maxItems = validation?.maxItems ?? (question.questionKey === 'Q02_DISLIKED_BOOK' ? 1 : Number.MAX_SAFE_INTEGER);
+      const validation = question.validationJson as { minItems?: number; maxItems?: number } | null;
+      const maxItems = validation?.maxItems ?? (question.questionKey === 'Q02_DISLIKED_BOOK' ? 20 : Number.MAX_SAFE_INTEGER);
       if (books.length > maxItems) throw new BadRequestException(`A maximum of ${maxItems} books is allowed for ${question.questionKey}.`);
+      const minItems = validation?.minItems ?? 0;
+      if (books.length < minItems) throw new BadRequestException(`A minimum of ${minItems} books is required for ${question.questionKey}.`);
       const normalized = books.map((item, index) => {
         if (!item || typeof item !== 'object' || Array.isArray(item)) throw new BadRequestException(`Book at index ${index} must be an object.`);
         const book = item as Record<string, unknown>;
@@ -250,7 +358,7 @@ export class QuestionnaireService {
           if (freeText !== undefined && freeText !== null && typeof freeText !== 'string') throw new BadRequestException(`Book at index ${index} has invalid free_text.`);
           if (question.questionKey === 'Q01_LOVED_BOOKS') {
             const likedAspects = this.readStrings(book, 'liked_aspects');
-            if (!likedAspects.length || !likedAspects.every((aspect) => ['characters', 'tension_mystery', 'atmosphere', 'style', 'ideas', 'emotion'].includes(aspect))) throw new BadRequestException(`Book at index ${index} requires at least one valid liked_aspect.`);
+            if (!likedAspects.length || !likedAspects.every((aspect) => ['characters', 'prose', 'originality', 'ending', 'emotions', 'universe'].includes(aspect))) throw new BadRequestException(`Book at index ${index} requires at least one valid liked_aspect.`);
             return { work_id: openLibraryId.trim(), edition_id: typeof editionId === 'string' ? editionId : null, liked_aspects: [...new Set(likedAspects)], free_text: freeText?.trim() || null };
           }
           const reasonCodes = this.readStrings(book, 'reason_codes').length ? this.readStrings(book, 'reason_codes') : this.readStrings(response, 'reason_codes');

@@ -1,8 +1,12 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { OrderStatus, PaymentProvider, PaymentStatus, Prisma, ProductPackageKey } from '@prisma/client';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { FulfillmentStatus, OrderStatus, PaymentProvider, PaymentStatus, Prisma, ProductPackageKey } from '@prisma/client';
 import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateCheckoutDto } from './orders.dto';
+
+const PAYMENT_LINK_PREFIXES: Array<{ prefix: string; packageKey: ProductPackageKey }> = [
+  { prefix: 'libro_sorpresa_fisico-', packageKey: 'libro_sorpresa_fisico' },
+  { prefix: 'libro_sorpresa_completo-', packageKey: 'libro_sorpresa_completo' },
+];
 
 @Injectable()
 export class OrdersService {
@@ -21,62 +25,60 @@ export class OrdersService {
       where: { userId },
       select: {
         id: true, packageKey: true, packageName: true, totalCents: true, currency: true, status: true, createdAt: true, paidAt: true,
-        fulfillment: { select: { status: true, bookTitle: true, bookAuthor: true, coverUrl: true, trackingNumber: true, ebookStoragePath: true, audioStoragePath: true } },
+        shippingAddress: true,
+        fulfillment: {
+          select: {
+            status: true, bookTitle: true, bookAuthor: true, coverUrl: true, trackingNumber: true, shippedAt: true, deliveredAt: true,
+            assignments: { where: { status: 'active' }, select: { id: true, feedbackCycleStatus: true } },
+          },
+        },
+        _count: { select: { feedbacks: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async createCheckout(userId: string, dto: CreateCheckoutDto) {
-    const [profile, product, user] = await Promise.all([
-      this.prisma.readerProfile.findUnique({ where: { userId }, select: { readyToRecommend: true } }),
-      this.prisma.productPackage.findUnique({ where: { key: dto.packageKey } }),
-      this.prisma.user.findUnique({ where: { id: userId }, select: { email: true } }),
-    ]);
-    if (!profile?.readyToRecommend) throw new BadRequestException('Completa tu cuestionario antes de elegir un paquete.');
-    if (!product?.isActive || product.priceCents < 1) throw new NotFoundException('Este paquete no está disponible para compra.');
-    if (product.currency !== 'MXN') throw new BadRequestException('El paquete no tiene una moneda válida.');
-    const address = this.normalizeAddress(dto.shippingAddress);
-    const totalCents = product.priceCents + product.shippingCents;
-    const order = await this.prisma.order.create({
-      data: {
-        userId,
-        packageId: product.id,
-        packageKey: product.key,
-        packageName: product.name,
-        subtotalCents: product.priceCents,
-        shippingCents: product.shippingCents,
-        totalCents,
-        currency: product.currency,
-        shippingAddress: { create: address },
-      },
-    });
-    try {
-      const session = await this.stripe.checkout.sessions.create({
-        mode: 'payment',
-        client_reference_id: order.id,
-        customer_email: user?.email ?? undefined,
-        success_url: `${this.applicationUrl}/pago/exitoso?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${this.applicationUrl}/paquetes?cancelado=1`,
-        metadata: { orderId: order.id },
-        line_items: [{
-          quantity: 1,
-          price_data: {
-            currency: product.currency.toLowerCase(),
-            unit_amount: totalCents,
-            product_data: { name: product.name, description: product.description },
-          },
-        }],
-      }, { idempotencyKey: `order:${order.id}` });
-      if (!session.url) throw new BadRequestException('No se pudo iniciar el pago. Intenta nuevamente.');
-      await this.prisma.payment.create({
-        data: { orderId: order.id, provider: PaymentProvider.stripe, externalSessionId: session.id, amountCents: totalCents, currency: product.currency },
-      });
-      return { orderId: order.id, checkoutUrl: session.url };
-    } catch (error) {
-      await this.prisma.order.update({ where: { id: order.id }, data: { status: OrderStatus.cancelled } });
-      throw error;
+  async listAdminOrders(q?: string, status?: string, take?: string) {
+    const limit = Math.min(Math.max(Number(take) || 50, 1), 200);
+    const search = q?.trim();
+    const where: Prisma.OrderWhereInput = {};
+    if (status) where.fulfillment = { is: { status: status as FulfillmentStatus } };
+    if (search) {
+      where.user = {
+        OR: [
+          { email: { contains: search, mode: 'insensitive' } },
+          { displayName: { contains: search, mode: 'insensitive' } },
+        ],
+      };
     }
+    const orders = await this.prisma.order.findMany({
+      where,
+      select: {
+        id: true, packageKey: true, packageName: true, subtotalCents: true, shippingCents: true, totalCents: true, currency: true,
+        status: true, createdAt: true, paidAt: true,
+        user: { select: { id: true, email: true, displayName: true } },
+        shippingAddress: true,
+        payments: { select: { status: true, amountCents: true, externalSessionId: true }, orderBy: { createdAt: 'desc' }, take: 1 },
+        fulfillment: { select: { id: true, status: true, trackingNumber: true, shippedAt: true, deliveredAt: true } },
+        _count: { select: { feedbacks: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+    const fulfillmentIds = orders.flatMap((order) => (order.fulfillment ? [order.fulfillment.id] : []));
+    const assignments = fulfillmentIds.length > 0
+      ? await this.prisma.curationAssignment.findMany({
+          where: { fulfillmentId: { in: fulfillmentIds }, status: 'active' },
+          select: { id: true, feedbackCycleStatus: true, fulfillmentId: true },
+        })
+      : [];
+    const assignmentByFulfillment = new Map(assignments.map((assignment) => [assignment.fulfillmentId, assignment]));
+    return orders.map(({ payments, fulfillment, ...order }) => ({
+      ...order,
+      payment: payments[0] ?? null,
+      fulfillment,
+      activeAssignment: fulfillment ? assignmentByFulfillment.get(fulfillment.id) ?? null : null,
+    }));
   }
 
   async processStripeEvent(event: Stripe.Event) {
@@ -91,23 +93,46 @@ export class OrdersService {
           },
         });
         if (event.type !== 'checkout.session.completed') return { received: true, processed: false };
-        if (session.payment_status !== 'paid') return { received: true, processed: false };
-        const payment = await tx.payment.findUnique({ where: { externalSessionId: session.id }, include: { order: true } });
-        if (!payment) throw new NotFoundException('No se encontró el pago asociado.');
-        const orderId = session.metadata?.orderId;
-        if (session.client_reference_id !== payment.orderId || orderId !== payment.orderId || session.amount_total !== payment.amountCents || session.currency?.toUpperCase() !== payment.currency) {
-          throw new BadRequestException('La confirmación de pago no coincide con el pedido.');
-        }
-        await tx.payment.update({ where: { id: payment.id }, data: { status: PaymentStatus.paid, providerPayload: session as unknown as Prisma.InputJsonValue } });
-        await tx.paymentEvent.updateMany({ where: { providerEventId: event.id }, data: { paymentId: payment.id } });
-        if (payment.order.status === OrderStatus.pending_payment) {
-          await tx.order.update({ where: { id: payment.orderId }, data: { status: OrderStatus.curation_pending, paidAt: new Date() } });
-          await tx.fulfillment.upsert({
-            where: { orderId: payment.orderId },
-            create: { orderId: payment.orderId },
-            update: {},
-          });
-        }
+        if (session.payment_status !== 'paid' || !session.amount_total) return { received: true, processed: false };
+
+        const { packageKey, userId } = this.parseClientReference(session.client_reference_id);
+        const [product, user] = await Promise.all([
+          tx.productPackage.findUnique({ where: { key: packageKey } }),
+          tx.user.findUnique({ where: { id: userId } }),
+        ]);
+        if (!product?.isActive) throw new BadRequestException('El paquete de la compra no está disponible.');
+        if (!user) throw new BadRequestException('El cliente de la compra no existe.');
+
+        const currency = (session.currency ?? product.currency).toUpperCase();
+        const shipping = this.extractShippingDetails(session);
+        const order = await tx.order.create({
+          data: {
+            userId,
+            packageId: product.id,
+            packageKey: product.key,
+            packageName: product.name,
+            subtotalCents: product.priceCents,
+            shippingCents: product.shippingCents,
+            totalCents: session.amount_total,
+            currency,
+            status: OrderStatus.curation_pending,
+            paidAt: new Date(),
+            shippingAddress: shipping ? { create: shipping } : undefined,
+          },
+        });
+        const payment = await tx.payment.create({
+          data: {
+            orderId: order.id,
+            provider: PaymentProvider.stripe,
+            externalSessionId: session.id,
+            amountCents: session.amount_total,
+            currency,
+            status: PaymentStatus.paid,
+            providerPayload: session as unknown as Prisma.InputJsonValue,
+          },
+        });
+        await tx.paymentEvent.update({ where: { providerEventId: event.id }, data: { paymentId: payment.id } });
+        await tx.fulfillment.create({ data: { orderId: order.id } });
         return { received: true, processed: true };
       });
     } catch (error) {
@@ -116,31 +141,26 @@ export class OrdersService {
     }
   }
 
-  private normalizeAddress(address: CreateCheckoutDto['shippingAddress']) {
+  private parseClientReference(reference: string | null) {
+    const entry = PAYMENT_LINK_PREFIXES.find((candidate) => reference?.startsWith(candidate.prefix));
+    if (!entry || !reference) throw new BadRequestException('La compra no incluye una referencia de cliente válida.');
+    return { packageKey: entry.packageKey, userId: reference.slice(entry.prefix.length) };
+  }
+
+  private extractShippingDetails(session: Stripe.Checkout.Session) {
+    const legacy = (session as unknown as { shipping_details?: { name?: string | null; address?: Stripe.Address | null } | null }).shipping_details;
+    const modern = session.collected_information?.shipping_details;
+    const details = legacy ?? modern;
+    if (!details) return undefined;
+    const address = details.address;
     return {
-      recipientName: address.recipientName.trim(),
-      phone: address.phone.trim(),
-      street: address.street.trim(),
-      exteriorNumber: address.exteriorNumber.trim(),
-      interiorNumber: address.interiorNumber?.trim() || null,
-      neighborhood: address.neighborhood.trim(),
-      city: address.city.trim(),
-      state: address.state.trim(),
-      postalCode: address.postalCode,
-      country: 'MX',
-      references: address.references?.trim() || null,
+      recipientName: details.name ?? 'Cliente',
+      street: address?.line1 ?? '',
+      interiorNumber: address?.line2 ?? null,
+      city: address?.city ?? '',
+      state: address?.state ?? '',
+      postalCode: address?.postal_code ?? '',
+      country: address?.country ? address.country.toUpperCase() : 'MX',
     };
-  }
-
-  private get stripe() {
-    const secretKey = process.env.STRIPE_SECRET_KEY;
-    if (!secretKey) throw new BadRequestException('Los pagos no están configurados.');
-    return new Stripe(secretKey, { maxNetworkRetries: 2 });
-  }
-
-  private get applicationUrl() {
-    const url = process.env.APP_URL;
-    if (!url) throw new BadRequestException('La URL de la aplicación no está configurada.');
-    return url.replace(/\/$/, '');
   }
 }

@@ -81,18 +81,18 @@ export type QuestionSeed = {
 const scale = (dimensionKey: string, reasonCode: string): EvidenceMapping[] => [{ dimensionKey, observedValueFrom: 'scale', reasonCode, baseWeight: 0.6 }];
 
 export const QUESTIONS: QuestionSeed[] = [
-  { key: 'Q01_LOVED_BOOKS', text: 'Agrega hasta tres libros que hayas disfrutado mucho e indica que aspecto te gusto de cada uno.', type: 'book_search', required: false, order: 1, validation: { maxItems: 3, likedAspectsRequired: true } },
-  { key: 'Q02_DISLIKED_BOOK', text: 'Agrega un libro que no te gusto o que hayas abandonado e indica el motivo.', type: 'book_search', required: false, order: 2, validation: { reasonCodesRequired: true } },
+  { key: 'Q01_LOVED_BOOKS', text: 'Agrega de 3 a 20 libros que hayas disfrutado mucho e indica qué aspecto te gustó de cada uno.', type: 'book_search', required: false, order: 1, validation: { minItems: 3, maxItems: 20, likedAspectsRequired: true } },
+  { key: 'Q02_DISLIKED_BOOK', text: 'Agrega de 3 a 20 libros que no te hayan gustado o que hayas abandonado e indica el motivo de cada uno.', type: 'book_search', required: false, order: 2, validation: { minItems: 3, maxItems: 20, reasonCodesRequired: true } },
   { key: 'Q03_PRIORITY_RANKING', text: 'Ordena las tres cosas que más valoras al leer.', type: 'ranking', required: true, order: 3, validation: { allowed: ['plot', 'characters', 'ideas', 'atmosphere', 'style', 'emotion'], maxItems: 3 }, options: [{ key: 'plot', label: 'Trama' }, { key: 'characters', label: 'Personajes' }, { key: 'ideas', label: 'Ideas' }, { key: 'atmosphere', label: 'Atmósfera' }, { key: 'style', label: 'Estilo' }, { key: 'emotion', label: 'Emoción' }] },
   { key: 'Q04_HOOK_NEED', text: '¿Qué tan pronto necesitas sentir que algo importante está pasando?', type: 'scale', required: true, order: 4, options: [{ key: 'scale', label: 'Escala 1 a 5', mappings: scale('hook_need', 'q04_hook_need') }] },
   { key: 'Q05_SLOW_BURN_TOLERANCE', text: 'Puedo disfrutar una historia lenta aunque tarde en mostrar hacia dónde va.', type: 'scale', required: false, order: 5, branch: { show: 'Q05A_SLOW_BURN_CONDITIONS', minimumScale: 2 }, options: [{ key: 'scale', label: 'Escala 1 a 5', mappings: scale('slow_burn_tolerance', 'q05_slow_burn') }] },
   { key: 'Q05A_SLOW_BURN_CONDITIONS', text: '¿Qué tendría que ofrecerte para que esa lentitud valga la pena?', type: 'multi_select', required: false, order: 6, validation: { maxItems: 3 }, branch: { dependsOn: 'Q05_SLOW_BURN_TOLERANCE', minimumNormalized: 0.25 }, options: [{ key: 'strong_characters', label: 'Personajes fuertes' }, { key: 'tension', label: 'Tensión' }, { key: 'atmosphere', label: 'Atmósfera' }, { key: 'beautiful_style', label: 'Estilo bello' }, { key: 'interesting_ideas', label: 'Ideas interesantes' }, { key: 'clear_progress', label: 'Progreso claro' }] },
   { key: 'Q06_STYLE_FRAGMENT', text: '¿Cuál de estas formas de escribir te invitaría más a continuar?', type: 'single_select', required: false, order: 7, options: [
     { key: 'direct', label: 'Directo', mappings: [{ dimensionKey: 'style_clarity_preference', observedValue: 0.9, reasonCode: 'q06_direct_clarity_v1_1', baseWeight: 1, specificityFactor: 1 }, { dimensionKey: 'ornate_prose_tolerance', observedValue: 0.2, reasonCode: 'q06_direct_ornate_v1_1', baseWeight: 1, specificityFactor: 0.7 }, { dimensionKey: 'introspection_tolerance', observedValue: 0.3, reasonCode: 'q06_direct_introspection_v1_1', baseWeight: 1, specificityFactor: 0.6 }, { dimensionKey: 'descriptive_density_preference', observedValue: 0.25, reasonCode: 'q06_direct_description_v1_1', baseWeight: 1, specificityFactor: 0.6 }] },
-    { key: 'atmospheric', label: 'Atmosferico', mappings: [{ dimensionKey: 'descriptive_density_preference', observedValue: 0.85, reasonCode: 'q06_atmosphere_description_v1_1', baseWeight: 1, specificityFactor: 1 }, { dimensionKey: 'ornate_prose_tolerance', observedValue: 0.65, reasonCode: 'q06_atmosphere_ornate_v1_1', baseWeight: 1, specificityFactor: 0.7 }, { dimensionKey: 'style_clarity_preference', observedValue: 0.6, reasonCode: 'q06_atmosphere_clarity_v1_1', baseWeight: 1, specificityFactor: 0.6 }, { dimensionKey: 'introspection_tolerance', observedValue: 0.5, reasonCode: 'q06_atmosphere_introspection_v1_1', baseWeight: 1, specificityFactor: 0.5 }] },
+    { key: 'atmospheric', label: 'Atmosférico', mappings: [{ dimensionKey: 'descriptive_density_preference', observedValue: 0.85, reasonCode: 'q06_atmosphere_description_v1_1', baseWeight: 1, specificityFactor: 1 }, { dimensionKey: 'ornate_prose_tolerance', observedValue: 0.65, reasonCode: 'q06_atmosphere_ornate_v1_1', baseWeight: 1, specificityFactor: 0.7 }, { dimensionKey: 'style_clarity_preference', observedValue: 0.6, reasonCode: 'q06_atmosphere_clarity_v1_1', baseWeight: 1, specificityFactor: 0.6 }, { dimensionKey: 'introspection_tolerance', observedValue: 0.5, reasonCode: 'q06_atmosphere_introspection_v1_1', baseWeight: 1, specificityFactor: 0.5 }] },
     { key: 'introspective', label: 'Introspectivo', mappings: [{ dimensionKey: 'introspection_tolerance', observedValue: 0.9, reasonCode: 'q06_introspective_introspection_v1_1', baseWeight: 1, specificityFactor: 1 }, { dimensionKey: 'conceptual_depth_appreciation', observedValue: 0.75, reasonCode: 'q06_introspective_conceptual_v1_1', baseWeight: 1, specificityFactor: 0.7 }, { dimensionKey: 'style_clarity_preference', observedValue: 0.45, reasonCode: 'q06_introspective_clarity_v1_1', baseWeight: 1, specificityFactor: 0.5 }, { dimensionKey: 'ornate_prose_tolerance', observedValue: 0.6, reasonCode: 'q06_introspective_ornate_v1_1', baseWeight: 1, specificityFactor: 0.5 }] },
   ] },
-  { key: 'Q07_COMPLEXITY', text: 'Indica tu tolerancia a lenguaje y estructuras exigentes.', type: 'structured', required: false, order: 8 },
+  { key: 'Q07_COMPLEXITY', text: 'Indica tu tolerancia a un lenguaje y a unas estructuras exigentes.', type: 'structured', required: false, order: 8 },
   { key: 'Q08_ENDING_PREFERENCE', text: '¿Cómo prefieres que cierre una historia?', type: 'single_select', required: true, order: 9, options: [
     { key: 'closed_explained', label: 'Cerrado y explicado', mappings: [{ dimensionKey: 'open_ending_tolerance', observedValue: 0.1, reasonCode: 'q08_closed', baseWeight: 0.6 }] },
     { key: 'resolved_with_interpretation', label: 'Resuelto con interpretación', mappings: [{ dimensionKey: 'open_ending_tolerance', observedValue: 0.4, reasonCode: 'q08_resolved', baseWeight: 0.6 }] },
@@ -106,19 +106,19 @@ export const QUESTIONS: QuestionSeed[] = [
     { key: 'easy_to_like', label: 'Fáciles de querer', mappings: [{ dimensionKey: 'character_likability_need', observedValue: 0.85, reasonCode: 'q09_character_easy_to_like', baseWeight: 0.6 }] },
   ] },
   { key: 'Q10_EMOTIONAL_EXPERIENCE', text: '¿Qué te gustaría sentir con mayor frecuencia al leer?', type: 'multi_select', required: true, order: 11, validation: { maxItems: 3 }, options: [
-    { key: 'tension', label: 'Tension', mappings: [{ dimensionKey: 'tension_preference', observedValue: 0.85, reasonCode: 'q10_emotion_tension_v1_1', baseWeight: 0.6, specificityFactor: 1 }] },
+    { key: 'tension', label: 'Tensión', mappings: [{ dimensionKey: 'tension_preference', observedValue: 0.85, reasonCode: 'q10_emotion_tension_v1_1', baseWeight: 0.6, specificityFactor: 1 }] },
     { key: 'curiosity', label: 'Curiosidad', mappings: [{ positiveTrigger: 'curiosity_drive', reasonCode: 'q10_emotion_curiosity_drive_v1_1', baseWeight: 0.6, specificityFactor: 1 }] },
-    { key: 'fun', label: 'Diversion', mappings: [{ dimensionKey: 'humor_preference', observedValue: 0.85, reasonCode: 'q10_emotion_fun_v1_1', baseWeight: 0.6, specificityFactor: 1 }] },
+    { key: 'fun', label: 'Diversión', mappings: [{ dimensionKey: 'humor_preference', observedValue: 0.85, reasonCode: 'q10_emotion_fun_v1_1', baseWeight: 0.6, specificityFactor: 1 }] },
     { key: 'comfort', label: 'Confort', mappings: [{ dimensionKey: 'comfort_preference', observedValue: 0.85, reasonCode: 'q10_emotion_comfort_v1_1', baseWeight: 0.6, specificityFactor: 1 }] },
     { key: 'sadness', label: 'Tristeza', mappings: [{ dimensionKey: 'sadness_tolerance', observedValue: 0.75, reasonCode: 'q10_emotion_sadness_v1_1', baseWeight: 0.6, specificityFactor: 0.8 }, { dimensionKey: 'emotional_intensity_preference', observedValue: 0.7, reasonCode: 'q10_emotion_sadness_intensity_v1_1', baseWeight: 0.6, specificityFactor: 0.6 }] },
     { key: 'wonder', label: 'Asombro', mappings: [{ dimensionKey: 'strangeness_preference', observedValue: 0.75, reasonCode: 'q10_emotion_wonder_v1_1', baseWeight: 0.6, specificityFactor: 0.7 }, { dimensionKey: 'worldbuilding_load_tolerance', observedValue: 0.65, reasonCode: 'q10_emotion_wonder_world_v1_1', baseWeight: 0.6, specificityFactor: 0.5 }] },
     { key: 'discomfort', label: 'Incomodidad', mappings: [{ dimensionKey: 'darkness_tolerance', observedValue: 0.75, reasonCode: 'q10_emotion_discomfort_v1_1', baseWeight: 0.6, specificityFactor: 0.7 }, { dimensionKey: 'emotional_intensity_preference', observedValue: 0.75, reasonCode: 'q10_emotion_discomfort_intensity_v1_1', baseWeight: 0.6, specificityFactor: 0.7 }] },
     { key: 'hope', label: 'Esperanza', mappings: [{ dimensionKey: 'hope_preference', observedValue: 0.85, reasonCode: 'q10_emotion_hope_v1_1', baseWeight: 0.6, specificityFactor: 1 }] },
-    { key: 'reflection', label: 'Reflexion', mappings: [{ dimensionKey: 'conceptual_depth_appreciation', observedValue: 0.75, reasonCode: 'q10_emotion_reflection_v1_1', baseWeight: 0.6, specificityFactor: 1 }] },
+    { key: 'reflection', label: 'Reflexión', mappings: [{ dimensionKey: 'conceptual_depth_appreciation', observedValue: 0.75, reasonCode: 'q10_emotion_reflection_v1_1', baseWeight: 0.6, specificityFactor: 1 }] },
   ] },
   { key: 'Q11_GENRES_THEMES', text: 'Elige géneros, temas o ambientaciones.', type: 'structured', required: true, order: 12 },
   { key: 'Q12_LENGTH_SERIES', text: '¿Cuántas páginas prefieres y qué prefieres leer: libros autoconclusivos o sagas?', type: 'structured', required: true, order: 13 },
-  { key: 'Q13_FORMAT_LANGUAGE', text: '¿En que idiomas y formatos quieres recibir recomendaciones?', type: 'structured', required: true, order: 14 },
+  { key: 'Q13_FORMAT_LANGUAGE', text: '¿En qué idiomas y formatos quieres recibir recomendaciones?', type: 'structured', required: true, order: 14 },
   { key: 'Q14_DISCOVERY_APPETITE', text: '¿Qué tanto quieres alejarnos de lo que ya sabes que te gusta?', type: 'scale', required: true, order: 15, options: [{ key: 'scale', label: 'Escala 1 a 5', mappings: scale('discovery_appetite', 'q14_discovery_appetite') }] },
   { key: 'Q15_ADDITIONAL_COMMENTS', text: '¿Hay algo más que debamos considerar al elegir tu libro?', type: 'structured', required: false, order: 16, validation: { maxLength: 2000 } },
 ];
@@ -156,10 +156,72 @@ export const FEEDBACK_MAPPINGS: Record<'positive' | 'negative', Record<string, F
 export const EXPOSURE_FACTORS: Record<number, number> = { 0: 0.1, 5: 0.25, 18: 0.45, 38: 0.7, 63: 0.85, 88: 0.95, 100: 1 };
 export const ATTRIBUTION_FACTORS: Record<string, number> = { mostly_book: 1, mixed: 0.6, mostly_timing: 0.25, external_circumstance: 0.1, no_problem: 1 };
 
-const tagKeys = (tagType: TagType, keys: string[]) => keys.map((key) => ({ key, tagType }));
-export const TAGS = [
+export type TagSeed = {
+  key: string;
+  tagType: TagType;
+  parentTagKey?: string | null;
+};
+
+const tagKeys = (tagType: TagType, keys: string[]): TagSeed[] => keys.map((key) => ({ key, tagType }));
+
+export const TAG_PARENTS: Record<string, string> = {
+  cozy_mystery: 'mystery',
+  procedural: 'mystery',
+  noir: 'mystery',
+  hardboiled: 'mystery',
+  psychological_thriller: 'thriller',
+  spy_thriller: 'thriller',
+  techno_thriller: 'thriller',
+  legal_thriller: 'thriller',
+  cosmic_horror: 'horror',
+  psychological_horror: 'horror',
+  slasher: 'horror',
+  gothic_horror: 'horror',
+  space_opera: 'science_fiction',
+  hard_scifi: 'science_fiction',
+  cyberpunk: 'science_fiction',
+  dystopia: 'science_fiction',
+  high_fantasy: 'fantasy',
+  urban_fantasy: 'fantasy',
+  dark_fantasy: 'fantasy',
+  magical_realism: 'speculative_fiction',
+  alternate_history: 'speculative_fiction',
+  slipstream: 'speculative_fiction',
+  paranormal_romance: 'romance',
+  satire: 'comedy',
+};
+
+const subgenreKeys = (pairs: Array<[string, string]>): TagSeed[] =>
+  pairs.map(([key, parentTagKey]) => ({ key, tagType: 'subgenre' as TagType, parentTagKey }));
+
+export const TAGS: TagSeed[] = [
   ...tagKeys('genre', ['literary_fiction', 'mystery', 'thriller', 'horror', 'romance', 'erotica', 'science_fiction', 'fantasy', 'historical_fiction', 'adventure', 'comedy', 'speculative_fiction', 'realistic_fiction', 'narrative_nonfiction', 'essay_memoir', 'short_story_collection', 'history', 'biography_memoir', 'journalism', 'science', 'politics_society', 'philosophy', 'economics']),
-  ...tagKeys('subgenre', ['cozy_mystery', 'procedural', 'noir', 'hardboiled', 'psychological_thriller', 'spy_thriller', 'techno_thriller', 'legal_thriller', 'cosmic_horror', 'psychological_horror', 'slasher', 'gothic_horror', 'space_opera', 'hard_scifi', 'cyberpunk', 'dystopia', 'high_fantasy', 'urban_fantasy', 'dark_fantasy', 'magical_realism', 'alternate_history', 'slipstream', 'paranormal_romance', 'satire']),
+  ...subgenreKeys([
+    ['cozy_mystery', 'mystery'],
+    ['procedural', 'mystery'],
+    ['noir', 'mystery'],
+    ['hardboiled', 'mystery'],
+    ['psychological_thriller', 'thriller'],
+    ['spy_thriller', 'thriller'],
+    ['techno_thriller', 'thriller'],
+    ['legal_thriller', 'thriller'],
+    ['cosmic_horror', 'horror'],
+    ['psychological_horror', 'horror'],
+    ['slasher', 'horror'],
+    ['gothic_horror', 'horror'],
+    ['space_opera', 'science_fiction'],
+    ['hard_scifi', 'science_fiction'],
+    ['cyberpunk', 'science_fiction'],
+    ['dystopia', 'science_fiction'],
+    ['high_fantasy', 'fantasy'],
+    ['urban_fantasy', 'fantasy'],
+    ['dark_fantasy', 'fantasy'],
+    ['magical_realism', 'speculative_fiction'],
+    ['alternate_history', 'speculative_fiction'],
+    ['slipstream', 'speculative_fiction'],
+    ['paranormal_romance', 'romance'],
+    ['satire', 'comedy'],
+  ]),
   ...tagKeys('theme', ['love', 'identity', 'grief', 'family', 'friendship', 'betrayal', 'redemption', 'justice', 'power', 'freedom', 'war', 'migration', 'memory', 'loneliness', 'ambition', 'faith_doubt', 'technology_society', 'environment', 'mental_health', 'addiction', 'coming_of_age', 'forgiveness', 'mortality', 'moral_dilemma']),
   ...tagKeys('setting', ['urban', 'rural', 'small_town', 'arctic', 'desert', 'island', 'maritime', 'mountain', 'war_zone', 'dystopian_city', 'village', 'metropolis']),
   ...tagKeys('period', ['pre_1900', 'early_20th_century', 'mid_20th_century', 'late_20th_century', 'contemporary', 'near_future', 'distant_future', 'mythic_past']),

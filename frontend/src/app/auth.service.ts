@@ -10,19 +10,37 @@ declare global {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   readonly session = signal<Session | null>(null);
+  readonly ready = signal(false);
   readonly configured = Boolean(window.LIBROS_CONFIG?.supabaseUrl && window.LIBROS_CONFIG?.supabasePublishableKey);
   private readonly client = this.configured
     ? createClient(window.LIBROS_CONFIG!.supabaseUrl!, window.LIBROS_CONFIG!.supabasePublishableKey!)
     : null;
+  private readonly readyPromise = this.init();
 
   constructor() {
-    if (!this.client) return;
-    void this.client.auth.getSession().then(({ data }) => this.session.set(data.session));
-    this.client.auth.onAuthStateChange((_event, session) => this.session.set(session));
+    void this.readyPromise;
   }
 
   get accessToken(): string | null { return this.session()?.access_token ?? null; }
   get userId(): string | null { return this.session()?.user.id ?? null; }
+
+  whenReady(): Promise<void> {
+    return this.readyPromise;
+  }
+
+  private async init(): Promise<void> {
+    if (!this.client) {
+      this.ready.set(true);
+      return;
+    }
+    try {
+      const { data } = await this.client.auth.getSession();
+      this.session.set(data.session);
+    } finally {
+      this.ready.set(true);
+    }
+    this.client.auth.onAuthStateChange((_event, session) => this.session.set(session));
+  }
 
   async signInWithGoogle(): Promise<void> {
     if (!this.client) throw new Error('Configura Supabase para habilitar el inicio de sesión.');

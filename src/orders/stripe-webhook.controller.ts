@@ -16,7 +16,7 @@ export class StripeWebhookController {
     if (!signature || !secret || !request.rawBody) throw new BadRequestException('No se pudo verificar la notificación de pago.');
     let event: Stripe.Event;
     try {
-      event = new Stripe(process.env.STRIPE_SECRET_KEY ?? '').webhooks.constructEvent(request.rawBody, signature, secret);
+      event = Stripe.webhooks.constructEvent(request.rawBody, signature, secret);
     } catch {
       throw new BadRequestException('La firma de la notificación no es válida.');
     }

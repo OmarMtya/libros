@@ -26,11 +26,12 @@ describe('BooksService', () => {
         author_name: ['Alex Michaelides'],
         first_publish_year: 2018,
         cover_i: 9407338,
+        language: ['spa'],
         editions: { docs: [{ key: '/books/OL47457228M', title: 'La pacient silenciosa', cover_i: 15242046 }] },
       }],
     }));
     const results = await service.search('la paciente silenciosa', 8);
-    expect(results).toEqual([{ openLibraryId: 'OL19096402W', openLibraryEditionId: 'OL47457228M', title: 'La pacient silenciosa', authors: ['Alex Michaelides'], firstPublishYear: 2018, coverUrl: 'https://covers.openlibrary.org/b/id/15242046-M.jpg' }]);
+    expect(results).toEqual([{ openLibraryId: 'OL19096402W', openLibraryEditionId: 'OL47457228M', title: 'La pacient silenciosa', authors: ['Alex Michaelides'], firstPublishYear: 2018, coverUrl: 'https://covers.openlibrary.org/b/id/15242046-M.jpg', originalLanguage: 'es' }]);
     expect(fetchMock.mock.calls[0]![0]!).toContain('q=la%20paciente%20silenciosa*');
     expect(fetchMock.mock.calls[0]![0]!).toContain('_spellcheck_count=0');
     expect(fetchMock.mock.calls[0]![0]!).toContain('editions');
@@ -39,9 +40,48 @@ describe('BooksService', () => {
   });
 
   it('falls back to the work metadata when no matching edition is returned', async () => {
-    fetchMock.mockResolvedValueOnce(ok({ docs: [{ key: '/works/OL278437W', title: 'La sombra del viento', author_name: ['Carlos Ruiz Zafón'], first_publish_year: 2001, cover_i: 10107644 }] }));
+    fetchMock.mockResolvedValueOnce(ok({ docs: [{ key: '/works/OL278437W', title: 'La sombra del viento', author_name: ['Carlos Ruiz Zafón'], first_publish_year: 2001, cover_i: 10107644, language: ['spa'] }] }));
     const results = await service.search('sombra viento', 8);
-    expect(results).toEqual([{ openLibraryId: 'OL278437W', openLibraryEditionId: null, title: 'La sombra del viento', authors: ['Carlos Ruiz Zafón'], firstPublishYear: 2001, coverUrl: 'https://covers.openlibrary.org/b/id/10107644-M.jpg' }]);
+    expect(results).toEqual([{ openLibraryId: 'OL278437W', openLibraryEditionId: null, title: 'La sombra del viento', authors: ['Carlos Ruiz Zafón'], firstPublishYear: 2001, coverUrl: 'https://covers.openlibrary.org/b/id/10107644-M.jpg', originalLanguage: 'es' }]);
+  });
+
+  it('maps a non-Spanish language code to BCP-47 and defaults to es when unknown', async () => {
+    fetchMock.mockResolvedValueOnce(ok({ docs: [{ key: '/works/OL1W', title: 'Book in English', author_name: ['Someone'], first_publish_year: 2000, language: ['eng'] }] }));
+    const english = await service.search('book english', 8);
+    expect(english[0]!.originalLanguage).toBe('en');
+    fetchMock.mockResolvedValueOnce(ok({ docs: [{ key: '/works/OL2W', title: 'Libro sin idioma', author_name: ['Alguien'] }] }));
+    const noLang = await service.search('libro sin idioma', 8);
+    expect(noLang[0]!.originalLanguage).toBe('es');
+  });
+
+  it('fetches edition detail from Open Library and maps language and year', async () => {
+    fetchMock.mockResolvedValueOnce(ok({
+      title: 'La sombra del viento',
+      languages: [{ key: '/languages/spa' }],
+      publishers: ['Booket'],
+      number_of_pages: 592,
+      publish_date: 'Oct 11, 2016',
+      isbn_13: ['9788408163435'],
+      covers: [15156378],
+    }));
+    const detail = await service.fetchEdition('OL37070014M');
+    expect(detail).toEqual({
+      openLibraryEditionId: 'OL37070014M',
+      title: 'La sombra del viento',
+      languageCode: 'es',
+      pages: 592,
+      publisher: 'Booket',
+      publicationYear: 2016,
+      isbn: '9788408163435',
+      coverUrl: 'https://covers.openlibrary.org/b/id/15156378-M.jpg',
+    });
+    expect(fetchMock.mock.calls[0]![0]!).toBe('https://openlibrary.org/books/OL37070014M.json');
+  });
+
+  it('returns null for a missing edition (404)', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({}) } as unknown as Response);
+    const detail = await service.fetchEdition('OLNOEXISTE');
+    expect(detail).toBeNull();
   });
 
   it('adds a prefix wildcard to the final partial term', async () => {

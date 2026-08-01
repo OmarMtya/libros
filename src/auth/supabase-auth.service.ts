@@ -27,6 +27,18 @@ export class SupabaseAuthService {
     }
   }
 
+  async tryAuthenticate(token: string | undefined): Promise<AuthenticatedUser | null> {
+    if (!token || !this.issuer || !this.jwks) return null;
+    try {
+      const { payload } = await jwtVerify(token, this.jwks, { issuer: this.issuer, audience: this.audience });
+      const claims = payload as SupabaseJwtClaims;
+      if (!claims.sub) return null;
+      return this.synchronizeUser(claims);
+    } catch {
+      return null;
+    }
+  }
+
   private async synchronizeUser(claims: SupabaseJwtClaims): Promise<AuthenticatedUser> {
     const email = claims.email?.trim().toLowerCase() || null;
     const displayName = claims.user_metadata?.full_name?.trim() || claims.user_metadata?.name?.trim() || null;

@@ -211,7 +211,7 @@ Cada dimensión debe asociarse a una característica de libro mediante `book_fea
 | `cast_size_tolerance` | `maximum_tolerated` | pocos personajes → elenco amplio | `cast_size_load` | umbral máximo |
 | `worldbuilding_load_tolerance` | `maximum_tolerated` | baja → alta | `worldbuilding_load` | umbral máximo |
 | `sustained_attention_tolerance` | `maximum_tolerated` | baja → alta | `attention_demand` | umbral máximo |
-| `conceptual_depth_appreciation` | `target` | sin ideas abstractas → ideas centrales al libro | `conceptual_depth` | distancia absoluta |
+| `conceptual_depth_appreciation` | `target` | sin aprecio por ideas → ideas centrales exploradas en profundidad | `conceptual_depth` | distancia absoluta |
 
 ### Dominio 7: géneros, temas y ambientación
 

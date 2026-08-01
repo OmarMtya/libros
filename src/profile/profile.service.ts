@@ -3,8 +3,17 @@ import { EvidenceStatus, Prisma } from '@prisma/client';
 import Decimal from 'decimal.js';
 import { CALCULATION_VERSION, DIMENSIONS, ONBOARDING_CORE_DIMENSIONS, PROFILE_SCHEMA_VERSION, TAG_TAXONOMY_VERSION } from './catalog';
 import { aggregateDimension, evidenceSetHash, round } from './profile-calculation';
+import { computeDimensionWeights, computeDomainWeights, NumericDomain, SCORING_CALCULATION_VERSION } from '../scoring/domain-weights';
+import { buildPriorityVector, PriorityFactor, priorityVectorHash, PriorityVector, PRIORITY_VECTOR_MAPPING_VERSION, PRIORITY_VECTOR_NORMALIZATION_METHOD } from '../scoring/priority-vector';
 import { OperationalConstraints, readyToRecommend } from './profile-readiness';
 import { PrismaService } from '../prisma/prisma.service';
+
+type PrioritySnapshot = {
+  ranking: PriorityFactor[];
+  priorityVector: PriorityVector;
+  domainWeights: Record<NumericDomain, number>;
+  dimensionWeights: Record<string, number>;
+};
 
 @Injectable()
 export class ProfileService {
@@ -80,8 +89,15 @@ export class ProfileService {
         orderBy: { evidenceFingerprint: 'asc' },
       });
       const hash = evidenceSetHash(evidence.map((item) => item.evidenceFingerprint));
+      const tagEvidence = await tx.readerTagEvidence.findMany({
+        where: { profileId: current.id, status: EvidenceStatus.active },
+        orderBy: { evidenceFingerprint: 'asc' },
+      });
+      const tagHash = evidenceSetHash(tagEvidence.map((item) => item.evidenceFingerprint));
+      const priority = await this.loadPriority(tx, userId, current.id);
+      const priorityHash = priority ? priorityVectorHash(priority) : null;
       const currentMeta = current.snapshotJson as Record<string, unknown>;
-      if (currentMeta.evidence_set_hash === hash && currentMeta.calculation_version === CALCULATION_VERSION) {
+      if (currentMeta.evidence_set_hash === hash && currentMeta.calculation_version === CALCULATION_VERSION && currentMeta.priority_vector_hash === priorityHash && currentMeta.tag_evidence_hash === tagHash) {
         const persistedDimensions = await tx.readerProfileDimension.findMany({ where: { profileId: current.id } });
         const ready = await this.readyToRecommend(tx, userId, persistedDimensions);
         const currentReady = current.readyToRecommend === ready ? current : await tx.readerProfile.update({ where: { id: current.id }, data: { readyToRecommend: ready } });
@@ -118,7 +134,18 @@ export class ProfileService {
         tag_taxonomy_version: TAG_TAXONOMY_VERSION,
         prompt_version: 'prompt/evidence-extract/v1',
         evidence_set_hash: hash,
+        tag_evidence_hash: tagHash,
         computed_at: new Date().toISOString(),
+        priority_vector_hash: priorityHash,
+        priority: priority ? {
+          ranking: priority.ranking,
+          priority_vector: priority.priorityVector,
+          normalization_method: PRIORITY_VECTOR_NORMALIZATION_METHOD,
+          mapping_version: PRIORITY_VECTOR_MAPPING_VERSION,
+          domain_weights: priority.domainWeights,
+          dimension_weights: priority.dimensionWeights,
+          calculation_version: SCORING_CALCULATION_VERSION,
+        } : null,
         dimensions: Object.fromEntries(computed.map((item) => [item.key, {
           value: item.aggregate.value?.toFixed(4) ?? null,
           confidence: item.aggregate.confidence.toFixed(4),
@@ -164,6 +191,29 @@ export class ProfileService {
       const updatedProfile = await tx.readerProfile.findUniqueOrThrow({ where: { id: current.id } });
       return { profile: updatedProfile, version, created: true };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+
+  private async loadPriority(tx: Prisma.TransactionClient, userId: string, profileId: string): Promise<PrioritySnapshot | null> {
+    const answer = await tx.questionAnswer.findFirst({
+      where: { userId, questionKey: 'Q03_PRIORITY_RANKING' },
+      orderBy: { answeredAt: 'desc' },
+      select: { normalizedResponse: true },
+    });
+    if (!answer) return null;
+    const normalized = answer.normalizedResponse as { ranking?: unknown } | null;
+    const ranking = Array.isArray(normalized?.ranking) ? normalized.ranking.filter((item): item is PriorityFactor => typeof item === 'string' && (['plot', 'characters', 'ideas', 'atmosphere', 'style', 'emotion'] as const).includes(item as PriorityFactor)) : null;
+    if (!ranking) return null;
+    let priorityVector: PriorityVector;
+    try {
+      priorityVector = buildPriorityVector(ranking);
+    } catch {
+      return null;
+    }
+    const dimensions = await tx.readerProfileDimension.findMany({ where: { profileId } });
+    const activeDimensions = dimensions.filter((dimension) => dimension.value !== null && new Decimal(dimension.confidence).gte(0.15)).map((dimension) => dimension.dimensionKey);
+    const domainWeights = computeDomainWeights(priorityVector);
+    const dimensionWeights = computeDimensionWeights(domainWeights, activeDimensions);
+    return { ranking, priorityVector, domainWeights, dimensionWeights };
   }
 
   private async hasCompletedRequiredQuestions(tx: Prisma.TransactionClient, userId: string): Promise<boolean> {

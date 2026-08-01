@@ -111,11 +111,11 @@ Cada fila declara: `key`, `domain`, `dimension_kind` (espejo del lector), `metho
 |---|---|---|---|---|---|---|---|
 | `linguistic_complexity` | `maximum_tolerated` | `style_analysis` | lenguaje simple | rarezas léxicas puntuales | exigencia media | lenguaje exigente | lenguaje muy exigente |
 | `structural_complexity` | `maximum_tolerated` | `structural_analysis` | estructura simple | estructuras levemente elaboradas | estructura media | estructura compleja | estructura muy compleja |
-| `conceptual_density` | `maximum_tolerated` | `narrative_analysis` + `review_aggregation` | sin ideas abstractas | ideas implícitas | densidad conceptual media | denso conceptualmente | máxima densidad conceptual |
+| `conceptual_density` | `maximum_tolerated` | `narrative_analysis` + `review_aggregation` | sin ideas abstractas; la narración no exige procesar conceptos | ideas o conceptos aislados y esporádicos | presencia moderada de conceptos, reglas o explicaciones | denso: el lector procesa ideas y reglas con frecuencia | máxima densidad conceptual: conceptos, reglas o explicaciones casi constantes |
 | `cast_size_load` | `maximum_tolerated` | `content_metadata` | 1–2 personajes | 3–5 | 6–10 | 11–20 | más de 20 |
 | `worldbuilding_load` | `maximum_tolerated` | `narrative_analysis` | sin worldbuilding | leve | medio | denso | worldbuilding opresivo |
 | `attention_demand` | `maximum_tolerated` | `cognitive_load_analysis` | lectura ligera | atención puntual | atención media | exige atención sostenida | exige atención sostenida máxima |
-| `conceptual_depth` | `target` | `narrative_analysis` + `review_aggregation` | sin ideas abstractas | ideas implícitas | densidad conceptual media | denso conceptualmente | máxima densidad conceptual, ideas centrales |
+| `conceptual_depth` | `target` | `narrative_analysis` + `review_aggregation` | la obra no desarrolla ideas centrales más allá de la trama inmediata | presenta una idea reconocible, pero apenas la explora | desarrolla sus ideas con cierta reflexión y consecuencias visibles | las ideas son centrales y se exploran desde varias perspectivas o implicaciones | exploración filosófica, ética o conceptual profunda que domina y transforma la lectura de la obra |
 
 ### 3.2 Features auxiliares para scoring
 

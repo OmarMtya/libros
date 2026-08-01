@@ -83,6 +83,22 @@ enum ProductPackageKey {
   libro_sorpresa_completo
 }
 
+enum RecommendationStatus {
+  scored
+  selected
+}
+
+enum TagEvidenceSourceType {
+  questionnaire
+  reading_feedback
+}
+
+enum CandidateReviewStatus {
+  eligible
+  blocked
+  needs_classification
+}
+
 enum OrderStatus {
   pending_payment
   paid
@@ -107,9 +123,11 @@ enum PaymentStatus {
 
 enum FulfillmentStatus {
   curation_pending
-  preparing
+  assigned
+  packed
   shipped
   delivered
+  canceled
 }
 
 model User {
@@ -123,6 +141,7 @@ model User {
   questionAnswers      QuestionAnswer[]
   readerProfile        ReaderProfile?
   readerEvidence       ReaderEvidence[]
+  readerTagEvidence    ReaderTagEvidence[]
   readingFeedback      ReadingFeedback[]
   orders               Order[]
 
@@ -240,6 +259,7 @@ model ReaderProfile {
   operationalConstraints  ReaderOperationalConstraints?
   conditionalRules        ReaderConditionalRule[]
   positiveTriggers        ReaderPositiveTrigger[]
+  tagEvidence             ReaderTagEvidence[]
 
   @@map("reader_profiles")
 }
@@ -434,27 +454,46 @@ model ReaderTagPreference {
 }
 
 model ReadingFeedback {
-  id                    String                @id @default(uuid()) @db.Uuid
-  userId                String                @map("user_id") @db.Uuid
-  bookId                String?               @map("book_id") @db.Uuid
-  recommendationId      String?               @map("recommendation_id") @db.Uuid
-  orderId               String?               @map("order_id") @db.Uuid
-  feedbackVersion       String                @map("feedback_version") @db.VarChar(30)
-  started               Boolean
-  notStartedReason      String?               @map("not_started_reason") @db.VarChar(40)
-  readingStatus         FeedbackReadingStatus @map("reading_status")
-  completionPercentage  Int                   @map("completion_percentage")
-  selectionFitRating    Int?                  @map("selection_fit_rating")
-  outcomeAttribution    String?               @map("outcome_attribution") @db.VarChar(40)
-  nextDirectionJson     Json?                 @map("next_direction_json")
-  freeText              String?               @map("free_text")
-  idempotencyKey        String?               @map("idempotency_key") @db.VarChar(100)
-  submittedAt           DateTime              @default(now()) @map("submitted_at") @db.Timestamptz(6)
-  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  order                 Order?                @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  aspects               ReadingFeedbackAspect[]
+  id                          String                  @id @default(uuid()) @db.Uuid
+  userId                      String                  @map("user_id") @db.Uuid
+  orderId                     String?                 @map("order_id") @db.Uuid
+  fulfillmentId               String?                 @map("fulfillment_id") @db.Uuid
+  curationAssignmentId        String?                 @map("curation_assignment_id") @db.Uuid
+  bookId                      String?                 @map("book_id") @db.Uuid
+  bookEditionId               String?                 @map("book_edition_id") @db.Uuid
+  bookClassificationVersionId String?                 @map("book_classification_version_id") @db.Uuid
+  feedbackInvitationId        String?                 @unique @map("feedback_invitation_id") @db.Uuid
+  recommendationId            String?                 @map("recommendation_id") @db.Uuid
+  feedbackVersion             String                  @map("feedback_version") @db.VarChar(30)
+  started                     Boolean
+  notStartedReason            String?                 @map("not_started_reason") @db.VarChar(40)
+  readingStatus               FeedbackReadingStatus   @map("reading_status")
+  completionPercentage        Int                     @map("completion_percentage")
+  selectionFitRating          Int?                    @map("selection_fit_rating")
+  outcomeAttribution          String?                 @map("outcome_attribution") @db.VarChar(40)
+  nextDirectionJson           Json?                   @map("next_direction_json")
+  freeText                    String?                 @map("free_text")
+  rawResponse                 Json?                   @map("raw_response")
+  normalizedResponse          Json?                   @map("normalized_response")
+  learningStatus              LearningStatus          @default(pending_processing) @map("learning_status")
+  processingOutcome           String?                 @map("processing_outcome") @db.VarChar(40)
+  isFinal                     Boolean                 @default(false) @map("is_final")
+  idempotencyKey              String?                 @map("idempotency_key") @db.VarChar(100)
+  optimisticLockVersion       Int                     @default(0) @map("optimistic_lock_version")
+  submittedAt                 DateTime                @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  user                        User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order                       Order?                  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  fulfillment                 Fulfillment?            @relation(fields: [fulfillmentId], references: [id], onDelete: Restrict)
+  assignment                  CurationAssignment?     @relation(fields: [curationAssignmentId], references: [id], onDelete: Restrict)
+  edition                     BookEdition?            @relation(fields: [bookEditionId, bookId], references: [id, bookId], onDelete: Restrict)
+  classification              BookClassificationVersion? @relation(fields: [bookClassificationVersionId, bookEditionId], references: [id, bookEditionId], onDelete: Restrict)
+  invitation                  FeedbackInvitation?     @relation(fields: [feedbackInvitationId], references: [id], onDelete: Restrict)
+  aspects                     ReadingFeedbackAspect[]
+  tagEvidence                 ReaderTagEvidence[]
 
-  @@unique([userId, idempotencyKey])
+  @@index([curationAssignmentId])
+  @@index([learningStatus])
+  @@index([userId, learningStatus])
   @@map("reading_feedback")
 }
 
@@ -505,11 +544,11 @@ model OrderShippingAddress {
   id              String   @id @default(uuid()) @db.Uuid
   orderId         String   @unique @map("order_id") @db.Uuid
   recipientName   String   @map("recipient_name")
-  phone           String
+  phone           String?  @map("phone")
   street          String
-  exteriorNumber  String   @map("exterior_number")
+  exteriorNumber  String?  @map("exterior_number")
   interiorNumber  String?  @map("interior_number")
-  neighborhood    String
+  neighborhood    String?  @map("neighborhood")
   city            String
   state           String
   postalCode      String   @map("postal_code") @db.VarChar(10)
@@ -563,9 +602,14 @@ model Fulfillment {
   trackingNumber   String?           @map("tracking_number")
   ebookStoragePath String?           @map("ebook_storage_path")
   audioStoragePath String?           @map("audio_storage_path")
+  shippedAt        DateTime?         @map("shipped_at") @db.Timestamptz(6)
+  deliveredAt      DateTime?         @map("delivered_at") @db.Timestamptz(6)
   createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
   order            Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  assignments      CurationAssignment[]
+  feedbacks        ReadingFeedback[]
+  recommendations  Recommendation[]
 
   @@map("fulfillments")
 }
@@ -580,4 +624,354 @@ model ReadingFeedbackAspect {
 
   @@unique([feedbackId, polarity, optionKey])
   @@map("reading_feedback_aspects")
+}
+
+enum AuthorRole {
+  author
+  editor
+  contributor
+}
+
+enum EditionContributorRole {
+  translator
+  editor
+  narrator
+  contributor
+}
+
+enum ClassificationStatus {
+  draft
+  approved
+  superseded
+}
+
+enum SelectionStatus {
+  active
+  replaced
+  canceled
+}
+
+enum FeedbackCycleStatus {
+  not_invited
+  invited
+  provisional_received
+  final_received
+  closed_without_feedback
+}
+
+enum FeedbackInvitationStatus {
+  pending
+  used
+  expired
+  revoked
+}
+
+enum LearningStatus {
+  pending_processing
+  processed
+  stored_without_book_context
+  needs_clarification
+  needs_review
+  rejected
+}
+
+model Author {
+  id                    String                @id @default(uuid()) @db.Uuid
+  canonicalName         String                @map("canonical_name")
+  createdAt             DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  books                 BookAuthor[]
+  editionContributions  EditionContributor[]
+}
+
+model BookAuthor {
+  bookId   String     @map("book_id") @db.Uuid
+  authorId String     @map("author_id") @db.Uuid
+  position Int
+  role     AuthorRole
+  book     Book       @relation(fields: [bookId], references: [id], onDelete: Restrict)
+  author   Author     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@id([bookId, authorId, role])
+}
+
+model EditionContributor {
+  id            String                 @id @default(uuid()) @db.Uuid
+  bookEditionId String                 @map("book_edition_id") @db.Uuid
+  authorId      String                 @map("author_id") @db.Uuid
+  position      Int
+  role          EditionContributorRole
+  edition       BookEdition            @relation(fields: [bookEditionId], references: [id], onDelete: Restrict)
+  author        Author                 @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@unique([bookEditionId, authorId, role])
+  @@map("edition_contributors")
+}
+
+model Book {
+  id                     String       @id @default(uuid()) @db.Uuid
+  canonicalTitle         String       @map("canonical_title")
+  originalLanguage       String       @map("original_language") @db.VarChar(8)
+  createdAt              DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  optimisticLockVersion  Int          @default(0) @map("optimistic_lock_version")
+  editions               BookEdition[]
+  authors                BookAuthor[]
+
+  @@map("books")
+}
+
+model BookEdition {
+  id                    String                @id @default(uuid()) @db.Uuid
+  bookId                String                @map("book_id") @db.Uuid
+  isbn                  String?               @db.VarChar(13)
+  title                 String
+  languageCode          String                @map("language_code") @db.VarChar(8)
+  pages                 Int?
+  publisher             String?
+  publicationYear       Int?                  @map("publication_year")
+  optimisticLockVersion Int                   @default(0) @map("optimistic_lock_version")
+  book                  Book                  @relation(fields: [bookId], references: [id], onDelete: Restrict)
+  contributors          EditionContributor[]
+  classifications       BookClassificationVersion[]
+  assignments           CurationAssignment[]
+  recommendationCandidates RecommendationCandidate[]
+  feedbacks             ReadingFeedback[]
+
+  @@index([bookId])
+  @@unique([id, bookId])
+  @@map("book_editions")
+}
+
+model BookFeatureDefinition {
+  featureKey     String @map("feature_key") @db.VarChar(100)
+  schemaVersion  String @map("schema_version") @db.VarChar(30)
+  scope          String @db.VarChar(10)
+  valueSemantics String @map("value_semantics")
+  isActive       Boolean @default(true) @map("is_active")
+
+  @@id([featureKey, schemaVersion])
+  @@map("book_feature_definitions")
+}
+
+model ContentTypeDefinition {
+  contentTypeKey String @map("content_type_key") @db.VarChar(60)
+  schemaVersion  String @map("schema_version") @db.VarChar(30)
+  name           String
+  isActive       Boolean @default(true) @map("is_active")
+
+  @@id([contentTypeKey, schemaVersion])
+  @@map("content_type_definitions")
+}
+
+model BookFeatureApplicability {
+  featureKey               String @map("feature_key") @db.VarChar(100)
+  featureSchemaVersion     String @map("feature_schema_version") @db.VarChar(30)
+  contentTypeKey           String @map("content_type_key") @db.VarChar(60)
+  contentTypeSchemaVersion String @map("content_type_schema_version") @db.VarChar(30)
+  requirement              String
+
+  @@id([featureKey, featureSchemaVersion, contentTypeKey, contentTypeSchemaVersion])
+  @@map("book_feature_applicability")
+}
+
+model BookClassificationVersion {
+  id                       String                @id @default(uuid()) @db.Uuid
+  bookEditionId            String                @map("book_edition_id") @db.Uuid
+  contentTypeKey           String                @map("content_type_key") @db.VarChar(60)
+  contentTypeSchemaVersion String                @map("content_type_schema_version") @db.VarChar(30)
+  featureSchemaVersion     String                @map("feature_schema_version") @db.VarChar(30)
+  tagTaxonomyVersion       String                @map("tag_taxonomy_version") @db.VarChar(30)
+  revision                 Int
+  classifierVersion        String                @map("classifier_version") @db.VarChar(30)
+  status                   ClassificationStatus  @default(draft)
+  createdBy                String                @map("created_by") @db.Uuid
+  approvedBy               String?               @map("approved_by") @db.Uuid
+  createdAt                DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  approvedAt               DateTime?             @map("approved_at") @db.Timestamptz(6)
+  supersedesId             String?               @map("supersedes_id") @db.Uuid
+  optimisticLockVersion    Int                   @default(0) @map("optimistic_lock_version")
+  edition                  BookEdition           @relation(fields: [bookEditionId], references: [id], onDelete: Restrict)
+  supersedes               BookClassificationVersion? @relation("ClassSupersession", fields: [supersedesId], references: [id])
+  supersededBy             BookClassificationVersion[] @relation("ClassSupersession")
+  features                 BookFeature[]
+  tags                     BookTag[]
+  assignments              CurationAssignment[]
+  recommendationCandidates RecommendationCandidate[]
+  feedbacks                ReadingFeedback[]
+
+  @@unique([bookEditionId, revision])
+  @@unique([id, bookEditionId])
+  @@map("book_classification_versions")
+}
+
+model BookFeature {
+  id                      String                     @id @default(uuid()) @db.Uuid
+  classificationVersionId String                     @map("classification_version_id") @db.Uuid
+  featureKey              String                     @map("feature_key") @db.VarChar(100)
+  value                   Decimal                    @db.Decimal(5, 4)
+  confidence              Decimal                    @db.Decimal(5, 4)
+  source                  String
+  evidenceJson            Json                       @map("evidence_json") @default("{}")
+  classification          BookClassificationVersion  @relation(fields: [classificationVersionId], references: [id], onDelete: Restrict)
+
+  @@unique([classificationVersionId, featureKey])
+  @@map("book_features")
+}
+
+model BookTag {
+  id                      String                     @id @default(uuid()) @db.Uuid
+  classificationVersionId String                     @map("classification_version_id") @db.Uuid
+  tagKey                  String                     @map("tag_key") @db.VarChar(60)
+  strength                Decimal                    @db.Decimal(5, 4)
+  confidence              Decimal                    @db.Decimal(5, 4)
+  classification          BookClassificationVersion  @relation(fields: [classificationVersionId], references: [id], onDelete: Restrict)
+
+  @@unique([classificationVersionId, tagKey])
+  @@map("book_tags")
+}
+
+model CurationAssignment {
+  id                      String                   @id @default(uuid()) @db.Uuid
+  fulfillmentId           String                   @map("fulfillment_id") @db.Uuid
+  bookEditionId           String                   @map("book_edition_id") @db.Uuid
+  classificationVersionId String                   @map("classification_version_id") @db.Uuid
+  status                  SelectionStatus          @default(active)
+  feedbackCycleStatus     FeedbackCycleStatus      @default(not_invited) @map("feedback_cycle_status")
+  assignedBy              String                   @map("assigned_by") @db.Uuid
+  assignedAt              DateTime                 @default(now()) @map("assigned_at") @db.Timestamptz(6)
+  replacedById            String?                  @map("replaced_by_id") @db.Uuid
+  canceledAt              DateTime?                @map("canceled_at") @db.Timestamptz(6)
+  notes                   String?
+  optimisticLockVersion   Int                      @default(0) @map("optimistic_lock_version")
+  fulfillment             Fulfillment              @relation(fields: [fulfillmentId], references: [id], onDelete: Restrict)
+  edition                 BookEdition              @relation(fields: [bookEditionId], references: [id], onDelete: Restrict)
+  classification          BookClassificationVersion @relation(fields: [classificationVersionId, bookEditionId], references: [id, bookEditionId], onDelete: Restrict)
+  replacedBy              CurationAssignment?      @relation("AssignmentReplacement", fields: [replacedById], references: [id])
+  replaced                CurationAssignment[]     @relation("AssignmentReplacement")
+  recommendationCandidateId String?               @unique @map("recommendation_candidate_id") @db.Uuid
+  recommendationCandidate RecommendationCandidate? @relation(fields: [recommendationCandidateId], references: [id], onDelete: SetNull)
+  invitations             FeedbackInvitation[]
+  feedbacks               ReadingFeedback[]
+
+  @@index([fulfillmentId])
+  @@map("curation_assignments")
+}
+
+model FeedbackInvitation {
+  id                      String                    @id @default(uuid()) @db.Uuid
+  curationAssignmentId    String                    @map("curation_assignment_id") @db.Uuid
+  tokenHash               String                    @unique @map("token_hash") @db.VarChar(64)
+  status                  FeedbackInvitationStatus  @default(pending)
+  expiresAt               DateTime                  @map("expires_at") @db.Timestamptz(6)
+  usedAt                  DateTime?                 @map("used_at") @db.Timestamptz(6)
+  revokedAt               DateTime?                 @map("revoked_at") @db.Timestamptz(6)
+  createdAt               DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  optimisticLockVersion   Int                       @default(0) @map("optimistic_lock_version")
+  assignment              CurationAssignment        @relation(fields: [curationAssignmentId], references: [id], onDelete: Restrict)
+  feedbacks               ReadingFeedback[]
+
+  @@index([curationAssignmentId])
+  @@map("feedback_invitations")
+}
+
+model Recommendation {
+  id             String                @id @default(uuid()) @db.Uuid
+  fulfillmentId  String                @map("fulfillment_id") @db.Uuid
+  revision       Int
+  userId         String                @map("user_id") @db.Uuid
+  profileId      String                @map("profile_id") @db.Uuid
+  profileVersion Int                   @map("profile_version")
+  packageKey     ProductPackageKey     @map("package_key")
+  contextJson    Json                  @map("context_json")
+  status         RecommendationStatus  @default(scored)
+  isCurrent      Boolean               @default(false) @map("is_current")
+  scoredAt       DateTime              @default(now()) @map("scored_at") @db.Timestamptz(6)
+  fulfillment    Fulfillment           @relation(fields: [fulfillmentId], references: [id], onDelete: Cascade)
+  candidates     RecommendationCandidate[]
+
+  @@unique([fulfillmentId, revision])
+  @@index([userId])
+  @@map("recommendations")
+}
+
+model RecommendationCandidate {
+  id                              String                  @id @default(uuid()) @db.Uuid
+  recommendationId                String                  @map("recommendation_id") @db.Uuid
+  bookEditionId                   String                  @map("book_edition_id") @db.Uuid
+  classificationVersionId         String                  @map("classification_version_id") @db.Uuid
+  rankPosition                    Int?                    @map("rank_position")
+  reviewStatus                    CandidateReviewStatus   @default(eligible) @map("review_status")
+  blockReason                     String?                 @map("block_reason")
+  numericFitScore                 Decimal?                @map("numeric_fit_score") @db.Decimal(5, 4)
+  coverageRatio                   Decimal?                @map("coverage_ratio") @db.Decimal(5, 4)
+  tagFitScore                     Decimal?                @map("tag_fit_score") @db.Decimal(5, 4)
+  tagFitRaw                       Decimal?                @map("tag_fit_raw") @db.Decimal(8, 4)
+  tagFitScale                     Decimal?                @map("tag_fit_scale") @db.Decimal(8, 4)
+  contextFitScore                 Decimal?                @map("context_fit_score") @db.Decimal(5, 4)
+  contextLengthFit                Decimal?                @map("context_length_fit") @db.Decimal(5, 4)
+  contextReadingTimeFit           Decimal?                @map("context_reading_time_fit") @db.Decimal(5, 4)
+  contextGoalFit                  Decimal?                @map("context_goal_fit") @db.Decimal(5, 4)
+  contextEmotionFit               Decimal?                @map("context_emotion_fit") @db.Decimal(5, 4)
+  contextEffortFit                Decimal?                @map("context_effort_fit") @db.Decimal(5, 4)
+  discoveryFitScore               Decimal?                @map("discovery_fit_score") @db.Decimal(5, 4)
+  scoringMinimumConfidenceFactor  Decimal?                @map("scoring_minimum_confidence_factor") @db.Decimal(5, 4)
+  riskPenalty                     Decimal?                @map("risk_penalty") @db.Decimal(5, 4)
+  riskPenaltyBreakdownJson        Json                    @map("risk_penalty_breakdown_json")
+  finalScore                      Decimal?                @map("final_score") @db.Decimal(5, 4)
+  recommendationEvidenceCoverage  Decimal?                @map("recommendation_evidence_coverage") @db.Decimal(5, 4)
+  weightDistributionJson          Json                    @map("weight_distribution_json")
+  evaluationMetaJson              Json                    @map("evaluation_meta_json")
+  createdAt                       DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  recommendation                  Recommendation          @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  edition                         BookEdition             @relation(fields: [bookEditionId], references: [id], onDelete: Restrict)
+  classification                  BookClassificationVersion @relation(fields: [classificationVersionId, bookEditionId], references: [id, bookEditionId], onDelete: Restrict)
+  assignments                     CurationAssignment[]
+
+  @@unique([recommendationId, classificationVersionId])
+  @@index([recommendationId, rankPosition])
+  @@map("recommendation_candidates")
+}
+
+model ReaderTagEvidence {
+  id                          String                @id @default(uuid()) @db.Uuid
+  userId                      String                @map("user_id") @db.Uuid
+  profileId                   String                @map("profile_id") @db.Uuid
+  sourceType                  TagEvidenceSourceType @map("source_type")
+  sourceId                    String                @map("source_id") @db.Uuid
+  feedbackId                  String?               @map("feedback_id") @db.Uuid
+  bookId                      String?               @map("book_id") @db.Uuid
+  bookEditionId               String?               @map("book_edition_id") @db.Uuid
+  bookClassificationVersionId String?               @map("book_classification_version_id") @db.Uuid
+  tagKey                      String                @map("tag_key") @db.VarChar(60)
+  adjustment                  Decimal               @db.Decimal(5, 4)
+  direction                   Decimal               @default(1) @db.Decimal(3, 2)
+  baseWeight                  Decimal               @map("base_weight") @db.Decimal(5, 4)
+  finalWeight                 Decimal               @map("final_weight") @db.Decimal(5, 4)
+  reasonCode                  String                @map("reason_code") @db.VarChar(100)
+  mappingVersion              String                @map("mapping_version") @db.VarChar(30)
+  rawPayload                  Json                  @map("raw_payload")
+  evidenceFingerprint         String                @unique @map("evidence_fingerprint") @db.VarChar(64)
+  status                      EvidenceStatus        @default(active)
+  createdAt                   DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  user                        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile                     ReaderProfile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  feedback                    ReadingFeedback?      @relation(fields: [feedbackId], references: [id], onDelete: SetNull)
+
+  @@unique([sourceType, sourceId, tagKey, reasonCode])
+  @@index([profileId, status])
+  @@map("reader_tag_evidence")
+}
+
+model CuratorActionAudit {
+  id              String   @id @default(uuid()) @db.Uuid
+  actorId         String   @map("actor_id") @db.Uuid
+  actorRole       String   @map("actor_role") @db.VarChar(30)
+  actionKind      String   @map("action_kind") @db.VarChar(60)
+  targetType      String   @map("target_type") @db.VarChar(60)
+  targetId        String   @map("target_id") @db.Uuid
+  reason          String?  @db.VarChar(500)
+  payloadDiffJson Json     @default("{}") @map("payload_diff_json")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([targetType, targetId])
+  @@map("curator_action_audit")
 }

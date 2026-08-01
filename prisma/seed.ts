@@ -1,5 +1,9 @@
 import { Prisma, PrismaClient, ProductPackageKey } from '@prisma/client';
-import { DIMENSIONS, QUESTIONS, QUESTIONNAIRE_VERSION, TAGS, TAG_TAXONOMY_VERSION } from '../src/profile/catalog';
+import { DIMENSIONS, QUESTIONS, QUESTIONNAIRE_VERSION, TAG_TAXONOMY_VERSION } from '../src/profile/catalog';
+import { BOOK_FEATURE_DEFINITIONS } from '../src/catalog/book-feature-definitions';
+import { buildApplicabilityMatrix } from '../src/catalog/book-feature-applicability';
+import { CONTENT_TYPES } from '../src/catalog/content-type-definitions';
+import { upsertTags } from './seed-tags';
 
 const prisma = new PrismaClient();
 
@@ -26,7 +30,7 @@ async function main() {
         branchingRulesJson: question.branch as Prisma.InputJsonValue | undefined,
         validationJson: question.validation as Prisma.InputJsonValue | undefined,
       },
-      update: { textEsMx: question.text },
+      update: { textEsMx: question.text, validationJson: question.validation as Prisma.InputJsonValue | undefined },
     });
 
     for (const [sortOrder, option] of (question.options ?? []).entries()) {
@@ -39,42 +43,15 @@ async function main() {
           evidenceMappingsJson: option.mappings ?? [],
           sortOrder,
         },
-        update: {},
+        update: { labelEsMx: option.label, evidenceMappingsJson: option.mappings ?? [] },
       });
     }
   }
 
-  for (const tag of TAGS) {
-    const deprecated = tag.key === 'anglo_american';
-    await prisma.tagIdentity.upsert({
-      where: { tagKey: tag.key },
-      create: {
-        tagKey: tag.key,
-        canonicalTaxonomicVersion: TAG_TAXONOMY_VERSION,
-        currentStatus: deprecated ? 'deprecated' : 'active',
-        currentReplacementTagKey: deprecated ? 'anglo_united_states' : null,
-      },
-      update: {},
-    });
-    await prisma.tagVersion.upsert({
-      where: { tagKey_taxonomicVersion: { tagKey: tag.key, taxonomicVersion: TAG_TAXONOMY_VERSION } },
-      create: {
-        tagKey: tag.key,
-        taxonomicVersion: TAG_TAXONOMY_VERSION,
-        tagType: tag.tagType,
-        name: tag.key.replaceAll('_', ' '),
-        description: tag.key.replaceAll('_', ' '),
-        aliasesJson: [],
-        status: deprecated ? 'deprecated' : 'active',
-        replacementTagKey: deprecated ? 'anglo_united_states' : null,
-        deprecatedReason: deprecated ? 'Split into anglo_united_states and anglo_united_kingdom.' : null,
-      },
-      update: {},
-    });
-  }
+  await upsertTags(prisma);
 
   const packages = [
-    { key: ProductPackageKey.libro_sorpresa_fisico, name: 'Libro sorpresa', description: 'Un libro físico elegido para ti.', priceCents: 49900, includedFormats: ['physical'] },
+    { key: ProductPackageKey.libro_sorpresa_fisico, name: 'Libro sorpresa', description: 'Libro físico elegido para ti.', priceCents: 49900, includedFormats: ['physical'] },
     { key: ProductPackageKey.libro_sorpresa_completo, name: 'Experiencia completa', description: 'Libro físico, ebook y audiolibro cuando estén disponibles.', priceCents: 79900, includedFormats: ['physical', 'ebook', 'audiobook'] },
   ];
   for (const productPackage of packages) {
@@ -82,6 +59,37 @@ async function main() {
       where: { key: productPackage.key },
       create: productPackage,
       update: { name: productPackage.name, description: productPackage.description, priceCents: productPackage.priceCents, includedFormats: productPackage.includedFormats },
+    });
+  }
+
+  for (const contentType of CONTENT_TYPES) {
+    await prisma.contentTypeDefinition.upsert({
+      where: { contentTypeKey_schemaVersion: { contentTypeKey: contentType.contentTypeKey, schemaVersion: contentType.schemaVersion } },
+      create: contentType,
+      update: {},
+    });
+  }
+
+  for (const definition of BOOK_FEATURE_DEFINITIONS) {
+    await prisma.bookFeatureDefinition.upsert({
+      where: { featureKey_schemaVersion: { featureKey: definition.featureKey, schemaVersion: definition.schemaVersion } },
+      create: { featureKey: definition.featureKey, schemaVersion: definition.schemaVersion, scope: definition.scope, valueSemantics: definition.valueSemantics, isActive: definition.isActive },
+      update: { valueSemantics: definition.valueSemantics, isActive: definition.isActive },
+    });
+  }
+
+  for (const row of buildApplicabilityMatrix()) {
+    await prisma.bookFeatureApplicability.upsert({
+      where: {
+        featureKey_featureSchemaVersion_contentTypeKey_contentTypeSchemaVersion: {
+          featureKey: row.featureKey,
+          featureSchemaVersion: row.featureSchemaVersion,
+          contentTypeKey: row.contentTypeKey,
+          contentTypeSchemaVersion: row.contentTypeSchemaVersion,
+        },
+      },
+      create: row,
+      update: {},
     });
   }
 }

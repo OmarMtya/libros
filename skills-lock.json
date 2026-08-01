@@ -1,11 +1,41 @@
 {
   "version": 1,
   "skills": {
+    "connect-recommend": {
+      "source": "stripe/ai",
+      "sourceType": "github",
+      "skillPath": "skills/connect-recommend/SKILL.md",
+      "computedHash": "aae17b6d265ff04d0ce91b68effc84270f2e829d086091b6b6bc1791209dcc80"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",
       "skillPath": "skills/frontend-design/SKILL.md",
       "computedHash": "93f53fd1c0352d3d7ec17b8f73d7351bf76f4821e55d123c9d2abc2c53ba48e4"
+    },
+    "stripe-best-practices": {
+      "source": "stripe/ai",
+      "sourceType": "github",
+      "skillPath": "skills/stripe-best-practices/SKILL.md",
+      "computedHash": "508ff25bd89619ac99a25b61ab69f20554a0d5e8c5ebc752c76c90632b0b9fe7"
+    },
+    "stripe-directory": {
+      "source": "stripe/ai",
+      "sourceType": "github",
+      "skillPath": "skills/stripe-directory/SKILL.md",
+      "computedHash": "0dcc6471b72bc9be29adfa68ecc6e2ba858a1f77c727c2f2b769df58b8206c53"
+    },
+    "stripe-docs": {
+      "source": "stripe/ai",
+      "sourceType": "github",
+      "skillPath": "skills/stripe-docs/SKILL.md",
+      "computedHash": "c9f90c8b96aaef1f331b60e2ff89175934fbb9193abad3d5091f6b9110a732d2"
+    },
+    "stripe-projects": {
+      "source": "stripe/ai",
+      "sourceType": "github",
+      "skillPath": "skills/stripe-projects/SKILL.md",
+      "computedHash": "56d711c28273cb461f5cd842e6687f80328b8c4d3b30a2b9d162fcdc393b8038"
     },
     "supabase": {
       "source": "supabase/agent-skills",
@@ -18,6 +48,12 @@
       "sourceType": "github",
       "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
       "computedHash": "128fac78002d916c8ca908245d398e634f540d8bcf20915b2b2359aeb18eba59"
+    },
+    "upgrade-stripe": {
+      "source": "stripe/ai",
+      "sourceType": "github",
+      "skillPath": "skills/upgrade-stripe/SKILL.md",
+      "computedHash": "2c801a9292311f24937b52a3578ec3d97271c0b01efb1a8fc26caff2a86ff1f2"
     },
     "web-design-guidelines": {
       "source": "vercel-labs/agent-skills",

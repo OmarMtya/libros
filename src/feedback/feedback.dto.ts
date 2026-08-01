@@ -1,14 +1,6 @@
-import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
 
-export class SubmitFeedbackDto {
-  @IsOptional()
-  @IsUUID()
-  bookId?: string;
-
-  @IsOptional()
-  @IsUUID()
-  recommendationId?: string;
-
+export class FeedbackPayloadDto {
   @IsBoolean()
   started!: boolean;
 
@@ -54,9 +46,26 @@ export class SubmitFeedbackDto {
   @IsString()
   @MaxLength(5000)
   freeText?: string;
+}
+
+export class SubmitFeedbackDto extends FeedbackPayloadDto {
+  @IsOptional()
+  @IsUUID()
+  bookId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  recommendationId?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(100)
   idempotencyKey?: string;
+}
+
+export class SubmitFeedbackByTokenDto extends FeedbackPayloadDto {
+  @IsString()
+  @MinLength(8)
+  @MaxLength(100)
+  idempotencyKey!: string;
 }

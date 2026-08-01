@@ -12,7 +12,10 @@
     "profile:migrate-1-1": "tsx prisma/migrate-reader-profile-1-1.ts",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "aspire:start": "npm --prefix aspire-apphost run aspire:start",
+    "aspire:build": "npm --prefix aspire-apphost run aspire:build",
+    "aspire:dev": "npm --prefix aspire-apphost run aspire:dev"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
