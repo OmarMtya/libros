@@ -7,6 +7,10 @@
     color-scheme: light;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     background-color: var(--color-paper, #f5f7f8);
     color: var(--color-graphite, #1e2933);
@@ -17,7 +21,8 @@
   input:focus-visible,
   select:focus-visible,
   textarea:focus-visible,
-  summary:focus-visible {
+  summary:focus-visible,
+  a:focus-visible {
     outline: 3px solid #f2be45;
     outline-offset: 3px;
   }

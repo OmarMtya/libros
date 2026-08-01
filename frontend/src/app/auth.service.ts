@@ -44,7 +44,7 @@ export class AuthService {
 
   async signInWithGoogle(): Promise<void> {
     if (!this.client) throw new Error('Configura Supabase para habilitar el inicio de sesión.');
-    const { error } = await this.client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+    const { error } = await this.client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/app` } });
     if (error) throw error;
   }
 

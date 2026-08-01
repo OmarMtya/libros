@@ -31,7 +31,7 @@ const TOTAL_QUESTIONS = 16;
             [disabled]="loading()">
             Quiero rehacerlo
           </button>
-          <p class="mt-4"><a routerLink="/" class="text-sm font-semibold text-ink underline hover:text-coral">Volver al inicio</a></p>
+          <p class="mt-4"><a routerLink="/app" class="text-sm font-semibold text-ink underline hover:text-coral">Volver al inicio</a></p>
         </section>
       } @else if (question(); as current) {
         <section class="rounded-sm border border-[#cad7df] bg-white p-6 sm:p-10">
@@ -613,7 +613,7 @@ export class Questionnaire {
     if (!session) return;
     await this.api.completeSession(session.id);
     this.question.set(null);
-    await this.router.navigate(['/']);
+    await this.router.navigate(['/app']);
   }
 
   toggleSelection(key: string): void {

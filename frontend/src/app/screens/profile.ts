@@ -91,7 +91,7 @@ type ProfileBook = { title?: string; work_id?: string; openLibraryId?: string; a
                   <p class="mt-1 text-sm text-[#536875]">{{ order.packageName }} · {{ statusLabel(order) }}</p>
                 </div>
                 <a
-                  routerLink="/mi-paquete"
+                  routerLink="/app/mi-paquete"
                   class="rounded-sm border border-[#7d9ab0] px-4 py-2 text-sm font-bold text-ink transition hover:bg-[#e6eef3]">
                   Seguir mi pedido
                 </a>
@@ -167,7 +167,7 @@ export class ProfileScreen {
     await this.run(async () => {
       await this.api.resetQuestionnaire();
       this.profile.set(null);
-      await this.router.navigate(['/cuestionario']);
+      await this.router.navigate(['/app/cuestionario']);
     });
   }
 

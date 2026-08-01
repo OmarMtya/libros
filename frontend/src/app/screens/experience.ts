@@ -172,11 +172,11 @@ export class Experience {
   }
 
   goToOrder(): void {
-    void this.router.navigate(['/mi-paquete']);
+    void this.router.navigate(['/app/mi-paquete']);
   }
 
   goToQuestionnaire(): void {
-    void this.router.navigate(['/cuestionario']);
+    void this.router.navigate(['/app/cuestionario']);
   }
 
   checkout(): void {

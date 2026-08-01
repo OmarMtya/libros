@@ -27,7 +27,7 @@ const clamp = (raw: string | number, min: number, max: number): number => {
   imports: [FormsModule],
   template: `
     <div class="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-      <a routerLink="/admin" class="font-mono text-xs uppercase tracking-[0.08em] text-[#567088] no-underline hover:text-coral">← Volver al catálogo</a>
+      <a routerLink="/app/admin" class="font-mono text-xs uppercase tracking-[0.08em] text-[#567088] no-underline hover:text-coral">← Volver al catálogo</a>
 
       @if (editor(); as ed) {
         <div class="mt-2 flex flex-wrap items-end justify-between gap-3">
@@ -363,7 +363,7 @@ export class ClassificationEditorScreen {
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) {
       this.toast.error('Falta la clasificación.');
-      void this.router.navigate(['/admin']);
+      void this.router.navigate(['/app/admin']);
       return;
     }
     try {
@@ -375,7 +375,7 @@ export class ClassificationEditorScreen {
       this.diagnostics.set(diagnostics);
     } catch (error) {
       this.toast.error(this.message(error));
-      void this.router.navigate(['/admin']);
+      void this.router.navigate(['/app/admin']);
     } finally {
       this.loading.set(false);
     }
@@ -544,7 +544,7 @@ export class ClassificationEditorScreen {
     await this.run(async () => {
       await this.api.approveAdminClassification(editor.id);
       this.toast.success('Clasificación aprobada.');
-      void this.router.navigate(['/admin']);
+      void this.router.navigate(['/app/admin']);
     });
   }
 
@@ -554,7 +554,7 @@ export class ClassificationEditorScreen {
     await this.run(async () => {
       const corrected = await this.api.correctAdminClassification(editor.id);
       this.toast.success(`Revisión ${corrected.revision} creada con los valores precargados.`);
-      void this.router.navigate(['/admin/clasificacion', corrected.id]);
+      void this.router.navigate(['/app/admin/clasificacion', corrected.id]);
     });
   }
 
@@ -564,7 +564,7 @@ export class ClassificationEditorScreen {
     await this.run(async () => {
       await this.api.deleteAdminClassification(editor.id);
       this.toast.success('Borrador descartado.');
-      void this.router.navigate(['/admin']);
+      void this.router.navigate(['/app/admin']);
     });
   }
 
@@ -608,7 +608,7 @@ export class ClassificationEditorScreen {
   }
 
   back(): void {
-    void this.router.navigate(['/admin']);
+    void this.router.navigate(['/app/admin']);
   }
 
   private bump(): void {

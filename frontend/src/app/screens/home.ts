@@ -86,7 +86,7 @@ export class Home {
       const sessions = await this.api.listSessions();
       this.sessions.set(sessions);
       if (!this.questionnaireDone()) {
-        await this.router.navigate(['/cuestionario']);
+        await this.router.navigate(['/app/cuestionario']);
       }
     } catch {
       this.toast.error('No pudimos cargar tu información. Intenta de nuevo.');

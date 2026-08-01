@@ -552,7 +552,7 @@ export class AdminScreen {
 
   selectTab(tab: 'catalog' | 'curation' | 'orders'): void {
     this.tab.set(tab);
-    void this.router.navigate(['/admin'], { queryParams: { tab } });
+    void this.router.navigate(['/app/admin'], { queryParams: { tab } });
     if (tab === 'curation') void this.loadAssignments();
     if (tab === 'orders') void this.loadOrders();
   }
@@ -583,7 +583,7 @@ export class AdminScreen {
   }
 
   openReader(userId: string): void {
-    void this.router.navigate(['/lectores'], { queryParams: { userId } });
+    void this.router.navigate(['/app/lectores'], { queryParams: { userId } });
   }
 
   fulfillmentLabel(order: AdminOrder): string {
@@ -895,19 +895,19 @@ export class AdminScreen {
         tagTaxonomyVersion: TAG_TAXONOMY_VERSION,
       });
       this.toast.success('Borrador listo. Completa las features y tags antes de aprobar.');
-      void this.router.navigate(['/admin/clasificacion', created.id]);
+      void this.router.navigate(['/app/admin/clasificacion', created.id]);
     });
   }
 
   openEditor(classificationId: string): void {
-    void this.router.navigate(['/admin/clasificacion', classificationId]);
+      void this.router.navigate(['/app/admin/clasificacion', classificationId]);
   }
 
   async correct(classificationId: string): Promise<void> {
     await this.run(async () => {
       const corrected = await this.api.correctAdminClassification(classificationId);
       this.toast.success(`Revisión ${corrected.revision} creada con los valores precargados.`);
-      void this.router.navigate(['/admin/clasificacion', corrected.id]);
+      void this.router.navigate(['/app/admin/clasificacion', corrected.id]);
     });
   }
 

@@ -7,16 +7,16 @@ import { SessionStore } from '../session-store';
   imports: [RouterLink, RouterLinkActive],
   template: `
     <header class="mx-auto flex max-w-6xl items-center justify-between border-b border-[#cad7df] px-4 py-4 sm:px-6">
-      <a routerLink="/" class="font-mono text-[0.82rem] font-medium tracking-[0.08em] text-ink no-underline" aria-label="Libro sorpresa, inicio">
+      <a routerLink="/app" class="font-mono text-[0.82rem] font-medium tracking-[0.08em] text-ink no-underline" aria-label="Libro sorpresa, inicio">
         LIBRO <span class="bg-coral px-1 py-0.5 text-white">SORPRESA</span>
       </a>
 
       @if (store.authenticated()) {
         <nav class="hidden items-center gap-5 md:flex" aria-label="Navegación principal">
-          <a routerLink="/perfil" routerLinkActive="text-coral" class="text-sm font-semibold text-ink no-underline hover:text-coral">Mi perfil</a>
+          <a routerLink="/app/perfil" routerLinkActive="text-coral" class="text-sm font-semibold text-ink no-underline hover:text-coral">Mi perfil</a>
           @if (store.isAdmin()) {
-            <a routerLink="/lectores" routerLinkActive="text-coral" class="text-sm font-semibold text-ink no-underline hover:text-coral">Fichas de lectores</a>
-            <a routerLink="/admin" routerLinkActive="text-coral" class="text-sm font-semibold text-ink no-underline hover:text-coral">Catálogo y envíos</a>
+            <a routerLink="/app/lectores" routerLinkActive="text-coral" class="text-sm font-semibold text-ink no-underline hover:text-coral">Fichas de lectores</a>
+            <a routerLink="/app/admin" routerLinkActive="text-coral" class="text-sm font-semibold text-ink no-underline hover:text-coral">Catálogo y envíos</a>
           }
         </nav>
       }
