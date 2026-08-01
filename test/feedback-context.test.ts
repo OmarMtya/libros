@@ -40,4 +40,10 @@ describe('mappingBookFeatureKeys', () => {
     const keys = mappingBookFeatureKeys('negative', ['topic_no_interest']);
     expect(keys.size).toBe(0);
   });
+
+  it('tension_curiosity solo requiere tension_level (nunca strangeness_level)', () => {
+    const keys = mappingBookFeatureKeys('positive', ['tension_curiosity']);
+    expect([...keys]).toEqual(['tension_level']);
+    expect(keys.has('strangeness_level')).toBe(false);
+  });
 });

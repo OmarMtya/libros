@@ -5,14 +5,12 @@ import { FeedbackContextResolver } from './feedback-context.resolver';
 import { FeedbackInvitationService } from './feedback-invitation.service';
 import { FeedbackLearningService } from './feedback-learning.service';
 import { FeedbackPublicController } from './feedback-public.controller';
-import { FeedbackController } from './feedback.controller';
-import { FeedbackService } from './feedback.service';
 import { FeedbackTokenService } from './feedback-token.service';
 
 @Module({
   imports: [AuthModule, ProfileModule],
-  controllers: [FeedbackController, FeedbackPublicController],
-  providers: [FeedbackService, FeedbackTokenService, FeedbackInvitationService, FeedbackContextResolver, FeedbackLearningService],
+  controllers: [FeedbackPublicController],
+  providers: [FeedbackTokenService, FeedbackInvitationService, FeedbackContextResolver, FeedbackLearningService],
   exports: [FeedbackInvitationService],
 })
 export class FeedbackModule {}

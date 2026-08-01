@@ -6,7 +6,6 @@ export const routes: Routes = [
   { path: '', loadComponent: () => import('./screens/home').then((m) => m.Home) },
   { path: 'cuestionario', loadComponent: () => import('./screens/questionnaire').then((m) => m.Questionnaire), canActivate: [authGuard] },
   { path: 'perfil', loadComponent: () => import('./screens/profile').then((m) => m.ProfileScreen), canActivate: [authGuard] },
-  { path: 'experiencia', loadComponent: () => import('./screens/experience').then((m) => m.Experience), canActivate: [authGuard] },
   { path: 'mi-paquete', loadComponent: () => import('./screens/mi-paquete').then((m) => m.MiPaquete), canActivate: [authGuard] },
   { path: 'lectores', loadComponent: () => import('./screens/readers').then((m) => m.Readers), canActivate: [authGuard, adminGuard] },
   { path: 'admin', loadComponent: () => import('./screens/admin').then((m) => m.AdminScreen), canActivate: [authGuard, adminGuard] },

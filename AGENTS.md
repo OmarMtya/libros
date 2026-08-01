@@ -96,6 +96,11 @@ Las fotografías de la tarjeta viven en `frontend/src/app/screens/experience.ts`
   activa en `src/feedback/feedback.service.ts`.
 - **Estados de envío (fulfillment)**: `curation_pending` → `assigned` → `packed` → `shipped` →
   `delivered`. La línea de progreso del usuario muestra 5 pasos y **no** muestra "recibido".
+  En el admin (Curación) hay **rollback logístico**: `POST /v1/admin/assignments/:id/unpack`
+  (`packed`→`assigned`), `/unship` (`shipped`→`packed`, revoca invitaciones pendientes y resetea el
+  ciclo), `/undo-in-delivery` (`in_delivery`→`shipped`) y `/undo-delivered` (`delivered`→`in_delivery`).
+  `reopen-learning` reabre ciclos `closed_without_feedback`/`final_received` (revoca la invitación
+  vigente y genera una nueva). Todas las acciones de curación piden confirmación con `DialogService`.
 - **`GET /v1/orders`** (usuario): pedidos con fulfillment, dirección, assignment activo y
   `_count.feedbacks`.
 - **`GET /v1/admin/orders`** (admin): lista con usuario, paquete, montos, pago, dirección,
@@ -103,7 +108,14 @@ Las fotografías de la tarjeta viven en `frontend/src/app/screens/experience.ts`
   `POST /v1/admin/assignments/:id/...`).
 - **`/mi-paquete`** (frontend): estado del pedido + línea de progreso + instrucciones del QR cuando
   está entregado. El enlace de feedback es solo el QR impreso (el token se ve en la pantalla de
-  curación al enviar/reemitir).
+  curación al enviar/ver la invitación).
+- **Invitaciones de feedback**: el token es determinístico (`HMAC-SHA256(invitationId)` con
+  `INVITATION_SIGNING_SECRET`), así el URL se puede re-derivar para reimprimir el QR. Solo se guarda
+  el hash (`sha256`) del token en `feedback_invitations`. `POST /v1/admin/assignments/:id/reissue-invitation`
+  ("Ver invitación" en el admin) **no invalida**: si existe una invitación `pending` no vencida
+  devuelve ese mismo URL; si no (p. ej. `provisional_received`, la previa ya se consumió) crea una nueva.
+  `INVITATION_SIGNING_SECRET` debe estar en `.env`/AppHost; sin él se usa un secreto aleatorio por
+  proceso y el re-fetch no sobrevive un restart.
 
 ## Verificaciones
 

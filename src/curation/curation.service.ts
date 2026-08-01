@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AssignDto, ReplaceDto } from './curation.dto';
 import { CuratorAuditService } from './curator-audit.service';
 
-const LOGISTIC_FROZEN = new Set(['shipped', 'delivered', 'canceled']);
+const LOGISTIC_FROZEN = new Set(['shipped', 'in_delivery', 'delivered', 'canceled']);
 
 @Injectable()
 export class CurationService {
@@ -28,6 +28,7 @@ export class CurationService {
             status: true,
             createdAt: true,
             shippingAddress: true,
+            user: { select: { displayName: true, email: true } },
           },
         },
         assignments: {
@@ -57,7 +58,7 @@ export class CurationService {
           bookEditionId: dto.bookEditionId,
           classificationVersionId: dto.classificationVersionId,
           assignedBy: actorId,
-          notes: dto.notes ?? null,
+          notes: dto.notes ?? dto.reason ?? null,
           recommendationCandidateId: candidateId ?? null,
         },
       });
@@ -78,7 +79,7 @@ export class CurationService {
     return this.prisma.$transaction(async (tx) => {
       const current = await tx.curationAssignment.findUnique({ where: { id: assignmentId }, include: { fulfillment: { select: { id: true, status: true } } } });
       if (!current || current.status !== 'active') throw new ConflictException('No existe una asignación activa para reemplazar.');
-      if (current.fulfillment.status === 'shipped' || current.fulfillment.status === 'delivered') {
+      if (current.fulfillment.status === 'shipped' || current.fulfillment.status === 'in_delivery' || current.fulfillment.status === 'delivered') {
         throw new BadRequestException('No se puede reemplazar la asignación después del envío.');
       }
       await this.assertAssignableClassification(tx, dto.bookEditionId, dto.classificationVersionId);
@@ -91,7 +92,7 @@ export class CurationService {
           bookEditionId: dto.bookEditionId,
           classificationVersionId: dto.classificationVersionId,
           assignedBy: actorId,
-          notes: dto.notes ?? null,
+          notes: dto.notes ?? dto.reason ?? null,
           recommendationCandidateId: candidateId ?? null,
         },
       });
@@ -139,6 +140,27 @@ export class CurationService {
     });
   }
 
+  async startDelivery(assignmentId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const assignment = await tx.curationAssignment.findUnique({
+        where: { id: assignmentId },
+        include: { fulfillment: { select: { id: true, status: true } } },
+      });
+      if (!assignment || assignment.status !== 'active') throw new ConflictException('No existe una asignación activa.');
+      if (assignment.fulfillment.status !== 'shipped') throw new BadRequestException('Solo se puede pasar a en proceso de entrega una logística enviada.');
+      const updated = await tx.fulfillment.update({ where: { id: assignment.fulfillmentId }, data: { status: FulfillmentStatus.in_delivery } });
+      await this.audit.record(tx, {
+        actorId: assignment.assignedBy,
+        actionKind: 'start_delivery',
+        targetType: 'curation_assignment',
+        targetId: assignmentId,
+        reason: null,
+        payloadDiffJson: { fulfillmentStatus: 'in_delivery' },
+      });
+      return updated;
+    });
+  }
+
   async delivered(assignmentId: string) {
     return this.prisma.$transaction(async (tx) => {
       const assignment = await tx.curationAssignment.findUnique({
@@ -146,7 +168,7 @@ export class CurationService {
         include: { fulfillment: { select: { id: true, status: true } } },
       });
       if (!assignment || assignment.status !== 'active') throw new ConflictException('No existe una asignación activa.');
-      if (assignment.fulfillment.status !== 'shipped') throw new BadRequestException('Solo se puede marcar entregada una logística enviada.');
+      if (assignment.fulfillment.status !== 'in_delivery') throw new BadRequestException('Solo se puede marcar entregada una logística en proceso de entrega.');
       const updated = await tx.fulfillment.update({ where: { id: assignment.fulfillmentId }, data: { status: 'delivered', deliveredAt: new Date() } });
       await this.audit.record(tx, {
         actorId: assignment.assignedBy,
@@ -160,14 +182,37 @@ export class CurationService {
     });
   }
 
+  async unpack(assignmentId: string) {
+    return this.undoLogistic(assignmentId, { allowed: ['packed'], target: 'assigned', actionKind: 'unpack_book' });
+  }
+
+  async unship(assignmentId: string) {
+    return this.undoLogistic(assignmentId, {
+      allowed: ['shipped'],
+      target: 'packed',
+      actionKind: 'unsend_book',
+      clearShippedAt: true,
+      revokePendingInvitations: true,
+      resetFeedbackCycle: true,
+    });
+  }
+
+  async undoInDelivery(assignmentId: string) {
+    return this.undoLogistic(assignmentId, { allowed: ['in_delivery'], target: 'shipped', actionKind: 'undo_start_delivery' });
+  }
+
+  async undoDelivered(assignmentId: string) {
+    return this.undoLogistic(assignmentId, { allowed: ['delivered'], target: 'in_delivery', actionKind: 'undo_deliver_book', clearDeliveredAt: true });
+  }
+
   async closeWithoutFeedback(assignmentId: string) {
     return this.prisma.$transaction(async (tx) => {
       const assignment = await tx.curationAssignment.findUnique({
         where: { id: assignmentId },
-        include: { fulfillment: { select: { id: true } }, feedbacks: { where: { isFinal: true }, select: { id: true } } },
+        include: { fulfillment: { select: { id: true } }, feedbacks: { select: { id: true } } },
       });
       if (!assignment) throw new NotFoundException('No se encontró la asignación.');
-      if (assignment.feedbacks.length > 0) throw new ConflictException('Ya existe feedback final; no se puede cerrar sin feedback.');
+      if (assignment.feedbacks.length > 0) throw new ConflictException('Ya existe feedback; no se puede cerrar sin feedback.');
       await tx.feedbackInvitation.updateMany({ where: { curationAssignmentId: assignmentId, status: 'pending' }, data: { status: 'revoked', revokedAt: new Date(), optimisticLockVersion: { increment: 1 } } });
       const updated = await tx.curationAssignment.update({ where: { id: assignmentId }, data: { feedbackCycleStatus: 'closed_without_feedback', optimisticLockVersion: { increment: 1 } } });
       await this.audit.record(tx, {
@@ -190,12 +235,35 @@ export class CurationService {
         throw new ConflictException(`No se puede reemitir una invitación con ciclo ${assignment.feedbackCycleStatus}. Usa reopen-learning para reabrirlo explícitamente.`);
       }
       const now = new Date();
-      const pending = await tx.feedbackInvitation.findFirst({ where: { curationAssignmentId: assignmentId, status: 'pending' } });
+      const pending = await tx.feedbackInvitation.findFirst({
+        where: { curationAssignmentId: assignmentId, status: 'pending' },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, tokenHash: true, expiresAt: true },
+      });
+      if (pending && (pending.expiresAt === null || pending.expiresAt > now)) {
+        const plainToken = this.invitations.generateToken(pending.id);
+        if (this.invitations.hashToken(plainToken) === pending.tokenHash) {
+          await this.audit.record(tx, {
+            actorId: assignment.assignedBy,
+            actionKind: 'view_invitation',
+            targetType: 'curation_assignment',
+            targetId: assignmentId,
+            reason: null,
+            payloadDiffJson: { invitationId: pending.id },
+          });
+          return {
+            invitation: { id: pending.id, curationAssignmentId: assignmentId },
+            plainToken,
+            url: this.invitations.urlFor(plainToken),
+            feedbackCycleStatus: assignment.feedbackCycleStatus,
+          };
+        }
+      }
       if (pending) {
-        const nextStatus = pending.expiresAt <= now ? 'expired' : 'revoked';
+        const expired = pending.expiresAt !== null && pending.expiresAt <= now;
         await tx.feedbackInvitation.update({
           where: { id: pending.id },
-          data: { status: nextStatus, revokedAt: nextStatus === 'revoked' ? now : pending.revokedAt, optimisticLockVersion: { increment: 1 } },
+          data: { status: expired ? 'expired' : 'revoked', revokedAt: expired ? null : now, optimisticLockVersion: { increment: 1 } },
         });
       }
       const created = await this.invitations.createPending(tx, assignmentId, now);
@@ -219,9 +287,34 @@ export class CurationService {
         throw new BadRequestException('El ciclo no está cerrado; usa reissue-invitation.');
       }
       const now = new Date();
-      await tx.feedbackInvitation.updateMany({ where: { curationAssignmentId: assignmentId, status: 'pending' }, data: { status: 'revoked', revokedAt: now } });
       const notes = `Reapertura por ${actorId}: ${reason ?? 'sin motivo'} (previo: ${assignment.feedbackCycleStatus})`.slice(0, 500);
       await tx.curationAssignment.update({ where: { id: assignmentId }, data: { feedbackCycleStatus: 'invited', notes: notes, optimisticLockVersion: { increment: 1 } } });
+
+      if (assignment.feedbackCycleStatus === 'closed_without_feedback') {
+        const revoked = await tx.feedbackInvitation.findFirst({
+          where: { curationAssignmentId: assignmentId, status: 'revoked' },
+          orderBy: { revokedAt: 'desc' },
+          select: { id: true },
+        });
+        if (revoked) {
+          await tx.feedbackInvitation.update({
+            where: { id: revoked.id },
+            data: { status: 'pending', revokedAt: null, expiresAt: null, optimisticLockVersion: { increment: 1 } },
+          });
+          const plainToken = this.invitations.generateToken(revoked.id);
+          await this.audit.record(tx, {
+            actorId,
+            actionKind: 'reopen_learning',
+            targetType: 'curation_assignment',
+            targetId: assignmentId,
+            reason: reason ?? null,
+            payloadDiffJson: { invitationId: revoked.id, restored: true },
+          });
+          return { invitation: { id: revoked.id, curationAssignmentId: assignmentId }, plainToken, url: this.invitations.urlFor(plainToken) };
+        }
+      }
+
+      await tx.feedbackInvitation.updateMany({ where: { curationAssignmentId: assignmentId, status: 'pending' }, data: { status: 'revoked', revokedAt: now } });
       const created = await this.invitations.createPending(tx, assignmentId, now);
       await this.audit.record(tx, {
         actorId,
@@ -246,7 +339,7 @@ export class CurationService {
           select: { id: true, rankPosition: true, finalScore: true, recommendationEvidenceCoverage: true },
         },
         invitations: { orderBy: { createdAt: 'desc' } },
-        feedbacks: { select: { id: true, learningStatus: true, isFinal: true, submittedAt: true } },
+        feedbacks: { select: { id: true, learningStatus: true, isFinal: true, submittedAt: true, selectionFitRating: true } },
       },
       orderBy: { assignedAt: 'desc' },
       take: 100,
@@ -328,6 +421,56 @@ export class CurationService {
         targetId: assignmentId,
         reason: null,
         payloadDiffJson: { fulfillmentStatus: target },
+      });
+      return updated;
+    });
+  }
+
+  private async undoLogistic(
+    assignmentId: string,
+    opts: {
+      allowed: FulfillmentStatus[];
+      target: FulfillmentStatus;
+      actionKind: string;
+      clearShippedAt?: boolean;
+      clearDeliveredAt?: boolean;
+      revokePendingInvitations?: boolean;
+      resetFeedbackCycle?: boolean;
+    },
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const assignment = await tx.curationAssignment.findUnique({
+        where: { id: assignmentId },
+        include: { fulfillment: { select: { id: true, status: true } } },
+      });
+      if (!assignment || assignment.status !== 'active') throw new ConflictException('No existe una asignación activa.');
+      if (!opts.allowed.includes(assignment.fulfillment.status)) {
+        throw new BadRequestException(`No se puede deshacer desde el estado ${assignment.fulfillment.status}.`);
+      }
+      const now = new Date();
+      if (opts.revokePendingInvitations) {
+        await tx.feedbackInvitation.updateMany({
+          where: { curationAssignmentId: assignmentId, status: 'pending' },
+          data: { status: 'revoked', revokedAt: now, optimisticLockVersion: { increment: 1 } },
+        });
+      }
+      if (opts.resetFeedbackCycle) {
+        await tx.curationAssignment.update({
+          where: { id: assignmentId },
+          data: { feedbackCycleStatus: 'not_invited', optimisticLockVersion: { increment: 1 } },
+        });
+      }
+      const data: Prisma.FulfillmentUpdateInput = { status: opts.target };
+      if (opts.clearShippedAt) data.shippedAt = null;
+      if (opts.clearDeliveredAt) data.deliveredAt = null;
+      const updated = await tx.fulfillment.update({ where: { id: assignment.fulfillmentId }, data });
+      await this.audit.record(tx, {
+        actorId: assignment.assignedBy,
+        actionKind: opts.actionKind,
+        targetType: 'curation_assignment',
+        targetId: assignmentId,
+        reason: null,
+        payloadDiffJson: { fulfillmentStatus: opts.target },
       });
       return updated;
     });

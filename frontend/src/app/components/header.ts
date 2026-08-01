@@ -13,9 +13,6 @@ import { SessionStore } from '../session-store';
 
       @if (store.authenticated()) {
         <nav class="hidden items-center gap-5 md:flex" aria-label="Navegación principal">
-          <a routerLink="/" routerLinkActive="text-coral" [routerLinkActiveOptions]="{ exact: true }" class="text-sm font-semibold text-ink no-underline hover:text-coral">Inicio</a>
-          <a routerLink="/experiencia" routerLinkActive="text-coral" class="text-sm font-semibold text-ink no-underline hover:text-coral">Elige tu experiencia</a>
-          <a routerLink="/mi-paquete" routerLinkActive="text-coral" class="text-sm font-semibold text-ink no-underline hover:text-coral">Mi paquete</a>
           <a routerLink="/perfil" routerLinkActive="text-coral" class="text-sm font-semibold text-ink no-underline hover:text-coral">Mi perfil</a>
           @if (store.isAdmin()) {
             <a routerLink="/lectores" routerLinkActive="text-coral" class="text-sm font-semibold text-ink no-underline hover:text-coral">Fichas de lectores</a>

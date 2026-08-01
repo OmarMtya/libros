@@ -224,6 +224,7 @@ const TOTAL_QUESTIONS = 16;
                   (click)="scaleValue = value">{{ value }}</button>
               }
             </div>
+            <p class="mt-2 text-xs text-[#567088]">1 = Muy poco · 5 = Mucho</p>
           } @else if (current.questionKey === 'Q07_COMPLEXITY') {
             <div class="space-y-6">
               <div>
@@ -248,6 +249,7 @@ const TOTAL_QUESTIONS = 16;
                   }
                 </div>
               </div>
+              <p class="text-xs text-[#567088]">1 = Muy sencillo · 5 = Muy exigente</p>
             </div>
           } @else if (current.responseType === 'ranking') {
             <div class="space-y-3">
@@ -479,7 +481,7 @@ export class Questionnaire {
     { key: 'notInterested', label: 'No me interesan por ahora', max: null },
   ];
 
-  scaleValue = 3;
+  scaleValue: number | null = null;
   selectedKeys: string[] = [];
   structuredResponse: Record<string, unknown> = {};
   tagQueries: Record<TagGroup, string> = { liked: '', curious: '', notInterested: '' };
@@ -496,7 +498,7 @@ export class Questionnaire {
   dislikedBooks: BookResult[] = [];
   dislikedBookReasons: Record<string, string[]> = {};
   dislikedBookReasonTexts: Record<string, string> = {};
-  complexity = { linguistic: 3, structural: 3 };
+  complexity: { linguistic: number | null; structural: number | null } = { linguistic: null, structural: null };
   lengthSeries = { minPages: 100, maxPages: 400, seriesPreference: 'standalone_preferred' };
   languagePreferences = { spanish: true, english: false };
   private searchTimer?: ReturnType<typeof setTimeout>;
@@ -611,7 +613,7 @@ export class Questionnaire {
     if (!session) return;
     await this.api.completeSession(session.id);
     this.question.set(null);
-    await this.router.navigate(['/experiencia']);
+    await this.router.navigate(['/']);
   }
 
   toggleSelection(key: string): void {
@@ -811,6 +813,11 @@ export class Questionnaire {
     if (question.questionKey === 'Q13_FORMAT_LANGUAGE') {
       return !this.languagePreferences.spanish && !this.languagePreferences.english ? 'Elige al menos un idioma.' : null;
     }
+    if (question.questionKey === 'Q07_COMPLEXITY') {
+      if (this.complexity.linguistic === null || this.complexity.structural === null) return 'Completa ambas escalas de complejidad.';
+      return null;
+    }
+    if (question.responseType === 'scale' && this.scaleValue === null) return 'Elige una opción.';
     if (question.responseType === 'single_select' && this.selectedKeys.length !== 1) return 'Elige una opción.';
     if (question.responseType === 'ranking' && this.selectedKeys.length !== 3) return 'Selecciona tres opciones en orden de preferencia.';
     if (question.responseType === 'multi_select' && this.selectedKeys.length === 0) return 'Elige al menos una opción.';
@@ -850,7 +857,7 @@ export class Questionnaire {
   }
 
   private resetAnswer(): void {
-    this.scaleValue = 3;
+    this.scaleValue = null;
     this.selectedKeys = [];
     this.structuredResponse = {};
     this.lovedBookQuery = '';
@@ -898,7 +905,7 @@ export class Questionnaire {
     }
     if (question.questionKey === 'Q07_COMPLEXITY') {
       const linguistic = value('linguistic'); const structural = value('structural');
-      this.complexity = { linguistic: typeof linguistic === 'number' ? linguistic : 3, structural: typeof structural === 'number' ? structural : 3 };
+      this.complexity = { linguistic: typeof linguistic === 'number' ? linguistic : null, structural: typeof structural === 'number' ? structural : null };
       return;
     }
     if (question.questionKey === 'Q11_GENRES_THEMES') {

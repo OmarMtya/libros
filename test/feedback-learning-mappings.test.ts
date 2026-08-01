@@ -16,7 +16,21 @@ describe('FEEDBACK_LEARNING_MAPPINGS', () => {
   it('cada optionKey expone una lista de mappings', () => {
     const mappings = FEEDBACK_LEARNING_MAPPINGS.positive.tension_curiosity!;
     expect(Array.isArray(mappings)).toBe(true);
-    expect(mappings.length).toBe(2);
+    expect(mappings.length).toBe(1);
+  });
+
+  it('tension_curiosity solo aprende tension_preference y nunca strangeness_preference', () => {
+    const mappings = FEEDBACK_LEARNING_MAPPINGS.positive.tension_curiosity!;
+    const targets = mappings.map((mapping) => mapping.targetDimension);
+    expect(targets).toEqual(['tension_preference']);
+    expect(mappings[0]!.bookFeatureKey).toBe('tension_level');
+    expect(targets).not.toContain('strangeness_preference');
+    for (const polarity of ['positive', 'negative'] as const) {
+      for (const optionKey of Object.keys(FEEDBACK_LEARNING_MAPPINGS[polarity])) {
+        const optionMappings = FEEDBACK_LEARNING_MAPPINGS[polarity][optionKey] ?? [];
+        expect(optionMappings.map((mapping) => mapping.targetDimension)).not.toContain('strangeness_preference');
+      }
+    }
   });
 
   it('aspectos sin dimensión (length, nothing_in_particular, topic_no_interest) no generan evidencia', () => {

@@ -15,51 +15,81 @@ Actúa como curador editorial experto. Antes de asignar cualquier valor:
    críticas y la crítica profesional). No bases una feature en una sola reseña.
 2. **Cruza la evidencia**: si dos reseñas difieren en una misma feature, busca una tercera fuente.
 3. **No uses el valor por defecto `0.5`** para "no saber": si no hay evidencia suficiente, omite la
-   feature del array `features` (o deja `value: null`).
+   feature del objeto `features`.
 4. **Todo valor se justifica mentalmente contra la ancla semántica** de la feature (ver §4): elige el
    valor de la escala que mejor describa el libro, no el que "se sienta bien".
 5. Solo puedes proponer **tags que existan** en la taxonomía (§5). No inventes claves.
 6. Asigna **al menos 1 genre y 1 theme** obligatorios; los subgéneros van solo si aplican (ver §6).
-7. No emitas texto fuera del bloque JSON: la salida debe ser **un único JSON válido**, sin markdown
-   alrededor (a menos que la herramienta receptora pida otra cosa).
+7. No emitas texto fuera del bloque JSON: la salida debe ser **un único JSON válido** con la forma
+   `{ "features": { <featureKey>: { "value": …, "confidence": … } }, "tags": { <tagKey>: { "strength": …, "confidence": … } } }`,
+   sin markdown alrededor (a menos que la herramienta receptora pida otra cosa).
 
 ---
 
 ## 1. Formato JSON exacto esperado
 
-Payload para crear/guardar una clasificación (esquema `SaveClassificationDto` / `CreateClassificationDto`):
+La salida de la IA es un objeto con dos claves, `features` y `tags`, cada una como **objeto indexado
+por clave** (el formato que pega el editor manual de clasificaciones). No uses arrays ni claves
+internas `featureKey`/`tagKey`.
 
 ```json
 {
-  "contentTypeKey": "fiction",
-  "contentTypeSchemaVersion": "content-types/1.0",
-  "featureSchemaVersion": "book-features/1.0",
-  "tagTaxonomyVersion": "tag-tax/1.0.1",
-  "features": [
-    {
-      "featureKey": "hook_speed",
-      "value": 0.75,
-      "confidence": 0.65,
-      "notes": "El gancho aparece en la primera página (rescate en alta mar); corroborado en 3 reseñas."
-    }
-  ],
-  "tags": [
-    { "tagKey": "science_fiction", "strength": 0.9, "confidence": 0.7 },
-    { "tagKey": "identity", "strength": 0.6, "confidence": 0.6 }
-  ]
+  "features": {
+    "hook_speed": { "value": 0.75, "confidence": 0.65 },
+    "narrative_pace": { "value": 0.6, "confidence": 0.65 }
+  },
+  "tags": {
+    "science_fiction": { "strength": 0.9, "confidence": 0.7 },
+    "identity": { "strength": 0.6, "confidence": 0.6 }
+  }
 }
 ```
 
-Campos opcionales adicionales en el flujo "crear clasificación" (`CreateClassificationDto`):
-- `classifierVersion` (string ≤ 30): si no se envía, el backend usa el valor por defecto.
-- Por feature: `source` (string ≤ 100, p. ej. `curator_direct`) y `evidence` (objeto libre, se persiste como JSON).
+Formato **correcto** de `features` (las claves son `featureKey`):
+
+```json
+{
+  "hook_speed": { "value": 0.75, "confidence": 0.7 },
+  "narrative_pace": { "value": 0.6, "confidence": 0.65 }
+}
+```
+
+Formato **correcto** de `tags` (las claves son `tagKey`):
+
+```json
+{
+  "science_fiction": { "strength": 0.9, "confidence": 0.85 },
+  "identity": { "strength": 0.7, "confidence": 0.65 }
+}
+```
+
+Formato **incorrecto** (nunca arrays de objetos):
+
+```json
+[
+  { "featureKey": "hook_speed", "value": 0.75, "confidence": 0.7 }
+]
+```
+
+```json
+[
+  { "tagKey": "science_fiction", "strength": 0.9, "confidence": 0.85 }
+]
+```
+
+> El editor manual pega cada objeto por separado: el objeto `features` en el cuadro de features y el
+> objeto `tags` en el cuadro de tags. El `contentTypeKey` y las versiones de esquema pertenecen al
+> borrador abierto; la IA solo devuelve `features` y `tags`.
 
 Reglas de forma:
-- `features[]`: sin claves duplicadas; solo `featureKey` que existan en `book-features/1.0` y que **no
-  sean `not_applicable`** para el `contentTypeKey` elegido.
-- `tags[]`: sin claves duplicadas; solo `tagKey` existentes en `tag-tax/1.0.1` con `status: active`.
-- Las features **requeridas** (según `contentTypeKey`, ver §6) deben incluirse **siempre** con
-  `value` y `confidence`; las opcionales pueden omitirse. Nunca incluyas una feature `not_applicable`.
+- `features`: objeto cuyas **claves** son `featureKey` válidos en `book-features/1.0` que **no** sean
+  `not_applicable` para el `contentTypeKey` del borrador. Cada entrada: `{ "value": 0..1,
+  "confidence": 0..0.95 }`.
+- `tags`: objeto cuyas **claves** son `tagKey` existentes en `tag-tax/1.0.1` con `status: active`.
+  Cada entrada: `{ "strength": 0..1, "confidence": 0..0.95 }`.
+- Las features **requeridas** (según `contentTypeKey`, ver §6) deben incluirse **siempre**; las
+  opcionales pueden omitirse. Nunca incluyas una feature `not_applicable`.
+- Sin arrays; sin claves internas `featureKey`/`tagKey`; cada clave única.
 
 ---
 
@@ -92,7 +122,6 @@ Reglas de forma:
 - **`confidence` (features y tags):** `0..0.95`, hasta 4 decimales. Refleja consistencia entre fuentes.
 - **`strength` (tags):** `0..1`. `0` = el libro **no** exhibe el tag; `>0` = el tag aplica con esa
   intensidad. Nunca negativa.
-- **`notes` (features):** string ≤ 2000 caracteres; evidencia/justificación opcional.
 
 Semántica de `confidence`:
 - Si el valor proviene de una **única fuente IA**, `confidence` no debe superar `0.40`
@@ -286,12 +315,15 @@ Features **`not_applicable`** (prohibidas de incluir en el JSON para ese content
   `relationship_focus`, `cast_size_load`, `multi_pov_load`, `ending_openness`, `worldbuilding_load`.
 - `poetry`: las 8 anteriores **más** `dialogue_ratio`.
 
-Restricciones de formato (rechazo con 400 si se violan):
-- Feature duplicada o tag duplicado en el array → rechazo.
-- Feature desconocida para `book-features/1.0` → rechazo.
-- Tag desconocido para `tag-tax/1.0.1` o con `status != active` → rechazo.
-- Feature `not_applicable` en el payload → rechazo ("no aplica para {contentTypeKey}").
-- `value`/`strength` fuera de `[0, 1]`, o `confidence` fuera de `[0, 0.95]` → rechazo.
+Restricciones de formato (para que el JSON sea aceptado y la clasificación pase el gate):
+- `features` y `tags` son **objetos indexados por clave** (sin arrays ni claves internas
+  `featureKey`/`tagKey`); claves únicas.
+- Clave desconocida en `features` (no existe en `book-features/1.0`) o en `tags` (no existe en
+  `tag-tax/1.0.1` o `status != active`) → se ignora/descarta.
+- Feature `not_applicable` para el `contentTypeKey` del borrador → se ignora/descarta ("no aplica
+  para {contentTypeKey}").
+- `value`/`strength` fuera de `[0, 1]`, o `confidence` fuera de `[0, 0.95]` → el editor acota, pero
+  la salida debe respetar el rango.
 - Para aprobar (no solo guardar borrador): todas las requeridas presentes + `configurationErrors` vacío
   + regla de tags. El borrador puede guardarse incompleto; la aprobación lo exige completo.
 
@@ -307,41 +339,37 @@ Restricciones de formato (rechazo con 400 si se violan):
 
 ```json
 {
-  "contentTypeKey": "fiction",
-  "contentTypeSchemaVersion": "content-types/1.0",
-  "featureSchemaVersion": "book-features/1.0",
-  "tagTaxonomyVersion": "tag-tax/1.0.1",
-  "features": [
-    { "featureKey": "hook_speed", "value": 0.85, "confidence": 0.7, "notes": "Gancho en la primera escena; 3 reseñas lo señalan." },
-    { "featureKey": "narrative_pace", "value": 0.6, "confidence": 0.65 },
-    { "featureKey": "slow_burn_level", "value": 0.3, "confidence": 0.6 },
-    { "featureKey": "narrative_payoff", "value": 0.75, "confidence": 0.65 },
-    { "featureKey": "style_clarity", "value": 0.8, "confidence": 0.7 },
-    { "featureKey": "ornate_prose", "value": 0.4, "confidence": 0.6 },
-    { "featureKey": "linguistic_complexity", "value": 0.5, "confidence": 0.6 },
-    { "featureKey": "structural_complexity", "value": 0.4, "confidence": 0.6 },
-    { "featureKey": "conceptual_density", "value": 0.6, "confidence": 0.6 },
-    { "featureKey": "conceptual_depth", "value": 0.7, "confidence": 0.65, "notes": "Las ideas sobre identidad estructuran toda la obra." },
-    { "featureKey": "character_depth", "value": 0.7, "confidence": 0.65 },
-    { "featureKey": "character_agency", "value": 0.6, "confidence": 0.6 },
-    { "featureKey": "character_likability", "value": 0.6, "confidence": 0.6 },
-    { "featureKey": "relationship_focus", "value": 0.7, "confidence": 0.65 },
-    { "featureKey": "cast_size_load", "value": 0.3, "confidence": 0.7 },
-    { "featureKey": "multi_pov_load", "value": 0.3, "confidence": 0.7 },
-    { "featureKey": "introspection_density", "value": 0.65, "confidence": 0.6 },
-    { "featureKey": "repetition_level", "value": 0.4, "confidence": 0.6 },
-    { "featureKey": "tension_level", "value": 0.55, "confidence": 0.6 },
-    { "featureKey": "descriptive_density", "value": 0.5, "confidence": 0.6 },
-    { "featureKey": "worldbuilding_load", "value": 0.3, "confidence": 0.7 },
-    { "featureKey": "ending_openness", "value": 0.35, "confidence": 0.6 }
-  ],
-  "tags": [
-    { "tagKey": "science_fiction", "strength": 0.9, "confidence": 0.7 },
-    { "tagKey": "identity", "strength": 0.7, "confidence": 0.65 },
-    { "tagKey": "space_opera", "strength": 0.8, "confidence": 0.6 },
-    { "tagKey": "coming_of_age", "strength": 0.5, "confidence": 0.6 },
-    { "tagKey": "near_future", "strength": 0.6, "confidence": 0.6 }
-  ]
+  "features": {
+    "hook_speed": { "value": 0.85, "confidence": 0.7 },
+    "narrative_pace": { "value": 0.6, "confidence": 0.65 },
+    "slow_burn_level": { "value": 0.3, "confidence": 0.6 },
+    "narrative_payoff": { "value": 0.75, "confidence": 0.65 },
+    "style_clarity": { "value": 0.8, "confidence": 0.7 },
+    "ornate_prose": { "value": 0.4, "confidence": 0.6 },
+    "linguistic_complexity": { "value": 0.5, "confidence": 0.6 },
+    "structural_complexity": { "value": 0.4, "confidence": 0.6 },
+    "conceptual_density": { "value": 0.6, "confidence": 0.6 },
+    "conceptual_depth": { "value": 0.7, "confidence": 0.65 },
+    "character_depth": { "value": 0.7, "confidence": 0.65 },
+    "character_agency": { "value": 0.6, "confidence": 0.6 },
+    "character_likability": { "value": 0.6, "confidence": 0.6 },
+    "relationship_focus": { "value": 0.7, "confidence": 0.65 },
+    "cast_size_load": { "value": 0.3, "confidence": 0.7 },
+    "multi_pov_load": { "value": 0.3, "confidence": 0.7 },
+    "introspection_density": { "value": 0.65, "confidence": 0.6 },
+    "repetition_level": { "value": 0.4, "confidence": 0.6 },
+    "tension_level": { "value": 0.55, "confidence": 0.6 },
+    "descriptive_density": { "value": 0.5, "confidence": 0.6 },
+    "worldbuilding_load": { "value": 0.3, "confidence": 0.7 },
+    "ending_openness": { "value": 0.35, "confidence": 0.6 }
+  },
+  "tags": {
+    "science_fiction": { "strength": 0.9, "confidence": 0.7 },
+    "identity": { "strength": 0.7, "confidence": 0.65 },
+    "space_opera": { "strength": 0.8, "confidence": 0.6 },
+    "coming_of_age": { "strength": 0.5, "confidence": 0.6 },
+    "near_future": { "strength": 0.6, "confidence": 0.6 }
+  }
 }
 ```
 
@@ -350,10 +378,11 @@ Restricciones de formato (rechazo con 400 si se violan):
 ## 8. Checklist final antes de entregar el JSON
 
 - [ ] Investigué al menos 3 reseñas (cuando existen) además de la sinopsis y la muestra de texto.
-- [ ] `contentTypeKey` correcto y sus features requeridas todas presentes con `value` y `confidence`.
+- [ ] Salida con la forma exacta `{ "features": { … }, "tags": { … } }`, sin arrays ni claves internas `featureKey`/`tagKey`.
+- [ ] Las features requeridas del `contentTypeKey` del borrador están todas presentes con `value` y `confidence`.
 - [ ] Ninguna feature `not_applicable` incluida.
 - [ ] `conceptual_density` (volumen/frecuencia de ideas) y `conceptual_depth` (desarrollo y centralidad de ideas) evaluados por separado contra sus anclas.
 - [ ] Al menos 1 `genre` y 1 `theme`; ningún tag inexistente ni `deprecated`.
 - [ ] `value`/`strength` en `[0,1]`, `confidence` en `[0,0.95]`, 4 decimales máximo.
 - [ ] `confidence ≤ 0.40` si la única fuente es IA; sin `0.5` por defecto "no sé".
-- [ ] El JSON es válido y autocontenido (sin texto adicional).
+- [ ] El JSON es válido, autocontenido y sin texto adicional.

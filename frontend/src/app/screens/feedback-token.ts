@@ -6,6 +6,18 @@ import { ToastService } from '../toast.service';
 
 type FeedbackStatus = 'completed' | 'in_progress' | 'paused' | 'abandoned' | 'not_started';
 
+type FeedbackForm = {
+  started: boolean;
+  notStartedReason: string | null;
+  readingStatus: FeedbackStatus;
+  completionPercentage: number;
+  positiveAspects: string[];
+  negativeAspects: string[];
+  selectionFitRating: number | null;
+  outcomeAttribution: string;
+  freeText: string;
+};
+
 const POSITIVE_ASPECTS = [
   { key: 'story_progress', label: 'El avance de la historia' },
   { key: 'tension_curiosity', label: 'La tensión o curiosidad' },
@@ -25,12 +37,27 @@ const NEGATIVE_ASPECTS = [
   { key: 'topic_no_interest', label: 'No me interesó el tema' },
 ];
 
+const COMPLETION_STEPS = [5, 18, 38, 63, 88, 100];
+const COMPLETION_LABELS: Record<number, string> = {
+  5: 'Apenas lo empecé',
+  18: 'Leí una parte',
+  38: 'Menos de la mitad',
+  63: 'Más de la mitad',
+  88: 'Casi lo terminé',
+  100: 'Lo terminé',
+};
+
 @Component({
   selector: 'app-feedback-token',
   imports: [FormsModule],
   template: `
     <div class="mx-auto max-w-2xl px-4 py-10 sm:px-6">
-      @if (received()) {
+      @if (invalid()) {
+        <section class="rounded-sm border border-[#e2c3c0] bg-[#fdf3f2] p-8 text-center">
+          <h1 class="font-display text-3xl font-bold tracking-[-0.03em] text-ink">Invitación no válida</h1>
+          <p class="mt-2 text-[#536875]">{{ invalidMessage() }}</p>
+        </section>
+      } @else if (received()) {
         <section class="rounded-sm border border-[#cad7df] bg-white p-8 text-center">
           <h1 class="font-display text-3xl font-bold tracking-[-0.03em] text-ink">Feedback recibido</h1>
           <p class="mt-2 text-[#536875]">Gracias por contarnos cómo te fue con este libro.</p>
@@ -73,7 +100,7 @@ const NEGATIVE_ASPECTS = [
             <div class="grid gap-6 sm:grid-cols-2">
               <label class="block">
                 <span class="text-sm font-semibold text-ink">¿En qué estado quedó?</span>
-                <select [(ngModel)]="feedback.readingStatus" class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
+                <select [(ngModel)]="feedback.readingStatus" (ngModelChange)="onStatusChange($event)" class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
                   <option value="completed">Terminado</option>
                   <option value="in_progress">En progreso</option>
                   <option value="paused">Pausado</option>
@@ -82,14 +109,12 @@ const NEGATIVE_ASPECTS = [
               </label>
               <label class="block">
                 <span class="text-sm font-semibold text-ink">¿Cuánto avanzaste?</span>
-                <select [(ngModel)]="feedback.completionPercentage" class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
-                  <option [ngValue]="5">5%</option>
-                  <option [ngValue]="18">18%</option>
-                  <option [ngValue]="38">38%</option>
-                  <option [ngValue]="63">63%</option>
-                  <option [ngValue]="88">88%</option>
-                  <option [ngValue]="100">100%</option>
-                </select>
+                <input type="range" min="5" max="100" step="1" [value]="feedback.completionPercentage" (input)="onCompletionInput($event)" (change)="onCompletionChange($event)" aria-label="Cuánto avanzaste" class="mt-4 w-full accent-coral" />
+                <div class="mt-1 flex justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-[#567088]">
+                  <span>Inicio</span>
+                  <span>Fin</span>
+                </div>
+                <p class="mt-3 text-center text-sm font-bold text-ink">{{ completionLabel() }}</p>
               </label>
             </div>
 
@@ -97,7 +122,7 @@ const NEGATIVE_ASPECTS = [
               <span class="text-sm font-semibold text-ink">Lo que funcionó</span>
               <div class="mt-2 flex flex-wrap gap-2">
                 @for (item of positiveAspects; track item.key) {
-                  <button type="button" class="rounded-full border px-3 py-1.5 text-sm transition" [class.bg-ink]="feedback.positiveAspects.includes(item.key)" [class.text-white]="feedback.positiveAspects.includes(item.key)" [class.border-ink]="feedback.positiveAspects.includes(item.key)" [class.bg-white]="!feedback.positiveAspects.includes(item.key)" [class.text-ink]="!feedback.positiveAspects.includes(item.key)" [class.border-[#7d9ab0]]="!feedback.positiveAspects.includes(item.key)" (click)="toggleAspect('positiveAspects', item.key)">{{ item.label }}</button>
+                  <button type="button" class="rounded-full border px-3 py-1.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-40" [class.bg-ink]="feedback.positiveAspects.includes(item.key)" [class.text-white]="feedback.positiveAspects.includes(item.key)" [class.border-ink]="feedback.positiveAspects.includes(item.key)" [class.bg-white]="!feedback.positiveAspects.includes(item.key)" [class.text-ink]="!feedback.positiveAspects.includes(item.key)" [class.border-[#7d9ab0]]="!feedback.positiveAspects.includes(item.key)" [disabled]="aspectDisabled('positiveAspects', item.key)" (click)="toggleAspect('positiveAspects', item.key)">{{ item.label }}</button>
                 }
               </div>
             </div>
@@ -106,7 +131,7 @@ const NEGATIVE_ASPECTS = [
               <span class="text-sm font-semibold text-ink">Lo que no funcionó</span>
               <div class="mt-2 flex flex-wrap gap-2">
                 @for (item of negativeAspects; track item.key) {
-                  <button type="button" class="rounded-full border px-3 py-1.5 text-sm transition" [class.bg-coral]="feedback.negativeAspects.includes(item.key)" [class.text-white]="feedback.negativeAspects.includes(item.key)" [class.border-coral]="feedback.negativeAspects.includes(item.key)" [class.bg-white]="!feedback.negativeAspects.includes(item.key)" [class.text-ink]="!feedback.negativeAspects.includes(item.key)" [class.border-[#7d9ab0]]="!feedback.negativeAspects.includes(item.key)" (click)="toggleAspect('negativeAspects', item.key)">{{ item.label }}</button>
+                  <button type="button" class="rounded-full border px-3 py-1.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-40" [class.bg-coral]="feedback.negativeAspects.includes(item.key)" [class.text-white]="feedback.negativeAspects.includes(item.key)" [class.border-coral]="feedback.negativeAspects.includes(item.key)" [class.bg-white]="!feedback.negativeAspects.includes(item.key)" [class.text-ink]="!feedback.negativeAspects.includes(item.key)" [class.border-[#7d9ab0]]="!feedback.negativeAspects.includes(item.key)" [disabled]="aspectDisabled('negativeAspects', item.key)" (click)="toggleAspect('negativeAspects', item.key)">{{ item.label }}</button>
                 }
               </div>
             </div>
@@ -121,6 +146,16 @@ const NEGATIVE_ASPECTS = [
                 <option value="no_problem">No hubo problema</option>
               </select>
             </label>
+
+            <div>
+              <span class="text-sm font-semibold text-ink">¿Qué tan buena fue la selección para ti?</span>
+              <div class="mt-2 flex items-center gap-2">
+                @for (score of [1, 2, 3, 4, 5]; track score) {
+                  <button type="button" class="h-10 w-10 rounded-full border text-sm font-bold transition" [class.bg-coral]="feedback.selectionFitRating === score" [class.text-white]="feedback.selectionFitRating === score" [class.border-coral]="feedback.selectionFitRating === score" [class.bg-white]="feedback.selectionFitRating !== score" [class.text-ink]="feedback.selectionFitRating !== score" [class.border-[#7d9ab0]]="feedback.selectionFitRating !== score" (click)="feedback.selectionFitRating = score">{{ score }}</button>
+                }
+              </div>
+              <p class="mt-1 text-xs text-[#567088]">1 = No era para mí · 5 = Me encantó</p>
+            </div>
           }
 
           <label class="block">
@@ -146,14 +181,18 @@ export class FeedbackToken {
   readonly loading = signal(true);
   readonly submitting = signal(false);
   readonly received = signal(false);
+  readonly invalid = signal(false);
+  readonly invalidMessage = signal('La invitación no es válida o ya fue utilizada.');
+  readonly dragValue = signal(100);
 
-  feedback = {
+  feedback: FeedbackForm = {
     started: true,
-    notStartedReason: 'no_time',
+    notStartedReason: null,
     readingStatus: 'completed' as FeedbackStatus,
     completionPercentage: 100,
     positiveAspects: [] as string[],
     negativeAspects: [] as string[],
+    selectionFitRating: null,
     outcomeAttribution: 'mostly_book',
     freeText: '',
   };
@@ -174,6 +213,8 @@ export class FeedbackToken {
         this.book.set(result.book);
       }
     } catch (error) {
+      this.invalid.set(true);
+      this.invalidMessage.set(error instanceof Error ? error.message : 'La invitación no es válida.');
       this.toast.error(error instanceof Error ? error.message : 'La invitación no es válida.');
     } finally {
       this.loading.set(false);
@@ -185,15 +226,55 @@ export class FeedbackToken {
     if (value) {
       this.feedback.readingStatus = 'in_progress';
       this.feedback.completionPercentage = 38;
+      this.feedback.notStartedReason = null;
     } else {
       this.feedback.readingStatus = 'not_started';
       this.feedback.completionPercentage = 0;
+      this.feedback.selectionFitRating = null;
     }
+    this.dragValue.set(this.feedback.completionPercentage);
+  }
+
+  onStatusChange(status: FeedbackStatus): void {
+    this.feedback.readingStatus = status;
+    if (status === 'completed') {
+      this.feedback.completionPercentage = 100;
+    } else if (this.feedback.completionPercentage === 100) {
+      this.feedback.completionPercentage = 88;
+    }
+    this.dragValue.set(this.feedback.completionPercentage);
+  }
+
+  onCompletionInput(event: Event): void {
+    this.dragValue.set(Number((event.target as HTMLInputElement).value));
+  }
+
+  onCompletionChange(event: Event): void {
+    const value = Number((event.target as HTMLInputElement).value);
+    this.feedback.completionPercentage = this.nearestCompletionStep(value);
+    this.dragValue.set(this.feedback.completionPercentage);
+    if (this.feedback.readingStatus === 'completed' && this.feedback.completionPercentage !== 100) {
+      this.feedback.readingStatus = 'in_progress';
+    }
+  }
+
+  completionLabel(): string {
+    const step = this.nearestCompletionStep(this.dragValue());
+    return COMPLETION_LABELS[step] ?? `${step}%`;
+  }
+
+  private nearestCompletionStep(value: number): number {
+    return COMPLETION_STEPS.reduce((best, step) => (Math.abs(step - value) < Math.abs(best - value) ? step : best), COMPLETION_STEPS[0]);
   }
 
   toggleAspect(kind: 'positiveAspects' | 'negativeAspects', key: string): void {
     const values = this.feedback[kind];
     this.feedback[kind] = values.includes(key) ? values.filter((item) => item !== key) : [...values, key].slice(0, 3);
+  }
+
+  aspectDisabled(kind: 'positiveAspects' | 'negativeAspects', key: string): boolean {
+    const values = this.feedback[kind];
+    return values.length >= 3 && !values.includes(key);
   }
 
   async submit(): Promise<void> {

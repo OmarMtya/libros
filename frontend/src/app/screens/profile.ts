@@ -10,6 +10,7 @@ type ProfileBook = { title?: string; work_id?: string; openLibraryId?: string; a
 
 @Component({
   selector: 'app-profile',
+  imports: [RouterLink],
   template: `
     <div class="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <p class="mb-2 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Tu ficha de lectura</p>

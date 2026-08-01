@@ -76,6 +76,7 @@ export type AdminUser = { id: string; email: string | null; displayName: string 
 
 export type OrderAddress = {
   recipientName: string;
+  phone: string | null;
   street: string;
   exteriorNumber: string | null;
   interiorNumber: string | null;
@@ -171,12 +172,13 @@ export type AdminAssignment = {
   id: string;
   status: 'active' | 'replaced' | 'canceled';
   feedbackCycleStatus: string;
+  notes: string | null;
   fulfillment: { id: string; status: string; order: { userId: string; status: string } };
   edition: { id: string; title: string; languageCode: string };
   classification: { id: string; revision: number; status: string; classifierVersion: string };
   recommendationCandidate: { id: string; rankPosition: number | null; finalScore: string | null; recommendationEvidenceCoverage: string | null } | null;
-  invitations: Array<{ id: string; status: string; expiresAt: string }>;
-  feedbacks: Array<{ id: string; learningStatus: string; isFinal: boolean; submittedAt: string }>;
+  invitations: Array<{ id: string; status: string; expiresAt: string | null }>;
+  feedbacks: Array<{ id: string; learningStatus: string; isFinal: boolean; submittedAt: string; selectionFitRating: number | null }>;
 };
 export type AdminFulfillment = {
   id: string;
@@ -189,6 +191,7 @@ export type AdminFulfillment = {
     status: string;
     createdAt: string;
     shippingAddress: { recipientName: string; city: string; state: string } | null;
+    user: { displayName: string | null; email: string | null };
   };
   assignments: Array<{ id: string; feedbackCycleStatus: string }>;
 };
@@ -435,7 +438,7 @@ export class ApiService {
     return firstValueFrom(this.http.post(`${this.baseUrl}/admin/assignments/${assignmentId}/replace`, body, this.options()));
   }
 
-  adminAction(action: 'pack' | 'ship' | 'delivered' | 'close-without-feedback' | 'reissue-invitation', assignmentId: string): Promise<{ plainToken?: string; url?: string }> {
+  adminAction(action: 'pack' | 'ship' | 'in-delivery' | 'delivered' | 'close-without-feedback' | 'reissue-invitation' | 'unpack' | 'unship' | 'undo-in-delivery' | 'undo-delivered', assignmentId: string): Promise<{ plainToken?: string; url?: string }> {
     return firstValueFrom(this.http.post<{ plainToken?: string; url?: string }>(`${this.baseUrl}/admin/assignments/${assignmentId}/${action}`, {}, this.options()));
   }
 

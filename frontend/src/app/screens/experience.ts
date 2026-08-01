@@ -54,11 +54,18 @@ const BOX_CONTENTS = [
             @if (blocked()) {
               <p class="font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Paquete sorpresa</p>
               <h2 class="font-display text-3xl font-bold tracking-[-0.03em] text-ink">{{ activeOrder()!.packageName }}</h2>
-              <app-order-timeline [status]="activeOrder()!.fulfillment?.status ?? ''" />
-              <p class="text-sm leading-relaxed text-[#536875]">
-                Tu envío está en proceso. Los envíos tardan de 5 a 10 días hábiles y nos comunicaremos
-                contigo en cada paso de tu pedido.
-              </p>
+              <app-order-timeline [status]="activeOrder()!.fulfillment?.status ?? ''" [compact]="true" />
+              @if (delivered()) {
+                <p class="rounded-sm border-l-[3px] border-[#f0e0b0] bg-[#fff7e6] px-3 py-2 text-sm text-[#6b5310]">
+                  Para volver a pedir y seguir afinando tus recomendaciones, completa el cuestionario que viene en el
+                  <strong>código QR</strong> dentro de tu paquete. También lo encontrarás en tu correo electrónico.
+                </p>
+              } @else {
+                <p class="text-sm leading-relaxed text-[#536875]">
+                  Tu envío está en proceso. Los envíos tardan de 5 a 10 días hábiles y nos comunicaremos
+                  contigo en cada paso de tu pedido.
+                </p>
+              }
               <button
                 class="mt-auto w-full rounded-sm bg-ink px-6 py-3 text-sm font-bold text-white transition hover:bg-ink-soft"
                 type="button"
@@ -145,6 +152,7 @@ export class Experience {
   readonly package = computed(() => this.packages().find((p) => p.key === 'libro_sorpresa_fisico') ?? null);
   readonly activeOrder = computed(() => this.orders().find(orderIsActive) ?? null);
   readonly blocked = computed(() => Boolean(this.activeOrder() && !orderFeedbackDone(this.activeOrder()!)));
+  readonly delivered = computed(() => this.activeOrder()?.fulfillment?.status === 'delivered');
   readonly questionnaireDone = computed(() => this.sessions().some((session) => session.status === 'completed'));
 
   constructor() {

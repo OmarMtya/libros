@@ -16,6 +16,7 @@ export function validateFeedbackPayload(payload: {
     throw new BadRequestException('A book not started must include its reason, status not_started, and 0% completion.');
   }
   if (payload.started && payload.readingStatus === 'not_started') throw new BadRequestException('A started book cannot have status not_started.');
+  if (payload.started && payload.notStartedReason) throw new BadRequestException('A started book cannot include a not-started reason.');
   if (payload.readingStatus === 'completed' && payload.completionPercentage !== 100) throw new BadRequestException('Completed feedback must have 100% completion.');
   if (!Object.hasOwn(EXPOSURE_FACTORS, payload.completionPercentage)) throw new BadRequestException('Completion percentage must be one of 0, 5, 18, 38, 63, 88, or 100.');
   const invalidPositive = (payload.positiveAspects ?? []).filter((key) => !FEEDBACK_MAPPINGS.positive[key] && !POSITIVE_WITHOUT_DIMENSION.has(key));

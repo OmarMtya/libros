@@ -148,13 +148,14 @@ export class OrdersService {
   }
 
   private extractShippingDetails(session: Stripe.Checkout.Session) {
-    const legacy = (session as unknown as { shipping_details?: { name?: string | null; address?: Stripe.Address | null } | null }).shipping_details;
-    const modern = session.collected_information?.shipping_details;
+    const legacy = (session as unknown as { shipping_details?: { name?: string | null; phone?: string | null; address?: Stripe.Address | null } | null }).shipping_details;
+    const modern = (session.collected_information?.shipping_details ?? undefined) as { name?: string | null; phone?: string | null; address?: Stripe.Address | null } | undefined;
     const details = legacy ?? modern;
     if (!details) return undefined;
     const address = details.address;
     return {
       recipientName: details.name ?? 'Cliente',
+      phone: details.phone ?? session.customer_details?.phone ?? null,
       street: address?.line1 ?? '',
       interiorNumber: address?.line2 ?? null,
       city: address?.city ?? '',

@@ -9,7 +9,6 @@ import { FeedbackContextResolver } from '../src/feedback/feedback-context.resolv
 import { FeedbackInvitationService } from '../src/feedback/feedback-invitation.service';
 import { FeedbackLearningService } from '../src/feedback/feedback-learning.service';
 import { FeedbackTokenService } from '../src/feedback/feedback-token.service';
-import { FeedbackService } from '../src/feedback/feedback.service';
 import { SubmitFeedbackByTokenDto } from '../src/feedback/feedback.dto';
 import { ProfileService } from '../src/profile/profile.service';
 import { EvidenceFactory } from '../src/profile/evidence.factory';
@@ -28,7 +27,6 @@ const catalogService = prisma ? new CatalogService(prisma as never, new BooksSer
 const curationService = prisma ? new CurationService(prisma as never, invitationService, new CuratorAuditService(prisma as never)) : null;
 const learningService = prisma ? new FeedbackLearningService(prisma as never, new ProfileService(prisma as never), new EvidenceFactory()) : null;
 const tokenService = prisma ? new FeedbackTokenService(prisma as never, invitationService, new FeedbackContextResolver(), learningService!) : null;
-const legacyFeedbackService = prisma ? new FeedbackService(prisma as never) : null;
 
 const REQUIRED_FICTION_FEATURES = [
   'hook_speed', 'narrative_pace', 'slow_burn_level', 'narrative_payoff', 'style_clarity',
@@ -186,6 +184,8 @@ run('cadena envío -> invitación -> feedback', () => {
     const storedInvitation = await prisma!.feedbackInvitation.findFirst({ where: { curationAssignmentId: assignment.id } });
     expect(storedInvitation?.tokenHash).not.toBe(shipped.plainToken);
 
+    await curationService!.startDelivery(assignment.id);
+    await curationService!.delivered(assignment.id);
     const resolved = await tokenService!.resolveInvitation(shipped.plainToken);
     expect(resolved.received).toBe(false);
     expect(resolved.book.title).toBe('Eligh');
@@ -241,6 +241,8 @@ run('cadena envío -> invitación -> feedback', () => {
     const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
     await curationService!.pack(assignment.id);
     const { plainToken } = await curationService!.ship(assignment.id);
+    await curationService!.startDelivery(assignment.id);
+    await curationService!.delivered(assignment.id);
 
     const dto = feedbackPayload({ readingStatus: 'completed', completionPercentage: 100, negativeAspects: ['style_too_simple'], idempotencyKey: nextKey() });
     const result = await tokenService!.submitByToken(plainToken, dto, userId);
@@ -270,7 +272,62 @@ run('cadena envío -> invitación -> feedback', () => {
 
     const cycle = await prisma!.curationAssignment.findUnique({ where: { id: assignment.id } });
     expect(cycle?.feedbackCycleStatus).toBe('final_received');
-    expect((await prisma!.fulfillment.findUnique({ where: { id: fulfillment.id } }))?.status).toBe('shipped');
+    expect((await prisma!.fulfillment.findUnique({ where: { id: fulfillment.id } }))?.status).toBe('delivered');
+  });
+
+  it('tension_curiosity se procesa con un libro que tiene tension_level pero no strangeness_level', async () => {
+    const { edition, classification } = await makeApprovedEdition();
+    const features = await prisma!.bookFeature.findMany({ where: { classificationVersionId: classification.id }, select: { featureKey: true } });
+    expect(features.map((feature) => feature.featureKey)).toContain('tension_level');
+    expect(features.map((feature) => feature.featureKey)).not.toContain('strangeness_level');
+
+    const userId = '11112222-2222-3333-4444-555566667777';
+    await prisma!.user.create({ data: { id: userId } });
+    const { fulfillment } = await makeOrderFulfillment(userId);
+    const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
+    await curationService!.pack(assignment.id);
+    const { plainToken } = await curationService!.ship(assignment.id);
+    await curationService!.startDelivery(assignment.id);
+    await curationService!.delivered(assignment.id);
+
+    const result = await tokenService!.submitByToken(plainToken, feedbackPayload({ positiveAspects: ['tension_curiosity'], negativeAspects: [], idempotencyKey: nextKey() }), userId);
+    expect(result.learningStatus).toBe('processed');
+    expect(result.feedback.processingOutcome).toBe('learned');
+    const evidence = await prisma!.readerEvidence.findMany({ where: { sourceId: result.feedback.id } });
+    expect(evidence.map((item) => item.dimensionKey)).toEqual(['tension_preference']);
+    expect(evidence[0]!.reasonCode).toBe('f05_tension_learn');
+    expect(evidence[0]!.dimensionKey).not.toBe('strangeness_preference');
+  });
+
+  it('un feedback iniciado con notStartedReason es rechazado', async () => {
+    const { edition, classification } = await makeApprovedEdition();
+    const userId = '22223333-3333-4444-5555-666677778888';
+    await prisma!.user.create({ data: { id: userId } });
+    const { fulfillment } = await makeOrderFulfillment(userId);
+    const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
+    await curationService!.pack(assignment.id);
+    const { plainToken } = await curationService!.ship(assignment.id);
+    await curationService!.startDelivery(assignment.id);
+    await curationService!.delivered(assignment.id);
+
+    await expect(tokenService!.submitByToken(plainToken, feedbackPayload({ started: true, notStartedReason: 'no_time', idempotencyKey: nextKey() }), userId)).rejects.toThrow();
+  });
+
+  it('selectionFitRating se persiste mediante el flujo existente', async () => {
+    const { edition, classification } = await makeApprovedEdition();
+    const userId = '33334444-4444-5555-6666-777788889999';
+    await prisma!.user.create({ data: { id: userId } });
+    const { fulfillment } = await makeOrderFulfillment(userId);
+    const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
+    await curationService!.pack(assignment.id);
+    const { plainToken } = await curationService!.ship(assignment.id);
+    await curationService!.startDelivery(assignment.id);
+    await curationService!.delivered(assignment.id);
+
+    const result = await tokenService!.submitByToken(plainToken, feedbackPayload({ selectionFitRating: 5, idempotencyKey: nextKey() }), userId);
+    expect(result.feedback.selectionFitRating).toBe(5);
+    const stored = await prisma!.readingFeedback.findUniqueOrThrow({ where: { id: result.feedback.id } });
+    expect(stored.selectionFitRating).toBe(5);
   });
 
   it('una invitación crea un solo feedback; mismo key → existente; otro key → 409', async () => {
@@ -281,6 +338,8 @@ run('cadena envío -> invitación -> feedback', () => {
     const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
     await curationService!.pack(assignment.id);
     const { plainToken } = await curationService!.ship(assignment.id);
+    await curationService!.startDelivery(assignment.id);
+    await curationService!.delivered(assignment.id);
 
     const key = nextKey();
     const dto = feedbackPayload({ idempotencyKey: key });
@@ -300,6 +359,8 @@ run('cadena envío -> invitación -> feedback', () => {
     const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
     await curationService!.pack(assignment.id);
     const { plainToken } = await curationService!.ship(assignment.id);
+    await curationService!.startDelivery(assignment.id);
+    await curationService!.delivered(assignment.id);
 
     const provisional = await tokenService!.submitByToken(plainToken, feedbackPayload({ readingStatus: 'in_progress', completionPercentage: 38, idempotencyKey: nextKey() }), null);
     expect(provisional.feedback.isFinal).toBe(false);
@@ -318,6 +379,85 @@ run('cadena envío -> invitación -> feedback', () => {
     expect(count).toBe(2);
   });
 
+  it('fetch de invitación pendiente devuelve el mismo URL sin invalidar ni crear una nueva', async () => {
+    const { edition, classification } = await makeApprovedEdition();
+    const userId = '77777777-7777-7777-7777-777777777777';
+    await prisma!.user.create({ data: { id: userId } });
+    const { fulfillment } = await makeOrderFulfillment(userId);
+    const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
+    await curationService!.pack(assignment.id);
+    const shipped = await curationService!.ship(assignment.id);
+    await curationService!.startDelivery(assignment.id);
+    await curationService!.delivered(assignment.id);
+
+    const fetched = await curationService!.reissueInvitation(assignment.id);
+    expect(fetched.plainToken).toBe(shipped.plainToken);
+    expect(fetched.url).toBe(shipped.url);
+
+    const invitations = await prisma!.feedbackInvitation.findMany({ where: { curationAssignmentId: assignment.id } });
+    expect(invitations.length).toBe(1);
+    const invitation = invitations[0]!;
+    expect(invitation.status).toBe('pending');
+    expect(invitation.tokenHash).toBe(invitationService.hashToken(fetched.plainToken));
+
+    await expect(tokenService!.resolveInvitation(fetched.plainToken)).resolves.toMatchObject({ received: false });
+  });
+
+  it('undo logístico recorre hacia atrás delivered → in_delivery → shipped → packed → assigned', async () => {
+    const { edition, classification } = await makeApprovedEdition();
+    const userId = '88888888-8888-8888-8888-888888888888';
+    await prisma!.user.create({ data: { id: userId } });
+    const { fulfillment } = await makeOrderFulfillment(userId);
+    const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
+    await curationService!.pack(assignment.id);
+    await curationService!.ship(assignment.id);
+    await curationService!.startDelivery(assignment.id);
+    await curationService!.delivered(assignment.id);
+
+    await curationService!.undoDelivered(assignment.id);
+    expect((await prisma!.fulfillment.findUnique({ where: { id: fulfillment.id } }))?.status).toBe('in_delivery');
+    await curationService!.undoInDelivery(assignment.id);
+    expect((await prisma!.fulfillment.findUnique({ where: { id: fulfillment.id } }))?.status).toBe('shipped');
+    await curationService!.unship(assignment.id);
+    expect((await prisma!.fulfillment.findUnique({ where: { id: fulfillment.id } }))?.status).toBe('packed');
+    await curationService!.unpack(assignment.id);
+    expect((await prisma!.fulfillment.findUnique({ where: { id: fulfillment.id } }))?.status).toBe('assigned');
+  });
+
+  it('unship revoca la invitación pendiente y resetea el ciclo de feedback', async () => {
+    const { edition, classification } = await makeApprovedEdition();
+    const userId = '99999998-9998-9998-9998-999899989998';
+    await prisma!.user.create({ data: { id: userId } });
+    const { fulfillment } = await makeOrderFulfillment(userId);
+    const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
+    await curationService!.pack(assignment.id);
+    await curationService!.ship(assignment.id);
+    const invitation = await prisma!.feedbackInvitation.findFirst({ where: { curationAssignmentId: assignment.id } });
+    expect(invitation?.status).toBe('pending');
+
+    await curationService!.unship(assignment.id);
+    const cycle = await prisma!.curationAssignment.findUnique({ where: { id: assignment.id } });
+    expect(cycle?.feedbackCycleStatus).toBe('not_invited');
+    const revoked = await prisma!.feedbackInvitation.findUnique({ where: { id: invitation!.id } });
+    expect(revoked?.status).toBe('revoked');
+    expect((await prisma!.fulfillment.findUnique({ where: { id: fulfillment.id } }))?.shippedAt).toBeNull();
+  });
+
+  it('undo falla en estados no permitidos', async () => {
+    const { edition, classification } = await makeApprovedEdition();
+    const userId = '99999997-9997-9997-9997-999799979997';
+    await prisma!.user.create({ data: { id: userId } });
+    const { fulfillment } = await makeOrderFulfillment(userId);
+    const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
+
+    await expect(curationService!.unpack(assignment.id)).rejects.toThrow();
+    await expect(curationService!.unship(assignment.id)).rejects.toThrow();
+    await expect(curationService!.undoDelivered(assignment.id)).rejects.toThrow();
+
+    await curationService!.pack(assignment.id);
+    await expect(curationService!.undoDelivered(assignment.id)).rejects.toThrow();
+  });
+
   it('feedback ambiguo → needs_clarification; sin iniciar → processed/commercial_only; topic_no_interest → needs_review', async () => {
     const runFor = async (dto: SubmitFeedbackByTokenDto) => {
       const { edition, classification } = await makeApprovedEdition();
@@ -327,6 +467,8 @@ run('cadena envío -> invitación -> feedback', () => {
       const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
       await curationService!.pack(assignment.id);
       const { plainToken } = await curationService!.ship(assignment.id);
+      await curationService!.startDelivery(assignment.id);
+      await curationService!.delivered(assignment.id);
       return tokenService!.submitByToken(plainToken, dto, null);
     };
 
@@ -349,23 +491,6 @@ run('cadena envío -> invitación -> feedback', () => {
     expect(topic.learningStatus).toBe('needs_review');
   });
 
-  it('feedback legacy → stored_without_book_context, 0 evidencias', async () => {
-    const userId = '88888888-8888-8888-8888-888888888888';
-    await prisma!.user.create({ data: { id: userId } });
-    const result = await legacyFeedbackService!.submit(userId, {
-      started: true,
-      readingStatus: 'completed',
-      completionPercentage: 100,
-      positiveAspects: ['characters'],
-      negativeAspects: [],
-      outcomeAttribution: 'mostly_book',
-      idempotencyKey: nextKey(),
-    } as never);
-    expect(result.learningStatus).toBe('stored_without_book_context');
-    const evidence = await prisma!.readerEvidence.findMany({ where: { sourceId: result.feedback.id } });
-    expect(evidence.length).toBe(0);
-  });
-
   it('close-without-feedback revoca la invitación y genera 0 evidencias; reissue bloqueado', async () => {
     const { edition, classification } = await makeApprovedEdition();
     const userId = '99999999-9999-9999-9999-999999999999';
@@ -382,6 +507,52 @@ run('cadena envío -> invitación -> feedback', () => {
     await expect(curationService!.reissueInvitation(assignment.id)).rejects.toThrow();
   });
 
+  it('reabrir un ciclo cerrado sin feedback restaura la misma invitación (mismo URL)', async () => {
+    const { edition, classification } = await makeApprovedEdition();
+    const userId = '99999996-9996-9996-9996-999699969996';
+    await prisma!.user.create({ data: { id: userId } });
+    const { fulfillment } = await makeOrderFulfillment(userId);
+    const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
+    await curationService!.pack(assignment.id);
+    const shipped = await curationService!.ship(assignment.id);
+    const invitationId = shipped.invitation.id;
+
+    await curationService!.closeWithoutFeedback(assignment.id);
+    const revoked = await prisma!.feedbackInvitation.findUnique({ where: { id: invitationId } });
+    expect(revoked?.status).toBe('revoked');
+
+    const reopened = await curationService!.reopenLearning('00000000-0000-0000-0000-0000000000aa', assignment.id, 'el lector sí quiere opinar');
+    expect(reopened.url).toBe(shipped.url);
+    expect(reopened.plainToken).toBe(shipped.plainToken);
+
+    const restored = await prisma!.feedbackInvitation.findUnique({ where: { id: invitationId } });
+    expect(restored?.status).toBe('pending');
+    expect(restored?.revokedAt).toBeNull();
+    const cycle = await prisma!.curationAssignment.findUnique({ where: { id: assignment.id } });
+    expect(cycle?.feedbackCycleStatus).toBe('invited');
+    expect(cycle?.notes).toContain('Reapertura por');
+  });
+
+  it('reabrir un ciclo con feedback final genera una invitación nueva', async () => {
+    const { edition, classification } = await makeApprovedEdition();
+    const userId = '99999995-9995-9995-9995-999599959995';
+    await prisma!.user.create({ data: { id: userId } });
+    const { fulfillment } = await makeOrderFulfillment(userId);
+    const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
+    await curationService!.pack(assignment.id);
+    const shipped = await curationService!.ship(assignment.id);
+    await curationService!.startDelivery(assignment.id);
+    await curationService!.delivered(assignment.id);
+    await tokenService!.submitByToken(shipped.plainToken, feedbackPayload({ idempotencyKey: nextKey() }), null);
+    const cycle = await prisma!.curationAssignment.findUnique({ where: { id: assignment.id } });
+    expect(cycle?.feedbackCycleStatus).toBe('final_received');
+
+    const reopened = await curationService!.reopenLearning('00000000-0000-0000-0000-0000000000aa', assignment.id, 'quiere corregir');
+    expect(reopened.url).not.toBe(shipped.url);
+    const pending = await prisma!.feedbackInvitation.findMany({ where: { curationAssignmentId: assignment.id, status: 'pending' } });
+    expect(pending.length).toBe(1);
+  });
+
   it('entregado sin feedback es logísticamente completo; delivered no depende del feedback', async () => {
     const { edition, classification } = await makeApprovedEdition();
     const userId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
@@ -390,6 +561,7 @@ run('cadena envío -> invitación -> feedback', () => {
     const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
     await curationService!.pack(assignment.id);
     await curationService!.ship(assignment.id);
+    await curationService!.startDelivery(assignment.id);
     await curationService!.delivered(assignment.id);
     expect((await prisma!.fulfillment.findUnique({ where: { id: fulfillment.id } }))?.status).toBe('delivered');
     expect((await prisma!.curationAssignment.findUnique({ where: { id: assignment.id } }))?.feedbackCycleStatus).toBe('invited');
@@ -467,6 +639,8 @@ run('cadena envío -> invitación -> feedback', () => {
     const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
     await curationService!.pack(assignment.id);
     const { plainToken } = await curationService!.ship(assignment.id);
+    await curationService!.startDelivery(assignment.id);
+    await curationService!.delivered(assignment.id);
     const results = await Promise.allSettled([
       tokenService!.submitByToken(plainToken, feedbackPayload({ idempotencyKey: nextKey() }), null),
       tokenService!.submitByToken(plainToken, feedbackPayload({ idempotencyKey: nextKey() }), null),

@@ -36,9 +36,34 @@ export class CurationController {
     return this.curation.ship(assignmentId);
   }
 
+  @Post('assignments/:id/in-delivery')
+  startDelivery(@Param('id', ParseUUIDPipe) assignmentId: string) {
+    return this.curation.startDelivery(assignmentId);
+  }
+
   @Post('assignments/:id/delivered')
   delivered(@Param('id', ParseUUIDPipe) assignmentId: string) {
     return this.curation.delivered(assignmentId);
+  }
+
+  @Post('assignments/:id/unpack')
+  unpack(@Param('id', ParseUUIDPipe) assignmentId: string) {
+    return this.curation.unpack(assignmentId);
+  }
+
+  @Post('assignments/:id/unship')
+  unship(@Param('id', ParseUUIDPipe) assignmentId: string) {
+    return this.curation.unship(assignmentId);
+  }
+
+  @Post('assignments/:id/undo-in-delivery')
+  undoInDelivery(@Param('id', ParseUUIDPipe) assignmentId: string) {
+    return this.curation.undoInDelivery(assignmentId);
+  }
+
+  @Post('assignments/:id/undo-delivered')
+  undoDelivered(@Param('id', ParseUUIDPipe) assignmentId: string) {
+    return this.curation.undoDelivered(assignmentId);
   }
 
   @Post('assignments/:id/close-without-feedback')

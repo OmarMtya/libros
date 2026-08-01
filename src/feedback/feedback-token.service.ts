@@ -11,7 +11,7 @@ type LockedInvitation = {
   id: string;
   curation_assignment_id: string;
   status: string;
-  expires_at: Date;
+  expires_at: Date | null;
 };
 
 const ASSIGNMENT_INCLUDE = {
@@ -44,7 +44,7 @@ export class FeedbackTokenService {
     return this.prisma.$transaction(async (tx) => {
       const invitation = await this.lockInvitation(tx, token);
       if (!invitation) throw new NotFoundException('La invitación no existe.');
-      if (invitation.status === 'pending' && invitation.expires_at <= new Date()) {
+      if (invitation.status === 'pending' && invitation.expires_at !== null && invitation.expires_at <= new Date()) {
         await tx.feedbackInvitation.update({ where: { id: invitation.id }, data: { status: 'expired' } });
         throw new NotFoundException('La invitación expiró.');
       }
@@ -54,16 +54,21 @@ export class FeedbackTokenService {
         include: ASSIGNMENT_INCLUDE,
       });
       if (!assignment) throw new NotFoundException('La invitación no tiene una asignación válida.');
-      if (assignment.fulfillment.status !== 'shipped' && assignment.fulfillment.status !== 'delivered') {
-        throw new BadRequestException('El libro aún no ha sido enviado.');
+      if (assignment.fulfillment.status !== 'delivered') {
+        throw new BadRequestException('El libro aún no ha sido entregado.');
       }
       const authors = await tx.bookAuthor.findMany({
         where: { bookId: assignment.edition.bookId },
         include: { author: { select: { canonicalName: true } } },
         orderBy: { position: 'asc' },
       });
+      const existingFeedback = await tx.readingFeedback.findFirst({
+        where: { curationAssignmentId: assignment.id },
+        orderBy: { submittedAt: 'desc' },
+        select: { id: true },
+      });
       return {
-        received: invitation.status === 'used',
+        received: invitation.status === 'used' || existingFeedback !== null,
         book: {
           title: assignment.edition.book.canonicalTitle,
           editionTitle: assignment.edition.title,
@@ -81,7 +86,7 @@ export class FeedbackTokenService {
       const invitation = await this.lockInvitation(tx, token);
       if (!invitation) throw new NotFoundException('La invitación no existe.');
       const now = new Date();
-      if (invitation.status === 'pending' && invitation.expires_at <= now) {
+      if (invitation.status === 'pending' && invitation.expires_at !== null && invitation.expires_at <= now) {
         await tx.feedbackInvitation.update({ where: { id: invitation.id }, data: { status: 'expired' } });
         throw new NotFoundException('La invitación expiró.');
       }
@@ -99,8 +104,8 @@ export class FeedbackTokenService {
         include: ASSIGNMENT_INCLUDE,
       });
       if (!assignment) throw new NotFoundException('La invitación no tiene una asignación válida.');
-      if (assignment.fulfillment.status !== 'shipped' && assignment.fulfillment.status !== 'delivered') {
-        throw new BadRequestException('El libro aún no ha sido enviado.');
+      if (assignment.fulfillment.status !== 'delivered') {
+        throw new BadRequestException('El libro aún no ha sido entregado.');
       }
       if (assignment.feedbackCycleStatus === 'final_received') throw new ConflictException('Ya se recibió el feedback final.');
       if (assignment.feedbackCycleStatus === 'closed_without_feedback') throw new ConflictException('El ciclo de aprendizaje está cerrado.');
@@ -109,11 +114,12 @@ export class FeedbackTokenService {
       }
 
       const isFinal = isFinalFeedback(dto.readingStatus);
+      const notStartedReason = dto.started ? null : (dto.notStartedReason ?? null);
       const normalized = {
         started: dto.started,
         readingStatus: dto.readingStatus,
         completionPercentage: dto.completionPercentage,
-        notStartedReason: dto.notStartedReason ?? null,
+        notStartedReason,
         selectionFitRating: dto.selectionFitRating ?? null,
         outcomeAttribution: dto.outcomeAttribution ?? null,
         positiveAspects: dto.positiveAspects ?? [],

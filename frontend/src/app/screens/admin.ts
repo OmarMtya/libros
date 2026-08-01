@@ -1,7 +1,7 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe, CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AdminAssignment, AdminBook, AdminCandidate, AdminEdition, AdminFulfillment, AdminOrder, AdminScoreResult, ApiService, BookResult } from '../api.service';
 import { DialogService } from '../dialog.service';
 import { ToastService } from '../toast.service';
@@ -21,9 +21,9 @@ const TAG_TAXONOMY_VERSION = 'tag-tax/1.0.1';
       <h1 class="mb-6 font-display text-4xl font-bold tracking-[-0.045em] text-ink sm:text-5xl">Catálogo y envíos</h1>
 
       <div class="mb-6 flex gap-2">
-        <button type="button" class="rounded-sm border px-4 py-2 text-sm font-bold transition" [class.bg-ink]="tab()==='catalog'" [class.text-white]="tab()==='catalog'" [class.border-ink]="tab()==='catalog'" [class.border-[#7d9ab0]]="tab()!=='catalog'" (click)="tab.set('catalog')">Catálogo</button>
-        <button type="button" class="rounded-sm border px-4 py-2 text-sm font-bold transition" [class.bg-ink]="tab()==='curation'" [class.text-white]="tab()==='curation'" [class.border-ink]="tab()==='curation'" [class.border-[#7d9ab0]]="tab()!=='curation'" (click)="tab.set('curation'); loadAssignments()">Curación</button>
-        <button type="button" class="rounded-sm border px-4 py-2 text-sm font-bold transition" [class.bg-ink]="tab()==='orders'" [class.text-white]="tab()==='orders'" [class.border-ink]="tab()==='orders'" [class.border-[#7d9ab0]]="tab()!=='orders'" (click)="tab.set('orders'); loadOrders()">Pedidos</button>
+        <button type="button" class="rounded-sm border px-4 py-2 text-sm font-bold transition" [class.bg-ink]="tab()==='catalog'" [class.text-white]="tab()==='catalog'" [class.border-ink]="tab()==='catalog'" [class.border-[#7d9ab0]]="tab()!=='catalog'" (click)="selectTab('catalog')">Catálogo</button>
+        <button type="button" class="rounded-sm border px-4 py-2 text-sm font-bold transition" [class.bg-ink]="tab()==='curation'" [class.text-white]="tab()==='curation'" [class.border-ink]="tab()==='curation'" [class.border-[#7d9ab0]]="tab()!=='curation'" (click)="selectTab('curation')">Curación</button>
+        <button type="button" class="rounded-sm border px-4 py-2 text-sm font-bold transition" [class.bg-ink]="tab()==='orders'" [class.text-white]="tab()==='orders'" [class.border-ink]="tab()==='orders'" [class.border-[#7d9ab0]]="tab()!=='orders'" (click)="selectTab('orders')">Pedidos</button>
       </div>
 
       @if (tab() === 'catalog') {
@@ -161,6 +161,104 @@ const TAG_TAXONOMY_VERSION = 'tag-tax/1.0.1';
 
       @if (tab() === 'curation') {
         <section class="space-y-4">
+          <div class="rounded-sm border border-[#cad7df] bg-white p-4">
+            <h2 class="mb-1 font-semibold text-ink">Asignar libro a un pedido</h2>
+            <p class="mb-3 text-sm text-[#536875]">Busca la persona con pedido activo y el libro del catálogo, y conéctalos sin puntuación.</p>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div>
+                <span class="text-sm font-semibold text-ink">Pedido activo</span>
+                @if (selectedOrder(); as order) {
+                  <div class="mt-1 flex items-center justify-between gap-2 rounded-sm border border-[#9eb2c1] bg-[#f2f6f9] px-3 py-2">
+                    <span class="min-w-0 truncate">
+                      <strong class="block truncate text-ink">{{ order.user.displayName || order.user.email || 'Sin nombre' }}</strong>
+                      <small class="text-[#566e80]">{{ order.packageName }} · {{ order.id.slice(0, 8) }} · {{ order.fulfillment?.status }}</small>
+                    </span>
+                    <button type="button" class="shrink-0 rounded-sm border border-[#7d9ab0] px-2 py-1 text-xs font-bold hover:bg-[#e6eef3]" (click)="clearOrder()">Cambiar</button>
+                  </div>
+                } @else {
+                  <div class="relative">
+                    <input
+                      [(ngModel)]="assignOrderQuery"
+                      (ngModelChange)="onOrderQuery()"
+                      placeholder="Busca por nombre o correo…"
+                      class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
+                    @if (assignOrderResults().length > 0 && !assignOrderSearch().loading && !assignOrderSearch().error) {
+                      <ul class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-sm border border-[#9eb2c1] bg-white shadow">
+                        @for (order of assignOrderResults(); track order.id) {
+                          <li>
+                            <button type="button" (click)="pickOrder(order)" class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-[#eaf1f6]">
+                              <span class="min-w-0">
+                                <strong class="block truncate text-ink">{{ order.user.displayName || order.user.email || 'Sin nombre' }}</strong>
+                                <small class="text-[#566e80]">{{ order.packageName }} · {{ order.id.slice(0, 8) }}</small>
+                              </span>
+                              <span class="shrink-0 font-mono text-xs text-[#7d9ab0]">{{ order.fulfillment?.status }}</span>
+                            </button>
+                          </li>
+                        }
+                      </ul>
+                    }
+                  </div>
+                }
+              </div>
+              <div>
+                <span class="text-sm font-semibold text-ink">Libro del catálogo</span>
+                @if (selectedBook(); as book) {
+                  <div class="mt-1 flex items-center justify-between gap-2 rounded-sm border border-[#9eb2c1] bg-[#f2f6f9] px-3 py-2">
+                    <span class="min-w-0 truncate">
+                      <strong class="block truncate text-ink">{{ book.canonicalTitle }}</strong>
+                      <small class="text-[#566e80]">{{ authorNames(book) }}</small>
+                    </span>
+                    <button type="button" class="shrink-0 rounded-sm border border-[#7d9ab0] px-2 py-1 text-xs font-bold hover:bg-[#e6eef3]" (click)="clearBook()">Cambiar</button>
+                  </div>
+                } @else {
+                  <div class="relative">
+                    <input
+                      [(ngModel)]="assignBookQuery"
+                      (ngModelChange)="onBookQuery()"
+                      placeholder="Busca un título…"
+                      class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
+                    @if (assignBookResults().length > 0 && !assignBookSearch().loading && !assignBookSearch().error) {
+                      <ul class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-sm border border-[#9eb2c1] bg-white shadow">
+                        @for (book of assignBookResults(); track book.id) {
+                          <li>
+                            <button type="button" (click)="pickBook(book)" class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-[#eaf1f6]">
+                              <span class="min-w-0">
+                                <strong class="block truncate text-ink">{{ book.canonicalTitle }}</strong>
+                                <small class="text-[#566e80]">{{ authorNames(book) }}</small>
+                              </span>
+                            </button>
+                          </li>
+                        }
+                      </ul>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+
+            @if (selectedBook(); as book) {
+              <label class="mt-3 block">
+                <span class="text-sm font-semibold text-ink">Edición (clasificación aprobada)</span>
+                <select [(ngModel)]="assignEditionId" class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
+                  <option value="">Selecciona…</option>
+                  @for (edition of assignableEditions(); track edition.id) {
+                    <option [value]="edition.id">{{ edition.title }} ({{ edition.languageCode }})</option>
+                  }
+                </select>
+              </label>
+            }
+
+            <div class="mt-3">
+              <button
+                type="button"
+                class="rounded-sm bg-coral px-5 py-2 text-sm font-bold text-white transition hover:bg-coral-deep disabled:cursor-wait disabled:opacity-60"
+                (click)="assignDirect()"
+                [disabled]="loading() || !selectedOrder() || !selectedBook() || !assignEditionId()">
+                Asignar libro
+              </button>
+            </div>
+          </div>
+
           <p class="text-sm text-[#536875]">Puntúa candidatos y asigna el libro a un fulfillment (el estado logístico vive en el fulfillment).</p>
 
           @if (fulfillments().length > 0) {
@@ -169,8 +267,8 @@ const TAG_TAXONOMY_VERSION = 'tag-tax/1.0.1';
               @for (fulfillment of fulfillments(); track fulfillment.id) {
                 <div class="border-t border-[#e3ebf0] py-3">
                   <div class="flex flex-wrap items-center gap-3">
-                    <strong class="text-ink">{{ fulfillment.order.packageName }}</strong>
-                    <span class="font-mono text-xs text-[#567088]">estado: {{ fulfillment.status }}</span>
+                    <strong class="text-ink">{{ fulfillment.order.user.displayName || fulfillment.order.user.email || 'Sin nombre' }}</strong>
+                    <span class="font-mono text-xs text-[#567088]">{{ fulfillment.order.packageName }} · {{ fulfillment.status }}</span>
                     <span class="font-mono text-xs text-[#567088]">pedido: {{ fulfillment.order.id.slice(0, 8) }}</span>
                     <button type="button" class="rounded-sm bg-ink px-3 py-1 text-sm font-bold text-white hover:bg-ink-soft disabled:opacity-60" (click)="score(fulfillment.id)" [disabled]="loading()">Puntuar</button>
                   </div>
@@ -209,6 +307,11 @@ const TAG_TAXONOMY_VERSION = 'tag-tax/1.0.1';
                 <span class="font-mono text-xs text-[#567088]">ciclo: {{ assignment.feedbackCycleStatus }}</span>
                 <span class="font-mono text-xs text-[#567088]">rev {{ assignment.classification.revision }}</span>
               </div>
+              @if (assignment.notes) {
+                <p class="mt-2 rounded-sm bg-[#f2f6f9] px-3 py-2 text-xs leading-relaxed text-[#536875]">
+                  <span class="font-semibold text-ink">Nota:</span> {{ assignment.notes }}
+                </p>
+              }
               @if (invitationUrl() && invitationFor() === assignment.id) {
                 <p class="mt-2 break-all rounded-sm bg-[#e2f0e9] px-3 py-2 text-sm text-[#16442f]">Invitación: <a class="underline" [href]="invitationUrl()" target="_blank">{{ invitationUrl() }}</a></p>
               }
@@ -219,15 +322,27 @@ const TAG_TAXONOMY_VERSION = 'tag-tax/1.0.1';
                 }
                 @if (assignment.fulfillment.status === 'packed') {
                   <button type="button" class="rounded-sm bg-coral px-3 py-1 text-sm font-bold text-white" (click)="action('ship', assignment.id)">Enviar</button>
+                  <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="action('unpack', assignment.id)">Deshacer empaquetado</button>
                 }
                 @if (assignment.fulfillment.status === 'shipped') {
+                  <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="action('in-delivery', assignment.id)">Marcar en proceso de entrega</button>
+                  <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="action('unship', assignment.id)">Deshacer envío</button>
+                }
+                @if (assignment.fulfillment.status === 'in_delivery') {
                   <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="action('delivered', assignment.id)">Marcar entregado</button>
+                  <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="action('undo-in-delivery', assignment.id)">Deshacer en proceso de entrega</button>
+                }
+                @if (assignment.fulfillment.status === 'delivered') {
+                  <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="action('undo-delivered', assignment.id)">Deshacer entregado</button>
                 }
                 @if (['invited', 'provisional_received'].includes(assignment.feedbackCycleStatus)) {
-                  <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="action('reissue-invitation', assignment.id)">Reemitir invitación</button>
+                  <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="action('reissue-invitation', assignment.id)">Ver invitación</button>
+                  @if (assignment.feedbacks.length === 0) {
+                    <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="action('close-without-feedback', assignment.id)">Cerrar sin feedback</button>
+                  }
                 }
-                @if (assignment.feedbackCycleStatus !== 'closed_without_feedback') {
-                  <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="action('close-without-feedback', assignment.id)">Cerrar sin feedback</button>
+                @if (['final_received', 'closed_without_feedback'].includes(assignment.feedbackCycleStatus)) {
+                  <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="reopenLearning(assignment.id)">Reabrir aprendizaje</button>
                 }
               </div>
               @if (replaceTarget() === assignment.id && scoredFor(assignment.fulfillment.id); as candidates) {
@@ -244,9 +359,14 @@ const TAG_TAXONOMY_VERSION = 'tag-tax/1.0.1';
                 </div>
               }
               @if (assignment.feedbacks.length > 0) {
-                <ul class="mt-2 list-inside list-disc text-xs text-[#536875]">
+                <ul class="mt-2 space-y-1 text-xs text-[#536875]">
                   @for (feedback of assignment.feedbacks; track feedback.id) {
-                    <li>{{ feedback.isFinal ? 'Final' : 'Provisional' }} · {{ feedback.learningStatus }} · {{ feedback.submittedAt | date:'short' }}</li>
+                    <li class="flex flex-wrap items-center gap-2">
+                      <span>{{ feedback.isFinal ? 'Final' : 'Provisional' }} · {{ feedback.learningStatus }} · {{ feedback.submittedAt | date:'short' }}</span>
+                      @if (feedback.selectionFitRating !== null) {
+                        <span class="font-bold text-ink">Selección: {{ feedback.selectionFitRating }}/5</span>
+                      }
+                    </li>
                   }
                 </ul>
               }
@@ -286,6 +406,17 @@ const TAG_TAXONOMY_VERSION = 'tag-tax/1.0.1';
                   <span>Feedback: {{ order._count.feedbacks }}</span>
                   <span>Pedido: {{ order.id.slice(0, 8) }}</span>
                 </div>
+                @if (order.shippingAddress; as address) {
+                  <div class="mt-3 rounded-sm border border-[#d6e1e8] bg-[#f7fafc] px-3 py-2 text-xs text-[#536875]">
+                    <p class="font-semibold text-ink">Envío a: {{ address.recipientName }}</p>
+                    <p>
+                      {{ address.street }}{{ address.exteriorNumber ? ' ' + address.exteriorNumber : '' }}{{ address.interiorNumber ? ' int. ' + address.interiorNumber : '' }}{{ address.neighborhood ? ', ' + address.neighborhood : '' }},
+                      {{ address.city }}, {{ address.state }} {{ address.postalCode }}
+                    </p>
+                    @if (order.user.email) { <p>Correo: {{ order.user.email }}</p> }
+                    @if (address.phone) { <p>Teléfono: {{ address.phone }}</p> }
+                  </div>
+                }
                 @if (order.fulfillment) {
                   <div class="mt-3 flex flex-wrap gap-2">
                     @if (order.fulfillment.status === 'curation_pending') {
@@ -298,6 +429,9 @@ const TAG_TAXONOMY_VERSION = 'tag-tax/1.0.1';
                       <button type="button" class="rounded-sm bg-coral px-3 py-1 text-sm font-bold text-white hover:bg-coral-deep disabled:opacity-60" [disabled]="loading()" (click)="fulfillAction('ship', order)">Enviar</button>
                     }
                     @if (order.fulfillment.status === 'shipped' && order.activeAssignment) {
+                      <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3] disabled:opacity-60" [disabled]="loading()" (click)="fulfillAction('in-delivery', order)">Marcar en proceso de entrega</button>
+                    }
+                    @if (order.fulfillment.status === 'in_delivery' && order.activeAssignment) {
                       <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3] disabled:opacity-60" [disabled]="loading()" (click)="fulfillAction('delivered', order)">Marcar entregado</button>
                     }
                     <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="openReader(order.user.id)">Ver lector</button>
@@ -317,6 +451,7 @@ export class AdminScreen {
   private readonly api = inject(ApiService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly dialog = inject(DialogService);
 
   readonly tab = signal<'catalog' | 'curation' | 'orders'>('catalog');
@@ -327,14 +462,45 @@ export class AdminScreen {
   readonly scored = signal<Record<string, AdminCandidate[]>>({});
   readonly replaceTarget = signal<string | null>(null);
   readonly loading = signal(false);
+  readonly selectedOrder = signal<AdminOrder | null>(null);
+  readonly selectedBook = signal<AdminBook | null>(null);
+  readonly assignEditionId = signal('');
+  readonly assignOrderResults = signal<AdminOrder[]>([]);
+  readonly assignOrderSearch = signal<{ loading: boolean; error: string | null }>({ loading: false, error: null });
+  readonly assignBookResults = signal<AdminBook[]>([]);
+  readonly assignBookSearch = signal<{ loading: boolean; error: string | null }>({ loading: false, error: null });
+  assignOrderQuery = '';
+  assignBookQuery = '';
+  private orderTimer: ReturnType<typeof setTimeout> | null = null;
+  private orderSeq = 0;
+  private bookTimer: ReturnType<typeof setTimeout> | null = null;
+  private bookSeq = 0;
+
+  readonly assignableEditions = computed(() => {
+    const book = this.selectedBook();
+    return book?.editions.filter((edition) => edition.classifications.some((classification) => classification.status === 'approved')) ?? [];
+  });
   readonly invitationUrl = signal<string | null>(null);
   readonly invitationFor = signal<string | null>(null);
+  private readonly confirmations: Record<string, { title: string; message: string; confirmLabel: string; danger?: boolean }> = {
+    pack: { title: 'Empaquetar pedido', message: '¿Marcar el pedido como empaquetado?', confirmLabel: 'Empaquetar' },
+    ship: { title: 'Enviar pedido', message: 'Al enviar se genera la invitación de feedback (QR). ¿Continuar?', confirmLabel: 'Enviar' },
+    'in-delivery': { title: 'Marcar en proceso de entrega', message: '¿Marcar el pedido como en proceso de entrega?', confirmLabel: 'Marcar' },
+    delivered: { title: 'Marcar entregado', message: '¿Confirmar que el libro fue entregado?', confirmLabel: 'Marcar entregado' },
+    'close-without-feedback': { title: 'Cerrar sin feedback', message: 'Se cierra el ciclo de aprendizaje y se revocan las invitaciones pendientes. Puedes reabrirlo después. ¿Continuar?', confirmLabel: 'Cerrar ciclo', danger: true },
+    unpack: { title: 'Deshacer empaquetado', message: '¿Regresar el pedido de "empaquetado" a "asignado"?', confirmLabel: 'Deshacer' },
+    unship: { title: 'Deshacer envío', message: 'El pedido regresa a "empaquetado" y se revoca la invitación (QR) generada. ¿Continuar?', confirmLabel: 'Deshacer', danger: true },
+    'undo-in-delivery': { title: 'Deshacer en proceso de entrega', message: '¿Regresar el pedido de "en proceso de entrega" a "enviado"?', confirmLabel: 'Deshacer' },
+    'undo-delivered': { title: 'Deshacer entregado', message: '¿Regresar el pedido de "entregado" a "en proceso de entrega"?', confirmLabel: 'Deshacer' },
+    'reopen-learning': { title: 'Reabrir aprendizaje', message: 'Se reabre el ciclo, se revoca la invitación actual y se genera una nueva. ¿Continuar?', confirmLabel: 'Reabrir', danger: true },
+  };
   readonly orderStatusOptions = [
     { value: 'curation_pending', label: 'Orden recibida' },
     { value: 'assigned', label: 'Selección de libro' },
     { value: 'packed', label: 'Preparación de orden' },
     { value: 'shipped', label: 'Enviado' },
-    { value: 'delivered', label: 'En proceso de entrega' },
+    { value: 'in_delivery', label: 'En proceso de entrega' },
+    { value: 'delivered', label: 'Entregado' },
     { value: 'canceled', label: 'Cancelado' },
   ];
 
@@ -352,7 +518,20 @@ export class AdminScreen {
   private newBookSeq = 0;
 
   constructor() {
+    const requested = this.route.snapshot.queryParamMap.get('tab');
+    if (requested === 'catalog' || requested === 'curation' || requested === 'orders') {
+      this.tab.set(requested);
+    }
     void this.loadBooks();
+    if (this.tab() === 'curation') void this.loadAssignments();
+    if (this.tab() === 'orders') void this.loadOrders();
+  }
+
+  selectTab(tab: 'catalog' | 'curation' | 'orders'): void {
+    this.tab.set(tab);
+    void this.router.navigate(['/admin'], { queryParams: { tab } });
+    if (tab === 'curation') void this.loadAssignments();
+    if (tab === 'orders') void this.loadOrders();
   }
 
   async loadOrders(): Promise<void> {
@@ -361,9 +540,14 @@ export class AdminScreen {
     });
   }
 
-  async fulfillAction(action: 'pack' | 'ship' | 'delivered', order: AdminOrder): Promise<void> {
+  async fulfillAction(action: 'pack' | 'ship' | 'in-delivery' | 'delivered', order: AdminOrder): Promise<void> {
     if (!order.activeAssignment) return;
     const assignmentId = order.activeAssignment.id;
+    const confirm = this.confirmations[action];
+    if (confirm) {
+      const confirmed = await this.dialog.confirm({ title: confirm.title, message: confirm.message, confirmLabel: confirm.confirmLabel, cancelLabel: 'Cancelar', danger: confirm.danger });
+      if (!confirmed) return;
+    }
     await this.run(async () => {
       await this.api.adminAction(action, assignmentId);
       this.toast.success(action === 'pack' ? 'Pedido empacado.' : action === 'ship' ? 'Pedido enviado.' : 'Pedido marcado como entregado.');
@@ -372,8 +556,7 @@ export class AdminScreen {
   }
 
   goToCuration(): void {
-    this.tab.set('curation');
-    void this.loadAssignments();
+    this.selectTab('curation');
   }
 
   openReader(userId: string): void {
@@ -411,7 +594,14 @@ export class AdminScreen {
   }
 
   async assignCandidate(fulfillmentId: string, candidate: AdminCandidate): Promise<void> {
-    const reason = window.prompt('Razón de la selección (opcional):') ?? undefined;
+    const reason = await this.dialog.prompt({
+      title: 'Asignar libro',
+      message: `Se asignará «${candidate.title}» a este pedido.`,
+      inputLabel: 'Razón de la selección (opcional)',
+      placeholder: 'Opcional',
+      confirmLabel: 'Asignar',
+    });
+    if (reason === null) return;
     await this.run(async () => {
       await this.api.adminAssign(fulfillmentId, {
         bookEditionId: candidate.bookEditionId,
@@ -420,6 +610,104 @@ export class AdminScreen {
         reason: reason || undefined,
       });
       this.toast.success(`Asignado: ${candidate.title}`);
+      await this.loadAssignments();
+    });
+  }
+
+  onOrderQuery(): void {
+    if (this.orderTimer) clearTimeout(this.orderTimer);
+    if (!this.assignOrderQuery.trim()) {
+      this.orderSeq++;
+      this.assignOrderResults.set([]);
+      this.assignOrderSearch.set({ loading: false, error: null });
+      return;
+    }
+    this.orderTimer = setTimeout(() => this.runOrderSearch(this.assignOrderQuery), 300);
+  }
+
+  private runOrderSearch(query: string): void {
+    const seq = ++this.orderSeq;
+    this.assignOrderSearch.set({ loading: true, error: null });
+    this.api.listAdminOrders(query).then((orders) => {
+      if (seq !== this.orderSeq) return;
+      const eligible = orders.filter((order) => order.fulfillment && (order.fulfillment.status === 'curation_pending' || order.fulfillment.status === 'assigned'));
+      this.assignOrderResults.set(eligible);
+      this.assignOrderSearch.set({ loading: false, error: null });
+    }).catch(() => {
+      if (seq !== this.orderSeq) return;
+      this.assignOrderResults.set([]);
+      this.assignOrderSearch.set({ loading: false, error: 'No pudimos buscar pedidos.' });
+    });
+  }
+
+  pickOrder(order: AdminOrder): void {
+    this.selectedOrder.set(order);
+    this.assignOrderQuery = '';
+    this.assignOrderResults.set([]);
+    this.assignOrderSearch.set({ loading: false, error: null });
+  }
+
+  clearOrder(): void {
+    this.selectedOrder.set(null);
+  }
+
+  onBookQuery(): void {
+    if (this.bookTimer) clearTimeout(this.bookTimer);
+    if (!this.assignBookQuery.trim()) {
+      this.bookSeq++;
+      this.assignBookResults.set([]);
+      this.assignBookSearch.set({ loading: false, error: null });
+      return;
+    }
+    this.bookTimer = setTimeout(() => this.runBookSearch(this.assignBookQuery), 300);
+  }
+
+  private runBookSearch(query: string): void {
+    const seq = ++this.bookSeq;
+    this.assignBookSearch.set({ loading: true, error: null });
+    this.api.listAdminBooks(query).then((books) => {
+      if (seq !== this.bookSeq) return;
+      const eligible = books.filter((book) => book.editions.some((edition) => edition.classifications.some((classification) => classification.status === 'approved')));
+      this.assignBookResults.set(eligible);
+      this.assignBookSearch.set({ loading: false, error: null });
+    }).catch(() => {
+      if (seq !== this.bookSeq) return;
+      this.assignBookResults.set([]);
+      this.assignBookSearch.set({ loading: false, error: 'No pudimos buscar libros.' });
+    });
+  }
+
+  pickBook(book: AdminBook): void {
+    this.selectedBook.set(book);
+    this.assignBookQuery = '';
+    this.assignBookResults.set([]);
+    this.assignBookSearch.set({ loading: false, error: null });
+    this.assignEditionId.set('');
+  }
+
+  clearBook(): void {
+    this.selectedBook.set(null);
+    this.assignEditionId.set('');
+  }
+
+  async assignDirect(): Promise<void> {
+    const order = this.selectedOrder();
+    const book = this.selectedBook();
+    const edition = this.assignableEditions().find((item) => item.id === this.assignEditionId());
+    const fulfillmentId = order?.fulfillment?.id;
+    if (!order || !book || !fulfillmentId || !edition) return;
+    const approved = [...edition.classifications].filter((classification) => classification.status === 'approved').sort((a, b) => b.revision - a.revision)[0];
+    if (!approved) return;
+    await this.run(async () => {
+      await this.api.adminAssign(fulfillmentId, {
+        bookEditionId: edition.id,
+        classificationVersionId: approved.id,
+        reason: 'Asignación directa desde catálogo',
+      });
+      this.toast.success(`Asignado: ${book.canonicalTitle}`);
+      this.selectedOrder.set(null);
+      this.selectedBook.set(null);
+      this.assignEditionId.set('');
       await this.loadAssignments();
     });
   }
@@ -436,7 +724,14 @@ export class AdminScreen {
   }
 
   async replaceWithCandidate(assignmentId: string, candidate: AdminCandidate): Promise<void> {
-    const reason = window.prompt('Razón del reemplazo (opcional):') ?? undefined;
+    const reason = await this.dialog.prompt({
+      title: 'Reemplazar libro',
+      message: `Se reemplazará con «${candidate.title}».`,
+      inputLabel: 'Razón del reemplazo (opcional)',
+      placeholder: 'Opcional',
+      confirmLabel: 'Reemplazar',
+    });
+    if (reason === null) return;
     await this.run(async () => {
       await this.api.adminReplace(assignmentId, {
         bookEditionId: candidate.bookEditionId,
@@ -566,13 +861,41 @@ export class AdminScreen {
     return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   }
 
-  async action(action: 'pack' | 'ship' | 'delivered' | 'close-without-feedback' | 'reissue-invitation', assignmentId: string): Promise<void> {
+  async action(action: 'pack' | 'ship' | 'in-delivery' | 'delivered' | 'close-without-feedback' | 'reissue-invitation' | 'unpack' | 'unship' | 'undo-in-delivery' | 'undo-delivered', assignmentId: string): Promise<void> {
+    const confirm = this.confirmations[action];
+    if (confirm) {
+      const confirmed = await this.dialog.confirm({ title: confirm.title, message: confirm.message, confirmLabel: confirm.confirmLabel, cancelLabel: 'Cancelar', danger: confirm.danger });
+      if (!confirmed) return;
+    }
     await this.run(async () => {
       const result = await this.api.adminAction(action, assignmentId);
       if (result.url) {
         this.invitationUrl.set(result.url);
         this.invitationFor.set(assignmentId);
       }
+      await this.loadAssignments();
+    });
+  }
+
+  async reopenLearning(assignmentId: string): Promise<void> {
+    const confirm = this.confirmations['reopen-learning'];
+    const reason = await this.dialog.prompt({
+      title: confirm.title,
+      message: confirm.message,
+      inputLabel: 'Razón de la reapertura (opcional)',
+      placeholder: 'Opcional',
+      confirmLabel: confirm.confirmLabel,
+      cancelLabel: 'Cancelar',
+      danger: confirm.danger,
+    });
+    if (reason === null) return;
+    await this.run(async () => {
+      const result = await this.api.adminReopenLearning(assignmentId, reason);
+      if (result.url) {
+        this.invitationUrl.set(result.url);
+        this.invitationFor.set(assignmentId);
+      }
+      this.toast.success('Ciclo reabierto. Nueva invitación generada.');
       await this.loadAssignments();
     });
   }

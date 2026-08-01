@@ -127,7 +127,7 @@ export type FeedbackMapping = { dimensionKey: string; observedValue: number; rea
 export const FEEDBACK_MAPPINGS: Record<'positive' | 'negative', Record<string, FeedbackMapping[]>> = {
   positive: {
     story_progress: [{ dimensionKey: 'payoff_requirement', observedValue: 0.8, reasonCode: 'f05_story_progress_pos', baseWeight: 1.4, direction: 1 }],
-    tension_curiosity: [{ dimensionKey: 'tension_preference', observedValue: 0.85, reasonCode: 'f05_tension_pos', baseWeight: 1.4, direction: 1 }, { dimensionKey: 'strangeness_preference', observedValue: 0.7, reasonCode: 'f05_curiosity_pos', baseWeight: 1.4, direction: 1 }],
+    tension_curiosity: [{ dimensionKey: 'tension_preference', observedValue: 0.85, reasonCode: 'f05_tension_pos', baseWeight: 1.4, direction: 1 }],
     characters: [{ dimensionKey: 'character_depth_need', observedValue: 0.85, reasonCode: 'f05_characters_pos', baseWeight: 1.4, direction: 1 }, { dimensionKey: 'character_agency_preference', observedValue: 0.75, reasonCode: 'f05_agency_pos', baseWeight: 1.4, direction: 1 }],
     character_relationships: [{ dimensionKey: 'relationship_focus_preference', observedValue: 0.85, reasonCode: 'f05_relationships_pos', baseWeight: 1.4, direction: 1 }],
     writing_style: [{ dimensionKey: 'style_clarity_preference', observedValue: 0.85, reasonCode: 'f05_style_clarity_pos', baseWeight: 1.4, direction: 1 }],

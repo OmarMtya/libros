@@ -48,21 +48,6 @@ export class FeedbackPayloadDto {
   freeText?: string;
 }
 
-export class SubmitFeedbackDto extends FeedbackPayloadDto {
-  @IsOptional()
-  @IsUUID()
-  bookId?: string;
-
-  @IsOptional()
-  @IsUUID()
-  recommendationId?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  idempotencyKey?: string;
-}
-
 export class SubmitFeedbackByTokenDto extends FeedbackPayloadDto {
   @IsString()
   @MinLength(8)

@@ -29,25 +29,28 @@ import { FULFILLMENT_LABELS, OrderTimeline } from '../components/order-timeline'
 
           <app-order-timeline [status]="order.fulfillment?.status ?? ''" />
 
+          @if (order.fulfillment?.status !== 'delivered') {
+            <p class="mt-5 text-sm text-[#536875]">
+              Tu envío está en proceso. Los envíos tardan de 5 a 10 días hábiles y nos comunicaremos
+              contigo en cada paso de tu pedido.
+            </p>
+          }
+
           @if (feedbackDone()) {
             <div class="mt-5 rounded-sm bg-[#e2f0e9] px-4 py-3 text-sm text-[#16442f]">
               ¡Gracias por tu feedback! Ya puedes elegir tu siguiente sorpresa.
             </div>
             <a
-              routerLink="/experiencia"
+              routerLink="/"
               class="mt-4 inline-block rounded-sm bg-coral px-6 py-3 text-sm font-bold text-white transition hover:bg-coral-deep">
               Elegir mi siguiente sorpresa
             </a>
           } @else if (order.fulfillment?.status === 'delivered') {
             <div class="mt-5 rounded-sm border border-[#f0e0b0] bg-[#fff7e6] px-4 py-3 text-sm text-[#6b5310]">
-              En tu paquete encontrarás un <strong>código QR</strong>. Escanéalo con tu teléfono para
-              contarnos cómo te fue con tu libro; con tu opinión liberamos tu siguiente sorpresa.
+              Para volver a pedir y seguir afinando tus recomendaciones, completa el cuestionario que viene en el
+              <strong>código QR</strong> dentro de tu paquete. También lo encontrarás en tu correo electrónico.
+              Si tienes algún problema, escríbenos a <a class="font-semibold text-[#6b5310] underline" href="mailto:hola@milibrosorpresa.com">hola@milibrosorpresa.com</a> y con gusto te ayudamos.
             </div>
-          } @else {
-            <p class="mt-5 text-sm text-[#536875]">
-              Tu envío está en proceso. Los envíos tardan de 5 a 10 días hábiles y nos comunicaremos
-              contigo en cada paso de tu pedido.
-            </p>
           }
 
           <dl class="mt-6 grid gap-3 border-t border-[#e3eaef] pt-5 text-sm sm:grid-cols-2">
@@ -76,7 +79,7 @@ import { FULFILLMENT_LABELS, OrderTimeline } from '../components/order-timeline'
           <h2 class="font-display text-2xl font-bold tracking-[-0.03em] text-ink">Aún no tienes un pedido</h2>
           <p class="mt-2 mb-6 text-sm text-[#536875]">Tu próxima sorpresa te está esperando.</p>
           <a
-            routerLink="/experiencia"
+            routerLink="/"
             class="inline-block rounded-sm bg-coral px-6 py-3 text-sm font-bold text-white transition hover:bg-coral-deep">
             Elegir mi sorpresa
           </a>

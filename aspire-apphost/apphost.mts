@@ -49,6 +49,7 @@ const api = await builder
   .withEnvironment('DATABASE_URL', await librosDb.uriExpression())
   .withEnvironment('CORS_ORIGIN', env.CORS_ORIGIN ?? 'http://localhost:4200')
   .withEnvironment('APP_URL', env.APP_URL ?? 'http://localhost:4200')
+  .withEnvironment('INVITATION_SIGNING_SECRET', env.INVITATION_SIGNING_SECRET ?? '')
   .withEnvironment('SUPABASE_JWT_ISSUER', env.SUPABASE_JWT_ISSUER ?? '')
   .withEnvironment('SUPABASE_JWKS_URL', env.SUPABASE_JWKS_URL ?? '')
   .withEnvironment('SUPABASE_JWT_AUDIENCE', env.SUPABASE_JWT_AUDIENCE ?? 'authenticated')

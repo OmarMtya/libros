@@ -27,7 +27,6 @@ export const FEEDBACK_LEARNING_MAPPINGS: Record<'positive' | 'negative', Record<
     story_progress: [{ targetDimension: 'payoff_requirement', bookFeatureKey: 'narrative_payoff', operation: 'reinforce_near_book_value', margin: 0, baseWeight: 1.4, reasonCode: 'f05_story_progress_learn' }],
     tension_curiosity: [
       { targetDimension: 'tension_preference', bookFeatureKey: 'tension_level', operation: 'reinforce_near_book_value', margin: 0, baseWeight: 1.4, reasonCode: 'f05_tension_learn' },
-      { targetDimension: 'strangeness_preference', bookFeatureKey: 'strangeness_level', operation: 'reinforce_near_book_value', margin: 0, baseWeight: 1.4, reasonCode: 'f05_curiosity_learn' },
     ],
     characters: [
       { targetDimension: 'character_depth_need', bookFeatureKey: 'character_depth', operation: 'reinforce_near_book_value', margin: 0, baseWeight: 1.4, reasonCode: 'f05_characters_learn' },
