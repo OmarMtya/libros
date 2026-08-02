@@ -663,6 +663,15 @@ run('cadena envío -> invitación -> feedback', () => {
     expect(reopened.url).not.toBe(shipped.url);
     const pending = await prisma!.feedbackInvitation.findMany({ where: { curationAssignmentId: assignment.id, status: 'pending' } });
     expect(pending.length).toBe(1);
+
+    const resolved = await tokenService!.resolveInvitation(reopened.plainToken);
+    expect(resolved.received).toBe(false);
+    const again = await tokenService!.submitByToken(reopened.plainToken, feedbackPayload({ idempotencyKey: nextKey() }), null);
+    expect(again.feedback.isFinal).toBe(true);
+    const after = await prisma!.curationAssignment.findUnique({ where: { id: assignment.id } });
+    expect(after?.feedbackCycleStatus).toBe('final_received');
+    const count = await prisma!.readingFeedback.count({ where: { curationAssignmentId: assignment.id } });
+    expect(count).toBe(2);
   });
 
   it('entregado sin feedback es logísticamente completo; delivered no depende del feedback', async () => {

@@ -56,7 +56,61 @@ export class ProfileService {
     });
     if (!profile) throw new NotFoundException('Reader profile not found.');
     const { user, ...readerProfile } = profile;
-    return { ...readerProfile, questionnaireSessions: user.questionnaireSessions };
+    const feedbackBooks = await this.prisma.readingFeedback.findMany({
+      where: { userId },
+      orderBy: { submittedAt: 'desc' },
+      select: {
+        id: true,
+        readingStatus: true,
+        selectionFitRating: true,
+        isFinal: true,
+        submittedAt: true,
+        edition: {
+          select: {
+            title: true,
+            book: {
+              select: {
+                id: true,
+                canonicalTitle: true,
+                openLibraryCoverId: true,
+                authors: { include: { author: { select: { canonicalName: true } } }, orderBy: { position: 'asc' } },
+              },
+            },
+          },
+        },
+      },
+    });
+    const seenBooks = new Set<string>();
+    const feedbackBooksMapped: Array<{
+      id: string;
+      bookId: string;
+      title: string;
+      authors: string[];
+      readingStatus: string;
+      selectionFitRating: number | null;
+      isFinal: boolean;
+      submittedAt: Date;
+      coverUrl: string | null;
+    }> = [];
+    for (const feedback of feedbackBooks) {
+      const book = feedback.edition?.book;
+      const bookId = book?.id ?? '';
+      if (bookId && seenBooks.has(bookId)) continue;
+      if (bookId) seenBooks.add(bookId);
+      const coverId = book?.openLibraryCoverId ?? null;
+      feedbackBooksMapped.push({
+        id: feedback.id,
+        bookId,
+        title: book?.canonicalTitle ?? feedback.edition?.title ?? 'Libro sin título',
+        authors: book?.authors.map((item) => item.author.canonicalName) ?? [],
+        readingStatus: feedback.readingStatus,
+        selectionFitRating: feedback.selectionFitRating,
+        isFinal: feedback.isFinal,
+        submittedAt: feedback.submittedAt,
+        coverUrl: coverId !== null ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg` : null,
+      });
+    }
+    return { ...readerProfile, questionnaireSessions: user.questionnaireSessions, feedbackBooks: feedbackBooksMapped };
   }
 
   async getVersions(userId: string) {

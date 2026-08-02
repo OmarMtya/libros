@@ -18,6 +18,7 @@ export type BookEditionDetail = {
   publisher: string | null;
   publicationYear: number | null;
   isbn: string | null;
+  coverId: number | null;
   coverUrl: string | null;
 };
 
@@ -131,6 +132,7 @@ export class BooksService {
       publisher: json.publishers?.[0] ?? null,
       publicationYear: json.publish_date ? Number.parseInt(json.publish_date.match(/\b(19|20)\d{2}\b/)?.[0] ?? '', 10) || null : null,
       isbn: json.isbn_13?.[0] ?? json.isbn_10?.[0] ?? null,
+      coverId: json.covers?.[0] ?? null,
       coverUrl: json.covers?.[0] ? `https://covers.openlibrary.org/b/id/${json.covers[0]}-M.jpg` : null,
     };
   }

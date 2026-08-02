@@ -63,13 +63,8 @@ export class FeedbackTokenService {
         include: { author: { select: { canonicalName: true } } },
         orderBy: { position: 'asc' },
       });
-      const existingFeedback = await tx.readingFeedback.findFirst({
-        where: { curationAssignmentId: assignment.id },
-        orderBy: { submittedAt: 'desc' },
-        select: { id: true },
-      });
       return {
-        received: invitation.status === 'used' || existingFeedback !== null,
+        received: invitation.status === 'used',
         deliveryChangedAt: assignment.fulfillment.deliveredAt ?? assignment.fulfillment.shippedAt,
         book: {
           title: assignment.edition.book.canonicalTitle,

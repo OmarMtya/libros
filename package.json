@@ -13,6 +13,7 @@
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "stripe:listen": "stripe listen --forward-to http://localhost:3000/v1/webhooks/stripe",
     "aspire:start": "npm --prefix aspire-apphost run aspire:start",
     "aspire:build": "npm --prefix aspire-apphost run aspire:build",
     "aspire:dev": "npm --prefix aspire-apphost run aspire:dev"

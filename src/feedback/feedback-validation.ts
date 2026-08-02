@@ -9,9 +9,13 @@ export function validateFeedbackPayload(payload: {
   readingStatus: string;
   completionPercentage: number;
   notStartedReason?: string | null;
+  selectionFitRating?: number | null;
   positiveAspects?: string[];
   negativeAspects?: string[];
 }) {
+  if (payload.started && (payload.selectionFitRating == null || payload.selectionFitRating < 1 || payload.selectionFitRating > 5)) {
+    throw new BadRequestException('A started book requires a selection fit rating from 1 to 5.');
+  }
   if (!payload.started && (payload.readingStatus !== 'not_started' || payload.completionPercentage !== 0 || !payload.notStartedReason)) {
     throw new BadRequestException('A book not started must include its reason, status not_started, and 0% completion.');
   }

@@ -77,7 +77,7 @@ export class CatalogService {
     }
     const book = await this.prisma.$transaction(async (tx) => {
       const created = await tx.book.create({
-        data: { canonicalTitle: dto.canonicalTitle.trim(), originalLanguage: dto.originalLanguage },
+        data: { canonicalTitle: dto.canonicalTitle.trim(), originalLanguage: dto.originalLanguage, openLibraryCoverId: editionDetail?.coverId ?? undefined },
       });
       for (const author of dto.authors ?? []) {
         const authorId = await this.findOrCreateAuthor(tx, author.name.trim());

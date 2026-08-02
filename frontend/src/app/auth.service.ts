@@ -48,6 +48,23 @@ export class AuthService {
     if (error) throw error;
   }
 
+  async signInWithPassword(email: string, password: string): Promise<void> {
+    if (!this.client) throw new Error('Configura Supabase para habilitar el inicio de sesión.');
+    const { error } = await this.client.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  }
+
+  async signUpWithEmail(email: string, password: string, fullName: string): Promise<{ needsConfirmation: boolean }> {
+    if (!this.client) throw new Error('Configura Supabase para habilitar el registro.');
+    const { data, error } = await this.client.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName } },
+    });
+    if (error) throw error;
+    return { needsConfirmation: !data.session };
+  }
+
   async signOut(): Promise<void> {
     if (!this.client) return;
     const { error } = await this.client.auth.signOut();

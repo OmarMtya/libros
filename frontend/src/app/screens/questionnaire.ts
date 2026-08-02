@@ -1,6 +1,6 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ApiService, BookResult, Question, Session, Tag } from '../api.service';
 import { AuthService } from '../auth.service';
 import { DISLIKED_BOOK_REASONS, LOVED_BOOK_ASPECTS, TAG_LABELS, TAG_TYPE_LABELS } from '../labels';
@@ -13,7 +13,7 @@ const TOTAL_QUESTIONS = 16;
 
 @Component({
   selector: 'app-questionnaire',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   template: `
     <div class="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       @if (alreadyCompleted()) {
@@ -31,7 +31,7 @@ const TOTAL_QUESTIONS = 16;
             [disabled]="loading()">
             Quiero rehacerlo
           </button>
-          <p class="mt-4"><a routerLink="/app" class="text-sm font-semibold text-ink underline hover:text-coral">Volver al inicio</a></p>
+          <p class="mt-4"><a routerLink="/app/experiencia" class="text-sm font-semibold text-ink underline hover:text-coral">Ver mi sorpresa</a></p>
         </section>
       } @else if (question(); as current) {
         <section class="rounded-sm border border-[#cad7df] bg-white p-6 sm:p-10">
@@ -613,7 +613,7 @@ export class Questionnaire {
     if (!session) return;
     await this.api.completeSession(session.id);
     this.question.set(null);
-    await this.router.navigate(['/app']);
+    await this.router.navigate(['/app/experiencia']);
   }
 
   toggleSelection(key: string): void {

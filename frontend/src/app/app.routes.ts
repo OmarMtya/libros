@@ -4,8 +4,10 @@ import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   { path: '', loadComponent: () => import('./screens/landing').then((m) => m.Landing) },
-  { path: 'app', loadComponent: () => import('./screens/home').then((m) => m.Home) },
+  { path: 'app/login', loadComponent: () => import('./screens/login').then((m) => m.Login) },
+  { path: 'app', redirectTo: 'app/perfil', pathMatch: 'full' },
   { path: 'app/cuestionario', loadComponent: () => import('./screens/questionnaire').then((m) => m.Questionnaire), canActivate: [authGuard] },
+  { path: 'app/experiencia', loadComponent: () => import('./screens/experience').then((m) => m.Experience), canActivate: [authGuard] },
   { path: 'app/perfil', loadComponent: () => import('./screens/profile').then((m) => m.ProfileScreen), canActivate: [authGuard] },
   { path: 'app/mi-paquete', loadComponent: () => import('./screens/mi-paquete').then((m) => m.MiPaquete), canActivate: [authGuard] },
   { path: 'app/lectores', loadComponent: () => import('./screens/readers').then((m) => m.Readers), canActivate: [authGuard, adminGuard] },

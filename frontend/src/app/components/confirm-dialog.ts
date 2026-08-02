@@ -8,8 +8,8 @@ import { DialogService } from '../dialog.service';
   template: `
     @if (dialog.confirmState(); as state) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-message">
-        <button type="button" class="absolute inset-0 bg-ink/50" (click)="dialog.cancel()" aria-label="Cancelar"></button>
-        <div class="relative w-full max-w-md rounded-sm border border-[#cad7df] bg-white p-6 shadow-[0_10px_40px_rgba(20,44,62,0.25)] animate-[toast-in_150ms_ease-out]">
+        <button type="button" class="dialog-backdrop absolute inset-0 bg-ink/50" (click)="dialog.cancel()" aria-label="Cancelar"></button>
+        <div class="dialog-card relative w-full max-w-md rounded-sm border border-[#cad7df] bg-white p-6 shadow-[0_10px_40px_rgba(20,44,62,0.25)]">
           <h2 id="confirm-dialog-title" class="mb-2 font-display text-2xl font-bold tracking-[-0.03em] text-ink">{{ state.title }}</h2>
           <p id="confirm-dialog-message" class="mb-6 text-sm leading-relaxed text-[#536875]">{{ state.message }}</p>
           @if (state.input; as input) {

@@ -332,14 +332,40 @@ export class CurationService {
     return this.prisma.curationAssignment.findMany({
       where: fulfillmentId ? { fulfillmentId } : undefined,
       include: {
-        fulfillment: { include: { order: { select: { userId: true, status: true } } } },
+        fulfillment: {
+          include: {
+            order: {
+              select: {
+                id: true,
+                userId: true,
+                status: true,
+                user: { select: { id: true, email: true, displayName: true } },
+              },
+            },
+          },
+        },
         edition: { select: { id: true, title: true, languageCode: true } },
         classification: { select: { id: true, revision: true, status: true, classifierVersion: true } },
         recommendationCandidate: {
           select: { id: true, rankPosition: true, finalScore: true, recommendationEvidenceCoverage: true },
         },
         invitations: { orderBy: { createdAt: 'desc' } },
-        feedbacks: { select: { id: true, learningStatus: true, isFinal: true, submittedAt: true, selectionFitRating: true } },
+        feedbacks: {
+          select: {
+            id: true,
+            started: true,
+            notStartedReason: true,
+            readingStatus: true,
+            completionPercentage: true,
+            selectionFitRating: true,
+            outcomeAttribution: true,
+            freeText: true,
+            learningStatus: true,
+            isFinal: true,
+            submittedAt: true,
+            aspects: { select: { polarity: true, optionKey: true } },
+          },
+        },
       },
       orderBy: { assignedAt: 'desc' },
       take: 100,

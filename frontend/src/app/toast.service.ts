@@ -6,6 +6,7 @@ export interface Toast {
   id: number;
   kind: ToastKind;
   message: string;
+  leaving?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -27,7 +28,10 @@ export class ToastService {
   }
 
   dismiss(id: number): void {
-    this.toasts.update((toasts) => toasts.filter((toast) => toast.id !== id));
+    this.toasts.update((toasts) => toasts.map((toast) => (toast.id === id ? { ...toast, leaving: true } : toast)));
+    setTimeout(() => {
+      this.toasts.update((toasts) => toasts.filter((toast) => toast.id !== id));
+    }, 180);
   }
 
   private show(kind: ToastKind, message: string, duration: number): void {

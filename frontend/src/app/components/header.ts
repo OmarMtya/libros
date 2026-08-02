@@ -32,13 +32,11 @@ import { SessionStore } from '../session-store';
             Cerrar sesión
           </button>
         } @else {
-          <button
-            class="rounded-sm bg-ink px-4 py-2 text-sm font-bold text-white transition hover:bg-ink-soft disabled:cursor-wait disabled:opacity-60"
-            type="button"
-            (click)="signIn()"
-            [disabled]="busy()">
-            Continuar con Google
-          </button>
+          <a
+            routerLink="/app/login"
+            class="rounded-sm bg-ink px-4 py-2 text-sm font-bold text-white transition hover:bg-ink-soft">
+            Iniciar sesión
+          </a>
         }
       </div>
     </header>
@@ -47,15 +45,6 @@ import { SessionStore } from '../session-store';
 export class Header {
   readonly store = inject(SessionStore);
   readonly busy = signal(false);
-
-  async signIn(): Promise<void> {
-    this.busy.set(true);
-    try {
-      await this.store.signIn();
-    } finally {
-      this.busy.set(false);
-    }
-  }
 
   async signOut(): Promise<void> {
     this.busy.set(true);

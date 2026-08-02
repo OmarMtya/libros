@@ -41,7 +41,7 @@ import { FULFILLMENT_LABELS, OrderTimeline } from '../components/order-timeline'
               ¡Gracias por tu feedback! Ya puedes elegir tu siguiente sorpresa.
             </div>
             <a
-              routerLink="/app"
+              routerLink="/app/experiencia"
               class="mt-4 inline-block rounded-sm bg-coral px-6 py-3 text-sm font-bold text-white transition hover:bg-coral-deep">
               Elegir mi siguiente sorpresa
             </a>
@@ -79,7 +79,7 @@ import { FULFILLMENT_LABELS, OrderTimeline } from '../components/order-timeline'
           <h2 class="font-display text-2xl font-bold tracking-[-0.03em] text-ink">Aún no tienes un pedido</h2>
           <p class="mt-2 mb-6 text-sm text-[#536875]">Tu próxima sorpresa te está esperando.</p>
           <a
-            routerLink="/app"
+            routerLink="/app/experiencia"
             class="inline-block rounded-sm bg-coral px-6 py-3 text-sm font-bold text-white transition hover:bg-coral-deep">
             Elegir mi sorpresa
           </a>

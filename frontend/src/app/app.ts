@@ -27,7 +27,7 @@ export class App {
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
         const path = event.urlAfterRedirects.split('?')[0].split('#')[0];
-        this.showHeader.set(path !== '/');
+        this.showHeader.set(path !== '/' && path !== '/app/login');
       }
     });
   }

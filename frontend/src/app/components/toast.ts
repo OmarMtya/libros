@@ -7,7 +7,8 @@ import { ToastService } from '../toast.service';
     <div class="pointer-events-none fixed inset-x-0 top-4 z-50 flex flex-col items-center gap-2 px-4 sm:items-end sm:px-6" role="status" aria-live="polite">
       @for (toast of toasts(); track toast.id) {
         <div
-          class="pointer-events-auto w-full max-w-md rounded-sm border-l-[3px] px-4 py-3 text-sm shadow-[0_6px_24px_rgba(20,44,62,0.16)] animate-[toast-in_180ms_ease-out]"
+          class="pointer-events-auto w-full max-w-md rounded-sm border-l-[3px] px-4 py-3 text-sm shadow-[0_6px_24px_rgba(20,44,62,0.16)] animate-[toast-in_180ms_ease-out] transition-[opacity,transform] duration-150 ease-[var(--ease-out)]"
+          [class.toast-exit]="toast.leaving"
           [class.border-coral]="toast.kind === 'error'"
           [class.bg-[#fbe9e6]]="toast.kind === 'error'"
           [class.text-[#7a2c1f]]="toast.kind === 'error'"

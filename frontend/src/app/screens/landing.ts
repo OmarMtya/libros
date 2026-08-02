@@ -1,44 +1,33 @@
-import { Component, Directive, ElementRef, HostListener, inject, signal } from '@angular/core';
+import { Component, Directive, ElementRef, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 const MEDIA = {
   heroPackage:
     'https://images.pexels.com/photos/34255056/pexels-photo-34255056.jpeg?auto=compress&cs=tinysrgb&w=1200',
-  wrappingHands:
-    'https://images.pexels.com/photos/4865725/pexels-photo-4865725.jpeg?auto=compress&cs=tinysrgb&w=1200',
   spotlightBook:
     'https://images.pexels.com/photos/1029141/pexels-photo-1029141.jpeg?auto=compress&cs=tinysrgb&w=1400',
-  cozyBook:
-    'https://images.pexels.com/photos/6958652/pexels-photo-6958652.jpeg?auto=compress&cs=tinysrgb&w=1200',
 };
-
-const NAV_LINKS = [
-  { href: '#como-funciona', label: 'Cómo funciona' },
-  { href: '#que-recibes', label: 'Qué recibes' },
-  { href: '#nuestra-forma-de-elegir', label: 'Nuestra forma de elegir' },
-  { href: '#preguntas-frecuentes', label: 'Preguntas frecuentes' },
-];
 
 const STEPS = [
   {
     number: '01',
     title: 'Cuéntanos cómo lees',
-    text: 'Responde un cuestionario de aproximadamente 5 a 7 minutos. No necesitas recordar cien títulos ni saber describirte como lector. Nosotros hacemos las preguntas importantes.',
+    text: 'Responde un cuestionario de 5 a 7 minutos. No necesitas saber describirte como lector: nosotros hacemos las preguntas.',
   },
   {
     number: '02',
     title: 'Construimos tu perfil lector',
-    text: 'Organizamos tus respuestas para comprender aspectos como ritmo, profundidad, estilo, atmósfera, emociones, temas y nivel de descubrimiento.',
+    text: 'Ordenamos tus respuestas para entender qué ritmo, estilos, emociones y temas disfrutas.',
   },
   {
     number: '03',
     title: 'Investigamos y comparamos',
-    text: 'El sistema nos ayuda a medir la compatibilidad entre tu perfil y diferentes libros. Después, una persona revisa los candidatos, investiga y toma la decisión final.',
+    text: 'El sistema compara candidatos, pero una persona investiga los finalistas y toma la decisión final.',
   },
   {
     number: '04',
     title: 'Recibes tu sorpresa',
-    text: 'Preparamos tu libro, un separador y una carta que explica por qué creemos que esa historia merece llegar a tus manos.',
+    text: 'Preparamos tu libro, un separador y una carta que explica por qué elegimos esa historia.',
   },
 ];
 
@@ -46,12 +35,12 @@ const WHAT_YOU_GET: Array<{ icon: 'book' | 'letter' | 'bookmark' | 'box'; title:
   {
     icon: 'book',
     title: 'Un libro físico',
-    text: 'Una historia seleccionada después de analizar tu perfil e investigar diferentes candidatos.',
+    text: 'Una historia elegida a partir de tu perfil.',
   },
   {
     icon: 'letter',
     title: 'Una carta personalizada',
-    text: 'Te contamos por qué elegimos ese libro, qué encontramos en tus respuestas y qué creemos que podrías descubrir en él.',
+    text: 'Te contamos por qué elegimos esa historia y qué creemos que puedes descubrir en ella.',
   },
   {
     icon: 'bookmark',
@@ -61,39 +50,14 @@ const WHAT_YOU_GET: Array<{ icon: 'book' | 'letter' | 'bookmark' | 'box'; title:
   {
     icon: 'box',
     title: 'Envío incluido',
-    text: 'El precio de la experiencia incluye el envío. No queremos que descubras un costo inesperado al final.',
-  },
-];
-
-const VALUES = [
-  {
-    number: '01',
-    title: 'Escuchamos antes de elegir',
-    text: 'Una recomendación debe empezar por la persona, no por el inventario.',
-  },
-  {
-    number: '02',
-    title: 'Medimos sin reducirte a un número',
-    text: 'Los datos nos ayudan a ordenar señales, pero nunca cuentan toda tu historia.',
-  },
-  {
-    number: '03',
-    title: 'Elegimos con responsabilidad',
-    text: 'Cada libro debe tener una razón concreta para formar parte de tu experiencia.',
-  },
-  {
-    number: '04',
-    title: 'Aprendemos contigo',
-    text: 'No buscamos acertar una vez por casualidad. Queremos comprender mejor tus lecturas con el tiempo.',
+    text: 'El precio ya lo incluye. Sin costos inesperados al final.',
   },
 ];
 
 const PRICE_INCLUDES = [
-  'Un libro físico.',
   'Análisis de tu perfil lector.',
-  'Investigación y curaduría humana.',
-  'Separador.',
-  'Carta personalizada.',
+  'Selección humana del libro.',
+  'Carta y separador.',
   'Envío incluido.',
   'Pago único.',
   'Sin suscripción.',
@@ -101,38 +65,28 @@ const PRICE_INCLUDES = [
 
 const FAQS = [
   {
-    q: '¿El libro lo elige una inteligencia artificial?',
-    a: 'No. Utilizamos un sistema para organizar tus preferencias y comparar distintos candidatos, pero una persona investiga las opciones y toma la decisión final.',
+    q: '¿El libro lo elige una inteligencia artificial o es al azar?',
+    a: 'Ninguno de los dos. El sistema ordena tus preferencias y compara candidatos, pero una persona investiga y toma la decisión final.',
   },
   {
     q: '¿Puedo elegir el título?',
-    a: 'La elección del título forma parte de la sorpresa. Durante el cuestionario podrás compartir tus preferencias, los libros que ya conoces y cualquier cosa que prefieras evitar.',
-  },
-  {
-    q: '¿Es completamente al azar?',
-    a: 'No. La sorpresa está en no conocer el título, no en recibir un libro escogido sin razones. Cada selección parte de tu perfil lector.',
+    a: 'La elección del título forma parte de la sorpresa. En el cuestionario podrás compartir lo que prefieres y lo que prefieres evitar.',
   },
   {
     q: '¿Necesito contratar una suscripción?',
-    a: 'No. Es una compra individual de $499 MXN. Después de la lectura, tú decides si quieres vivir nuevamente la experiencia.',
+    a: 'No. Es una compra única de $499 MXN y tú decides cuándo quieres repetir la experiencia.',
   },
   {
     q: '¿Qué sucede después de recibir el libro?',
-    a: 'Puedes leerlo a tu ritmo. Cuando termines, tendrás la posibilidad de compartir tu experiencia para que conozcamos mejor tus preferencias en una futura compra.',
+    a: 'Léelo a tu ritmo. Cuando termines, puedes contarnos qué funcionó para afinar tus próximas recomendaciones.',
   },
   {
     q: '¿Pueden garantizar que el libro me encantará?',
-    a: 'No sería honesto prometerlo. La lectura es personal y puede sorprender incluso al propio lector. Lo que sí garantizamos es que la elección tendrá una investigación y una intención detrás.',
-  },
-  {
-    q: '¿Qué incluye el precio?',
-    a: 'Incluye el libro físico, el análisis de tu perfil, la curaduría, el separador, la carta personalizada y el envío.',
+    a: 'No sería honesto prometerlo: la lectura es personal. Lo que sí aseguramos es que cada libro se elige con investigación y cuidado.',
   },
 ];
 
 const FOOTER_LINKS = [
-  { href: '#como-funciona', label: 'Cómo funciona' },
-  { href: '#preguntas-frecuentes', label: 'Preguntas frecuentes' },
   { href: '#', label: 'Aviso de privacidad' },
   { href: '#', label: 'Términos y condiciones' },
   { href: '#', label: 'Contacto' },
@@ -172,7 +126,7 @@ export class Reveal {
       .reveal {
         opacity: 0;
         transform: translateY(18px);
-        transition: opacity 0.7s ease, transform 0.7s ease;
+        transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
       }
       .reveal.reveal-visible {
         opacity: 1;
@@ -182,71 +136,17 @@ export class Reveal {
   ],
   template: `
     <div class="min-h-screen overflow-x-hidden bg-paper pb-24 text-graphite md:pb-0">
-      <header
-        class="sticky top-0 z-40 border-b border-[#cad7df] bg-paper/95 backdrop-blur"
-        (keydown.esc)="menuOpen.set(false)">
+      <header class="sticky top-0 z-40 border-b border-[#cad7df] bg-paper/95 backdrop-blur">
         <nav
           class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6"
           aria-label="Navegación principal">
           <a
             href="#inicio"
             class="font-display text-xl font-extrabold tracking-[-0.03em] text-ink no-underline"
-            aria-label="Libro Sorpresa, inicio">
-            Libro <span class="relative inline-block isolate">Sorpresa</span>
+            aria-label="Mi Libro Sorpresa, inicio">
+            Mi Libro <span class="relative inline-block isolate">Sorpresa</span>
           </a>
-
-          <div class="hidden items-center gap-7 lg:flex">
-            @for (link of NAV_LINKS; track link.href) {
-              <a href="{{ link.href }}" class="text-sm font-semibold text-ink no-underline transition hover:text-coral">
-                {{ link.label }}
-              </a>
-            }
-          </div>
-
-          <div class="flex items-center gap-3">
-            <a
-              routerLink="/app"
-              class="hidden rounded-sm bg-coral-deep px-4 py-2.5 text-sm font-bold text-white transition hover:bg-coral md:inline-flex">
-              Crear mi perfil lector
-            </a>
-            <button
-              type="button"
-              class="inline-flex h-11 w-11 items-center justify-center rounded-sm border border-[#7d9ab0] text-ink transition hover:bg-[#e6eef3] lg:hidden"
-              [attr.aria-expanded]="menuOpen()"
-              aria-controls="menu-movil"
-              (click)="menuOpen.set(!menuOpen())">
-              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                @if (menuOpen()) {
-                  <path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" />
-                } @else {
-                  <path stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16" />
-                }
-              </svg>
-              <span class="sr-only">Abrir menú</span>
-            </button>
-          </div>
         </nav>
-
-        @if (menuOpen()) {
-          <div id="menu-movil" class="border-t border-[#cad7df] bg-paper px-4 pb-5 pt-3 lg:hidden">
-            <div class="flex flex-col gap-1">
-              @for (link of NAV_LINKS; track link.href) {
-                <a
-                  href="{{ link.href }}"
-                  (click)="menuOpen.set(false)"
-                  class="rounded-sm px-2 py-2.5 text-sm font-semibold text-ink no-underline hover:bg-[#e6eef3]">
-                  {{ link.label }}
-                </a>
-              }
-              <a
-                routerLink="/app"
-                (click)="menuOpen.set(false)"
-                class="mt-2 rounded-sm bg-coral-deep px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-coral">
-                Crear mi perfil lector
-              </a>
-            </div>
-          </div>
-        }
       </header>
 
       <div>
@@ -262,21 +162,17 @@ export class Reveal {
             <div>
               <p class="mb-5 inline-flex items-center gap-2 rounded-sm border border-[#9eb2c1] bg-white px-3 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-ink">
                 <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-coral"></span>
-                Curaduría humana apoyada por datos
+                Selección humana, con apoyo de datos
               </p>
               <h1 class="mb-6 max-w-[13ch] font-display text-[2.65rem] font-bold leading-[0.95] tracking-[-0.055em] text-ink sm:text-6xl lg:text-7xl">
                 Tu próximo libro <span class="relative isolate whitespace-nowrap">no se elige al azar<span aria-hidden="true" class="absolute inset-x-0 bottom-1 -z-10 h-4 bg-marker/60 sm:h-5"></span></span>.
               </h1>
               <p class="mb-8 max-w-[46ch] text-lg leading-relaxed text-[#536875]">
-                Cuéntanos cómo lees, qué te mueve y qué buscas en este momento. Analizamos tus preferencias y hacemos una
-                curaduría humana para enviarte un libro sorpresa elegido con intención.
+                Cuéntanos cómo lees y qué buscas. Analizamos tus respuestas y una persona elige un libro sorpresa pensado para ti.
               </p>
-              <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div>
                 <a routerLink="/app" class="{{ btnPrimary }} w-full sm:w-auto">
                   Descubrir mi próximo libro
-                </a>
-                <a href="#como-funciona" class="{{ btnOutline }} w-full sm:w-auto">
-                  Conocer cómo funciona
                 </a>
               </div>
               <p class="mt-7 font-mono text-[11px] uppercase tracking-[0.08em] text-[#567088]">
@@ -300,7 +196,7 @@ export class Reveal {
 
               <div
                 aria-hidden="true"
-                class="absolute -left-3 -bottom-4 max-w-[230px] -rotate-3 rounded-sm border border-[#d8e1e8] bg-white p-4 shadow-[0_14px_34px_rgba(19,42,58,0.18)] sm:-left-10">
+                class="absolute -left-3 bottom-12 max-w-[230px] -rotate-3 rounded-sm border border-[#d8e1e8] bg-white p-4 shadow-[0_14px_34px_rgba(19,42,58,0.18)] sm:-left-10">
                 <div class="mb-2.5 flex items-center justify-between gap-3">
                   <span class="font-mono text-[10px] uppercase tracking-[0.08em] text-[#567088]">Carta personalizada</span>
                   <span class="h-2.5 w-2.5 rounded-full bg-coral"></span>
@@ -317,38 +213,6 @@ export class Reveal {
                 <div class="h-16 w-6 rounded-t-sm bg-marker shadow-[0_2px_8px_rgba(19,42,58,0.25)]"></div>
                 <div class="h-3 w-6 bg-marker"></div>
               </div>
-
-              <p aria-hidden="true" class="absolute -right-3 top-8 hidden -rotate-90 font-mono text-[11px] uppercase tracking-[0.14em] text-[#7d9ab0] lg:block">
-                Selección manual — No azar
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section class="mx-auto max-w-3xl px-4 py-16 sm:px-6 sm:py-24">
-          <div reveal class="rounded-sm border border-[#cad7df] bg-white">
-            <div class="flex justify-center gap-8 border-b border-[#e3eaef] bg-[#f2f6f9] py-3">
-              <span aria-hidden="true" class="h-3.5 w-3.5 rounded-full border border-[#cad7df] bg-white"></span>
-              <span aria-hidden="true" class="h-3.5 w-3.5 rounded-full border border-[#cad7df] bg-white"></span>
-            </div>
-            <div class="p-7 sm:p-12">
-              <p class="mb-4 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Nota de la editorial</p>
-              <h2 class="mb-6 font-display text-3xl font-bold leading-[1.02] tracking-[-0.04em] text-ink sm:text-4xl">
-                No es una caja misteriosa. Es una elección pensada para ti.
-              </h2>
-              <div class="space-y-4 text-base leading-relaxed text-[#536875] sm:text-lg">
-                <p>
-                  Muchas recomendaciones empiezan y terminan con una pregunta: “¿Cuál es tu género favorito?”. Nosotros
-                  queremos conocer algo más profundo.
-                </p>
-                <p>
-                  Queremos entender qué ritmo disfrutas, qué tipo de personajes recuerdas, cuánto deseas que una historia
-                  te rete, qué emociones buscas y qué clase de descubrimiento estás dispuesto a vivir.
-                </p>
-              </div>
-              <p class="mt-8 border-l-[3px] border-marker pl-4 font-display text-xl font-bold tracking-[-0.02em] text-ink sm:text-2xl">
-                La sorpresa sigue existiendo. Lo que eliminamos es el azar sin intención.
-              </p>
             </div>
           </div>
         </section>
@@ -361,8 +225,7 @@ export class Reveal {
                 De tus preferencias a una elección con sentido
               </h2>
               <p class="text-lg leading-relaxed text-[#536875]">
-                Combinamos un perfil lector estructurado con investigación y criterio humano. Así convertimos tus
-                respuestas en una recomendación que podemos explicar.
+                Un cuestionario para conocerte y una persona que elige tu libro a partir de tus respuestas.
               </p>
             </div>
 
@@ -395,77 +258,18 @@ export class Reveal {
           </div>
         </section>
 
-        <section id="nuestra-forma-de-elegir" class="border-y border-[#cad7df] bg-[#eef3f6] scroll-mt-24">
-          <div class="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
-            <div reveal class="mb-12 max-w-2xl">
-              <p class="mb-3 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Nuestra forma de elegir</p>
-              <h2 class="mb-4 font-display text-3xl font-bold leading-[1.02] tracking-[-0.04em] text-ink sm:text-5xl">
-                Matemáticas para comprender. Personas para decidir.
-              </h2>
-            </div>
-
-            <div class="grid gap-6 lg:grid-cols-2">
-              <article reveal class="rounded-sm border border-[#9eb2c1] bg-mist/30 p-7 sm:p-9">
-                <p class="mb-4 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Señales</p>
-                <div aria-hidden="true" class="mb-7 flex h-14 items-end gap-2">
-                  @for (bar of signalBars; track bar) {
-                    <span class="w-3 rounded-sm bg-ink/25" [style.height.%]="bar"></span>
-                  }
-                </div>
-                <h3 class="mb-3 font-display text-2xl font-bold tracking-[-0.02em] text-ink">
-                  Un sistema que encuentra patrones
-                </h3>
-                <p class="leading-relaxed text-[#536875]">
-                  Tus respuestas se convierten en señales que podemos comparar: cuánto valoras el desarrollo de
-                  personajes, qué densidad narrativa disfrutas, cómo te relacionas con la ambigüedad o qué tan lejos
-                  quieres salir de lo conocido.
-                </p>
-                <p class="mt-4 leading-relaxed text-[#536875]">
-                  No usamos los datos para etiquetarte. Los usamos para hacer mejores preguntas y reducir las
-                  recomendaciones genéricas.
-                </p>
-              </article>
-
-              <article reveal class="overflow-hidden rounded-sm border border-[#cad7df] bg-white">
-                <img
-                  [src]="MEDIA.wrappingHands"
-                  alt="Manos de una persona envolviendo con cuidado un libro con papel de regalo."
-                  class="aspect-[16/9] w-full object-cover">
-                <div class="p-7 sm:p-9">
-                  <p class="mb-4 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Criterio</p>
-                  <h3 class="mb-3 font-display text-2xl font-bold tracking-[-0.02em] text-ink">
-                    Una persona detrás de cada elección
-                  </h3>
-                  <p class="leading-relaxed text-[#536875]">
-                    Una puntuación puede señalar buenos candidatos, pero no conoce por completo tu contexto ni puede
-                    sustituir una decisión editorial.
-                  </p>
-                  <p class="mt-4 leading-relaxed text-[#536875]">
-                    Por eso investigamos cada opción y elegimos manualmente el libro que recibirás.
-                  </p>
-                </div>
-              </article>
-            </div>
-
-            <p reveal class="mx-auto mt-12 max-w-3xl text-center font-display text-2xl font-bold leading-snug tracking-[-0.02em] text-ink sm:text-3xl">
-              <span class="relative inline-block isolate">El sistema orienta la búsqueda.<span aria-hidden="true" class="absolute inset-x-0 bottom-0 -z-10 h-3 bg-marker/60"></span></span>
-              El criterio humano firma la elección.
-            </p>
-          </div>
-        </section>
-
         <section id="que-recibes" class="scroll-mt-24">
           <div class="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
             <div reveal class="mb-12 max-w-2xl">
               <p class="mb-3 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Qué recibes</p>
               <h2 class="mb-4 font-display text-3xl font-bold leading-[1.02] tracking-[-0.04em] text-ink sm:text-5xl">
-                Una experiencia preparada para una sola persona: tú.
+                Una experiencia pensada solo para ti.
               </h2>
             </div>
 
             <div class="grid gap-5 sm:grid-cols-2">
               @for (item of WHAT_YOU_GET; track item.title; let i = $index) {
-                <article reveal class="rounded-sm border border-[#cad7df] bg-white p-7 sm:p-8">
+                <article reveal [style.transition-delay.ms]="i * 70" class="rounded-sm border border-[#cad7df] bg-white p-7 sm:p-8">
                   <div class="mb-5 flex items-center justify-between">
                     <span class="flex h-11 w-11 items-center justify-center rounded-sm bg-[#eef3f6] text-ink">
                       @switch (item.icon) {
@@ -501,72 +305,8 @@ export class Reveal {
 
             <div reveal class="mx-auto mt-12 max-w-4xl border-y border-marker/60 bg-marker/10 px-6 py-8 text-center sm:px-10">
               <p class="font-display text-xl font-bold leading-snug tracking-[-0.02em] text-ink sm:text-2xl">
-                No enviamos sobrantes de inventario. No seleccionamos al azar. No vendemos el mismo paquete para todos.
+                No enviamos sobrantes de inventario ni vendemos el mismo libro para todos.
               </p>
-            </div>
-          </div>
-        </section>
-
-        <section class="border-y border-[#cad7df] bg-[#eef3f6]">
-          <div class="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-2">
-            <div reveal class="max-w-xl">
-              <p class="mb-3 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Aprender a leerte</p>
-              <h2 class="mb-5 font-display text-3xl font-bold leading-[1.02] tracking-[-0.04em] text-ink sm:text-5xl">
-                Tu perfil no termina con el cuestionario.
-              </h2>
-              <div class="space-y-4 text-[#536875]">
-                <p>
-                  Una persona puede disfrutar un libro por razones que ningún formulario habría anticipado. También puede
-                  descubrir que algo que creía buscar no era tan importante como imaginaba.
-                </p>
-                <p>
-                  Cuando termines de leer, podrás contarnos qué funcionó, qué no funcionó y qué te gustaría explorar
-                  después.
-                </p>
-                <p>
-                  Con cada experiencia, tu perfil puede volverse más preciso y más tuyo.
-                </p>
-              </div>
-              <p class="mt-7 rounded-sm border-l-[3px] border-coral pl-4 font-display text-lg font-bold tracking-[-0.02em] text-ink">
-                No necesitas una suscripción para continuar. Tú decides cuándo quieres recibir otro libro.
-              </p>
-            </div>
-            <div reveal class="relative">
-              <figure class="rounded-sm border border-[#cad7df] bg-white p-3 shadow-[0_18px_44px_rgba(19,42,58,0.14)]">
-                <img
-                  [src]="MEDIA.cozyBook"
-                  alt="Una persona sosteniendo un libro en un momento de lectura tranquila."
-                  class="aspect-[4/3] w-full object-cover">
-              </figure>
-            </div>
-          </div>
-        </section>
-
-        <section>
-          <div class="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
-            <div reveal class="mb-12 max-w-2xl">
-              <p class="mb-3 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Manifiesto</p>
-              <h2 class="mb-4 font-display text-3xl font-bold leading-[1.02] tracking-[-0.04em] text-ink sm:text-5xl">
-                Nuestra manera de recomendar
-              </h2>
-            </div>
-
-            <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              @for (value of VALUES; track value.number) {
-                <article reveal class="flex flex-col rounded-sm border border-[#cad7df] bg-white">
-                  <div class="flex justify-center gap-6 border-b border-[#e3eaef] bg-[#f2f6f9] py-3">
-                    <span aria-hidden="true" class="h-3 w-3 rounded-full border border-[#cad7df] bg-white"></span>
-                    <span aria-hidden="true" class="h-3 w-3 rounded-full border border-[#cad7df] bg-white"></span>
-                  </div>
-                  <div class="flex flex-1 flex-col p-6">
-                    <span class="mb-4 font-mono text-xs text-[#567088]">{{ value.number }}</span>
-                    <h3 class="mb-3 font-display text-lg font-bold leading-tight tracking-[-0.02em] text-ink">
-                      {{ value.title }}
-                    </h3>
-                    <p class="text-sm leading-relaxed text-[#536875]">{{ value.text }}</p>
-                  </div>
-                </article>
-              }
             </div>
           </div>
         </section>
@@ -579,7 +319,7 @@ export class Reveal {
             class="absolute inset-0 h-full w-full object-cover opacity-20">
           <div aria-hidden="true" class="absolute inset-0 bg-gradient-to-b from-ink via-ink/70 to-ink"></div>
           <div class="relative mx-auto max-w-3xl px-4 py-24 text-center sm:px-6 lg:py-36">
-            <p class="mb-8 font-mono text-xs uppercase tracking-[0.1em] text-mist">Nota del curador</p>
+            <p class="mb-8 font-mono text-xs uppercase tracking-[0.1em] text-mist">Nota de la editorial</p>
             <h2 class="font-display text-4xl font-bold leading-[1.02] tracking-[-0.045em] sm:text-6xl">
               Tal vez no sea el libro que habrías elegido.
             </h2>
@@ -589,9 +329,6 @@ export class Reveal {
             <p class="mx-auto mt-8 max-w-xl text-lg leading-relaxed text-[#c6d3de]">
               Queremos llevarte fuera de lo evidente, pero no lejos de ti. Encontrar ese punto en el que una lectura se
               siente nueva, inesperada y, al mismo tiempo, extrañamente adecuada.
-            </p>
-            <p class="mt-10 inline-block rounded-sm bg-marker px-4 py-2 font-display text-lg font-bold tracking-[-0.02em] text-ink">
-              Una sorpresa con razones detrás.
             </p>
           </div>
         </section>
@@ -611,7 +348,7 @@ export class Reveal {
                   </h2>
                   <p class="font-display text-6xl font-extrabold tracking-[-0.05em] text-ink sm:text-7xl">$499 MXN</p>
                   <p class="mx-auto mt-4 max-w-sm text-[#536875]">
-                    Una experiencia completa de selección personalizada, preparada especialmente para ti.
+                    Un libro elegido para ti y enviado a tu puerta.
                   </p>
                 </div>
 
@@ -640,7 +377,6 @@ export class Reveal {
         <section id="preguntas-frecuentes" class="scroll-mt-24">
           <div class="mx-auto max-w-3xl px-4 py-16 sm:px-6 sm:py-24">
             <div reveal class="mb-10 text-center">
-              <p class="mb-3 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Preguntas frecuentes</p>
               <h2 class="font-display text-3xl font-bold leading-[1.02] tracking-[-0.04em] text-ink sm:text-5xl">
                 Preguntas frecuentes
               </h2>
@@ -657,7 +393,7 @@ export class Reveal {
                       +
                     </span>
                   </summary>
-                  <div class="border-t border-[#e3eaef] px-5 py-4 text-[#536875] sm:px-6">
+                  <div class="faq-answer border-t border-[#e3eaef] px-5 py-4 text-[#536875] sm:px-6">
                     <p>{{ item.a }}</p>
                   </div>
                 </details>
@@ -678,7 +414,7 @@ export class Reveal {
               Descubrir mi próximo libro
             </a>
             <p class="mt-8 font-mono text-xs uppercase tracking-[0.08em] text-[#3e5a73]">
-              Libro Sorpresa — Elegimos historias pensando en quien las va a leer.
+              Mi Libro Sorpresa — Elegimos historias pensando en quien las va a leer.
             </p>
           </div>
         </section>
@@ -689,7 +425,7 @@ export class Reveal {
           <div class="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
             <div>
               <p class="font-display text-2xl font-extrabold tracking-[-0.03em] text-white">
-                Libro <span class="text-marker">Sorpresa</span>
+                Mi Libro <span class="text-marker">Sorpresa</span>
               </p>
               <p class="mt-3 max-w-xs text-sm leading-relaxed text-[#c6d3de]">
                 Libros elegidos con datos, criterio y cuidado.
@@ -711,7 +447,7 @@ export class Reveal {
             </nav>
           </div>
           <div class="mt-12 flex flex-col items-start justify-between gap-3 border-t border-[#2b4a63] pt-6 font-mono text-xs uppercase tracking-[0.08em] text-[#8fa8bc] sm:flex-row sm:items-center">
-            <p>Libro Sorpresa</p>
+            <p>Mi Libro Sorpresa</p>
             <p>México</p>
           </div>
         </div>
@@ -722,54 +458,19 @@ export class Reveal {
           Crear mi perfil lector
         </a>
       </div>
-
-      <aside aria-hidden="true" class="fixed right-5 top-1/2 z-30 hidden -translate-y-1/2 flex-col items-center gap-3 lg:flex">
-        <span class="font-mono text-[10px] uppercase tracking-[0.12em] text-[#567088]">Ficha</span>
-        <div class="relative h-40 w-1 overflow-hidden rounded-full bg-[#dce5ec]">
-          <div
-            class="absolute inset-x-0 top-0 rounded-full bg-coral transition-[height] duration-150"
-            [style.height.%]="progress()"></div>
-        </div>
-        <div class="flex flex-col items-center gap-2.5">
-          @for (link of NAV_LINKS; track link.href) {
-            <a href="{{ link.href }}" tabindex="-1" class="group relative">
-              <span class="block h-2 w-2 rounded-full border border-[#7d9ab0] bg-paper transition group-hover:bg-coral"></span>
-              <span class="absolute right-4 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-sm border border-[#cad7df] bg-white px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-ink opacity-0 transition group-hover:opacity-100">
-                {{ link.label }}
-              </span>
-            </a>
-          }
-        </div>
-      </aside>
     </div>
   `,
 })
 export class Landing {
   readonly MEDIA = MEDIA;
-  readonly NAV_LINKS = NAV_LINKS;
   readonly STEPS = STEPS;
   readonly WHAT_YOU_GET = WHAT_YOU_GET;
-  readonly VALUES = VALUES;
   readonly PRICE_INCLUDES = PRICE_INCLUDES;
   readonly FAQS = FAQS;
   readonly FOOTER_LINKS = FOOTER_LINKS;
-  readonly signalBars = [35, 60, 45, 80, 55, 90, 70, 50, 75, 40, 65, 85];
-
-  readonly menuOpen = signal(false);
-  readonly progress = signal(0);
-
-  @HostListener('window:scroll')
-  onScroll(): void {
-    const doc = document.documentElement;
-    const max = doc.scrollHeight - window.innerHeight;
-    const value = max > 0 ? (window.scrollY / max) * 100 : 0;
-    this.progress.set(Math.min(100, Math.max(0, value)));
-  }
 
   readonly btnPrimary =
-    'inline-flex items-center justify-center gap-2 rounded-sm bg-coral-deep px-6 py-3.5 text-base font-bold text-white transition hover:bg-coral';
+    'inline-flex items-center justify-center gap-2 rounded-sm bg-coral-deep px-6 py-3.5 text-base font-bold text-white transition hover:bg-coral active:scale-[0.97]';
   readonly btnDark =
-    'inline-flex items-center justify-center gap-2 rounded-sm bg-ink px-6 py-3.5 text-base font-bold text-white transition hover:bg-ink-soft';
-  readonly btnOutline =
-    'inline-flex items-center justify-center gap-2 rounded-sm border border-[#7d9ab0] px-6 py-3.5 text-base font-bold text-ink transition hover:bg-[#e6eef3]';
+    'inline-flex items-center justify-center gap-2 rounded-sm bg-ink px-6 py-3.5 text-base font-bold text-white transition hover:bg-ink-soft active:scale-[0.97]';
 }

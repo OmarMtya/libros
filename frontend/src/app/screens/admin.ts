@@ -12,6 +12,48 @@ const CONTENT_TYPE_SCHEMA_VERSION = 'content-types/1.0';
 const FEATURE_SCHEMA_VERSION = 'book-features/1.0';
 const TAG_TAXONOMY_VERSION = 'tag-tax/1.0.1';
 
+const notStartedReasons: Record<string, string> = {
+  no_time: 'No tuve tiempo',
+  wrong_mood: 'No era el momento',
+  read_something_else: 'Leí otra cosa',
+  format_or_size: 'Formato o tamaño',
+  did_not_attract_me: 'No me atrajo',
+  other: 'Otro',
+};
+
+const outcomeAttributions: Record<string, string> = {
+  mostly_book: 'Principalmente el libro',
+  mixed: 'Mezcla',
+  mostly_timing: 'Principalmente el momento',
+  external_circumstance: 'Circunstancia externa',
+  no_problem: 'Nada en particular',
+};
+
+const completionLabels: Record<number, string> = {
+  5: 'Apenas lo empecé',
+  18: 'Leí una parte',
+  38: 'Menos de la mitad',
+  63: 'Más de la mitad',
+  88: 'Casi lo terminé',
+  100: 'Lo terminé',
+};
+
+const aspectLabels: Record<string, string> = {
+  story_progress: 'El avance de la historia',
+  tension_curiosity: 'La tensión o curiosidad',
+  characters: 'Los personajes',
+  writing_style: 'La forma de escribir',
+  ideas_reflection: 'Las ideas o reflexiones',
+  atmosphere: 'La atmósfera',
+  slow_without_payoff: 'Fue lento sin una recompensa clara',
+  confusing: 'Resultó confuso',
+  style_too_ornate: 'El estilo fue demasiado recargado',
+  too_much_introspection: 'Tuvo demasiada introspección',
+  repetitive: 'Se sintió repetitivo',
+  too_demanding: 'Exigía demasiado esfuerzo',
+  topic_no_interest: 'No me interesó el tema',
+};
+
 @Component({
   selector: 'app-admin',
   imports: [FormsModule, DatePipe, CurrencyPipe],
@@ -314,11 +356,18 @@ const TAG_TAXONOMY_VERSION = 'tag-tax/1.0.1';
 
               @for (assignment of assignments(); track assignment.id) {
             <div class="rounded-sm border border-[#cad7df] bg-white p-4">
-              <div class="flex flex-wrap items-center gap-3">
-                <strong class="text-ink">{{ assignment.edition.title }}</strong>
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <div class="min-w-0">
+                  <strong class="block text-ink">{{ assignment.fulfillment.order.user.displayName || assignment.fulfillment.order.user.email || 'Sin nombre' }}</strong>
+                  @if (assignment.fulfillment.order.user.email) {
+                    <small class="text-[#566e80]">{{ assignment.fulfillment.order.user.email }}</small>
+                  }
+                </div>
+                <span class="font-mono text-xs text-[#567088]">{{ assignment.edition.title }}</span>
                 <span class="font-mono text-xs text-[#567088]">fulfillment: {{ assignment.fulfillment.status }}</span>
                 <span class="font-mono text-xs text-[#567088]">ciclo: {{ assignment.feedbackCycleStatus }}</span>
                 <span class="font-mono text-xs text-[#567088]">rev {{ assignment.classification.revision }}</span>
+                <button type="button" class="ml-auto shrink-0 rounded-sm border border-[#7d9ab0] px-3 py-1 text-xs font-bold hover:bg-[#e6eef3]" (click)="openReader(assignment.fulfillment.order.user.id)">Ver lector</button>
               </div>
               @if (assignment.notes) {
                 <p class="mt-2 rounded-sm bg-[#f2f6f9] px-3 py-2 text-xs leading-relaxed text-[#536875]">
@@ -380,16 +429,45 @@ const TAG_TAXONOMY_VERSION = 'tag-tax/1.0.1';
                 }
               }
               @if (assignment.feedbacks.length > 0) {
-                <ul class="mt-2 space-y-1 text-xs text-[#536875]">
+                <div class="mt-3 space-y-2">
                   @for (feedback of assignment.feedbacks; track feedback.id) {
-                    <li class="flex flex-wrap items-center gap-2">
-                      <span>{{ feedback.isFinal ? 'Final' : 'Provisional' }} · {{ feedback.learningStatus }} · {{ feedback.submittedAt | date:'short' }}</span>
-                      @if (feedback.selectionFitRating !== null) {
-                        <span class="font-bold text-ink">Selección: {{ feedback.selectionFitRating }}/5</span>
+                    <div class="rounded-sm border border-[#d6e1e8] bg-[#f7fafc] px-3 py-2 text-xs leading-relaxed text-[#536875]">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <strong class="text-ink">{{ feedback.isFinal ? 'Feedback final' : 'Feedback provisional' }}</strong>
+                        <span>{{ feedback.submittedAt | date:'short' }}</span>
+                        @if (feedback.selectionFitRating !== null) {
+                          <span class="font-bold text-ink">Selección: {{ feedback.selectionFitRating }}/5</span>
+                        }
+                      </div>
+                      <div class="mt-1">
+                        @if (!feedback.started) {
+                          <span>No lo empezó — {{ notStartedReasons[feedback.notStartedReason ?? ''] ?? feedback.notStartedReason ?? '—' }}</span>
+                        } @else {
+                          <span>{{ feedback.readingStatus === 'completed' ? 'Lo terminó' : (completionLabels[feedback.completionPercentage] ?? feedback.completionPercentage + '%') }} ({{ feedback.completionPercentage }}%)</span>
+                        }
+                        @if (feedback.outcomeAttribution) {
+                          <span class="ml-2">· Atribución: {{ outcomeAttributions[feedback.outcomeAttribution] ?? feedback.outcomeAttribution }}</span>
+                        }
+                      </div>
+                      @if (feedback.aspects.length > 0) {
+                        <div class="mt-1">
+                          @for (aspect of feedback.aspects; track aspect.optionKey) {
+                            <span
+                              class="mr-1 inline-block rounded-full px-2 py-0.5"
+                              [class.bg-[#e2f0e9]]="aspect.polarity === 'positive'"
+                              [class.text-[#16442f]]="aspect.polarity === 'positive'"
+                              [class.bg-[#fbe9e6]]="aspect.polarity === 'negative'"
+                              [class.text-[#7a2c1f]]="aspect.polarity === 'negative'"
+                            >{{ aspectLabels[aspect.optionKey] ?? aspect.optionKey }}</span>
+                          }
+                        </div>
                       }
-                    </li>
+                      @if (feedback.freeText) {
+                        <p class="mt-1 whitespace-pre-wrap rounded-sm bg-white px-2 py-1">«{{ feedback.freeText }}»</p>
+                      }
+                    </div>
                   }
-                </ul>
+                </div>
               }
             </div>
           }
@@ -515,7 +593,6 @@ export class AdminScreen {
     unship: { title: 'Deshacer envío', message: 'El pedido regresa a "empaquetado" y se revoca la invitación (QR) generada. ¿Continuar?', confirmLabel: 'Deshacer', danger: true },
     'undo-in-delivery': { title: 'Deshacer en proceso de entrega', message: '¿Regresar el pedido de "en proceso de entrega" a "enviado"?', confirmLabel: 'Deshacer' },
     'undo-delivered': { title: 'Deshacer entregado', message: '¿Regresar el pedido de "entregado" a "en proceso de entrega"?', confirmLabel: 'Deshacer' },
-    'reopen-learning': { title: 'Reabrir aprendizaje', message: 'Se reabre el ciclo, se revoca la invitación actual y se genera una nueva. ¿Continuar?', confirmLabel: 'Reabrir', danger: true },
   };
   readonly orderStatusOptions = [
     { value: 'curation_pending', label: 'Orden recibida' },
@@ -534,6 +611,10 @@ export class AdminScreen {
   newClassification = { contentType: 'fiction' };
   readonly tagLabels = TAG_LABELS;
   readonly tagTypeLabels = TAG_TYPE_LABELS;
+  readonly notStartedReasons = notStartedReasons;
+  readonly outcomeAttributions = outcomeAttributions;
+  readonly completionLabels = completionLabels;
+  readonly aspectLabels = aspectLabels;
   readonly newBookResults = signal<BookResult[]>([]);
   readonly newBookSearch = signal<{ loading: boolean; error: string | null }>({ loading: false, error: null });
   readonly creatingBook = signal(false);
@@ -948,19 +1029,24 @@ export class AdminScreen {
   }
 
   async reopenLearning(assignmentId: string): Promise<void> {
-    const confirm = this.confirmations['reopen-learning'];
-    const reason = await this.dialog.prompt({
-      title: confirm.title,
-      message: confirm.message,
-      inputLabel: 'Razón de la reapertura (opcional)',
-      placeholder: 'Opcional',
-      confirmLabel: confirm.confirmLabel,
+    const first = await this.dialog.confirm({
+      title: 'Reabrir aprendizaje',
+      message: 'Se reabrirá el ciclo de aprendizaje: se revoca la invitación actual y se genera una nueva. ¿Continuar?',
+      confirmLabel: 'Continuar',
       cancelLabel: 'Cancelar',
-      danger: confirm.danger,
+      danger: true,
     });
-    if (reason === null) return;
+    if (!first) return;
+    const second = await this.dialog.confirm({
+      title: 'Confirmar reapertura',
+      message: 'Esta acción revocará la invitación vigente y emitirá una nueva. ¿Confirmar la reapertura del ciclo?',
+      confirmLabel: 'Reabrir ciclo',
+      cancelLabel: 'Cancelar',
+      danger: true,
+    });
+    if (!second) return;
     await this.run(async () => {
-      const result = await this.api.adminReopenLearning(assignmentId, reason);
+      const result = await this.api.adminReopenLearning(assignmentId, undefined);
       if (result.url) {
         this.invitationUrl.set(result.url);
         this.invitationFor.set(assignmentId);

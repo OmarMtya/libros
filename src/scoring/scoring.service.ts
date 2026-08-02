@@ -67,7 +67,7 @@ export class ScoringService {
     if (!productPackage) throw new NotFoundException('No se encontró el paquete del pedido.');
 
     const profile = await this.profiles.ensureProfile(order.userId);
-    const [dimensionRows, constraints, tagPreferences, tagEvidence, readerEvidence, conditionalRules, q03Answer, classifications] = await Promise.all([
+    const [dimensionRows, constraints, tagPreferences, tagEvidence, readerEvidence, conditionalRules, q03Answer, classifications, readFeedback] = await Promise.all([
       this.prisma.readerProfileDimension.findMany({ where: { profileId: profile.id } }),
       this.prisma.readerOperationalConstraints.findFirst({ where: { profileId: profile.id } }),
       this.prisma.readerTagPreference.findMany({ where: { profileId: profile.id } }),
@@ -87,7 +87,15 @@ export class ScoringService {
           tags: true,
         },
       }),
+      this.prisma.readingFeedback.findMany({
+        where: { userId: order.userId, readingStatus: 'completed' },
+        select: { bookId: true },
+      }),
     ]);
+
+    const readBookIds = new Set(
+      readFeedback.map((entry) => entry.bookId).filter((bookId): bookId is string => bookId !== null),
+    );
 
     const readerDimensions = dimensionRows.map<ReaderDimension>((row) => {
       const meta = DIMENSION_META.get(row.dimensionKey);
@@ -133,7 +141,9 @@ export class ScoringService {
 
     const slowBurnRule = conditionalRules.find((rule) => rule.ruleKey === 'slow_burn_compensators');
 
-    const computed = classifications.flatMap((classification) => {
+    const computed = classifications
+      .filter((classification) => !readBookIds.has(classification.edition.book.id))
+      .flatMap((classification) => {
       const edition = classification.edition;
       if (acceptedLanguages.length > 0 && !acceptedLanguages.includes(edition.languageCode)) return [];
       if (minPages !== null && maxPages !== null) {

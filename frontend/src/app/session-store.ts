@@ -27,5 +27,9 @@ export class SessionStore {
   }
 
   async signIn(): Promise<void> { await this.auth.signInWithGoogle(); }
+  async signInWithEmail(email: string, password: string): Promise<void> { await this.auth.signInWithPassword(email, password); }
+  async signUpWithEmail(email: string, password: string, fullName: string): Promise<{ needsConfirmation: boolean }> {
+    return this.auth.signUpWithEmail(email, password, fullName);
+  }
   async signOut(): Promise<void> { await this.auth.signOut(); }
 }

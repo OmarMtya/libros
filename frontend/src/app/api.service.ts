@@ -55,6 +55,17 @@ export type ProfileSession = {
   completedAt: string | null;
   answers: ProfileAnswer[];
 };
+export type ProfileFeedbackBook = {
+  id: string;
+  bookId: string;
+  title: string;
+  authors: string[];
+  readingStatus: string;
+  selectionFitRating: number | null;
+  isFinal: boolean;
+  submittedAt: string;
+  coverUrl: string | null;
+};
 export type Profile = {
   currentVersion: number;
   readyToRecommend: boolean;
@@ -68,6 +79,7 @@ export type Profile = {
   positiveTriggers?: Array<{ triggerKey: string; confidence: string; evidenceCount: number; totalEvidenceWeight: string }>;
   evidence?: Array<{ dimensionKey: string; observedValue: string; reasonCode: string; baseWeight: string; specificityFactor: string; finalWeight: string; status: string; createdAt: string }>;
   questionnaireSessions?: ProfileSession[];
+  feedbackBooks?: ProfileFeedbackBook[];
 };
 
 export type ProductPackage = { key: 'libro_sorpresa_fisico'; name: string; description: string; priceCents: number; shippingCents: number; currency: string; includedFormats: string[] };
@@ -173,12 +185,25 @@ export type AdminAssignment = {
   status: 'active' | 'replaced' | 'canceled';
   feedbackCycleStatus: string;
   notes: string | null;
-  fulfillment: { id: string; status: string; order: { userId: string; status: string } };
+  fulfillment: { id: string; status: string; order: { id: string; userId: string; status: string; user: { id: string; email: string | null; displayName: string | null } } };
   edition: { id: string; title: string; languageCode: string };
   classification: { id: string; revision: number; status: string; classifierVersion: string };
   recommendationCandidate: { id: string; rankPosition: number | null; finalScore: string | null; recommendationEvidenceCoverage: string | null } | null;
   invitations: Array<{ id: string; status: string; expiresAt: string | null }>;
-  feedbacks: Array<{ id: string; learningStatus: string; isFinal: boolean; submittedAt: string; selectionFitRating: number | null }>;
+  feedbacks: Array<{
+    id: string;
+    started: boolean;
+    notStartedReason: string | null;
+    readingStatus: string;
+    completionPercentage: number;
+    selectionFitRating: number | null;
+    outcomeAttribution: string | null;
+    freeText: string | null;
+    learningStatus: string;
+    isFinal: boolean;
+    submittedAt: string;
+    aspects: Array<{ polarity: string; optionKey: string }>;
+  }>;
 };
 export type AdminFulfillment = {
   id: string;
@@ -446,7 +471,7 @@ export class ApiService {
     return firstValueFrom(this.http.post<{ plainToken?: string; url?: string }>(`${this.baseUrl}/admin/assignments/${assignmentId}/${action}`, {}, this.options()));
   }
 
-  adminReopenLearning(assignmentId: string, reason: string): Promise<{ plainToken: string; url: string }> {
+  adminReopenLearning(assignmentId: string, reason?: string): Promise<{ plainToken: string; url: string }> {
     return firstValueFrom(this.http.post<{ plainToken: string; url: string }>(`${this.baseUrl}/admin/assignments/${assignmentId}/reopen-learning`, { reason }, this.options()));
   }
 

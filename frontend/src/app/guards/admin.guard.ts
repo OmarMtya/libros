@@ -10,7 +10,7 @@ export const adminGuard: CanActivateFn = async () => {
   const api = inject(ApiService);
   const store = inject(SessionStore);
   await auth.whenReady();
-  if (!auth.userId) return router.createUrlTree(['/app']);
+  if (!auth.userId) return router.createUrlTree(['/app/login']);
   const role = await api.getMe().then((user) => user.role).catch(() => 'customer' as const);
   store.isAdmin.set(role === 'admin');
   return role === 'admin' ? true : router.createUrlTree(['/app']);

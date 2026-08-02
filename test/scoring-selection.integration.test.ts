@@ -41,6 +41,8 @@ async function cleanDatabase() {
   await prisma.curatorActionAudit.deleteMany();
   await prisma.recommendationCandidate.deleteMany();
   await prisma.recommendation.deleteMany();
+  await prisma.readingFeedbackAspect.deleteMany();
+  await prisma.readingFeedback.deleteMany();
   await prisma.profileVersionEvidence.deleteMany();
   await prisma.readerProfileVersion.deleteMany();
   await prisma.readerEvidence.deleteMany();
@@ -254,5 +256,32 @@ run('scoring de candidatos y selección trazable', () => {
         candidateId: candidate.candidateId,
       }),
     ).rejects.toThrow();
+  });
+
+  it('excluye de la puntuación los libros que el usuario ya leyó', async () => {
+    const read = await makeApprovedEdition();
+    const other = await makeApprovedEdition();
+    const { userId } = await makeReadyReader();
+    const { fulfillment } = await makeOrderFulfillment(userId);
+
+    await prisma!.readingFeedback.create({
+      data: {
+        userId,
+        bookId: read.book.id,
+        bookEditionId: read.edition.id,
+        bookClassificationVersionId: read.classification.id,
+        feedbackVersion: 'feedback/1.0',
+        started: true,
+        readingStatus: 'completed',
+        completionPercentage: 100,
+        selectionFitRating: 4,
+        isFinal: true,
+        learningStatus: 'processed',
+      },
+    });
+
+    const scored = await scoringService!.scoreForFulfillment(fulfillment.id);
+    expect(scored.candidates.some((candidate) => candidate.bookEditionId === read.edition.id)).toBe(false);
+    expect(scored.candidates.some((candidate) => candidate.bookEditionId === other.edition.id)).toBe(true);
   });
 });

@@ -4,13 +4,15 @@ import { ApiService, orderFeedbackDone, orderIsActive, Profile as ReaderProfile,
 import { DialogService } from '../dialog.service';
 import { TAG_LABELS } from '../labels';
 import { ToastService } from '../toast.service';
-import { FULFILLMENT_LABELS } from '../components/order-timeline';
+import { OrderTimeline } from '../components/order-timeline';
+import { BookCarousel } from '../components/book-carousel';
+import { BuyAgain } from '../components/buy-again';
 
-type ProfileBook = { title?: string; work_id?: string; openLibraryId?: string; authors?: string[] };
+type ProfileBook = { title?: string; work_id?: string; openLibraryId?: string; authors?: string[]; coverUrl?: string | null };
 
 @Component({
   selector: 'app-profile',
-  imports: [RouterLink],
+  imports: [RouterLink, OrderTimeline, BookCarousel, BuyAgain],
   template: `
     <div class="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <p class="mb-2 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Tu ficha de lectura</p>
@@ -22,83 +24,21 @@ type ProfileBook = { title?: string; work_id?: string; openLibraryId?: string; a
         </section>
       } @else if (profile(); as current) {
         <div class="space-y-6">
-          <section class="rounded-sm border border-[#cad7df] bg-white p-6 sm:p-8">
-            <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h2 class="font-display text-2xl font-bold tracking-[-0.03em] text-ink">Tus preferencias</h2>
-                <p class="mt-1 text-sm text-[#536875]">Con esto afinamos cada sorpresa.</p>
-              </div>
-              <span class="rounded-full px-3 py-1 font-mono text-xs"
-                [class.bg-[#e2f0e9]]="current.readyToRecommend"
-                [class.text-[#16442f]]="current.readyToRecommend"
-                [class.bg-[#fbe9e6]]="!current.readyToRecommend"
-                [class.text-[#7a2c1f]]="!current.readyToRecommend">
-                {{ current.readyToRecommend ? 'Listo para recomendar' : 'Perfil en construcción' }}
-              </span>
-            </div>
-
-            <h3 class="mb-2 text-sm font-bold uppercase tracking-wider text-ink">Categorías</h3>
-            <div class="space-y-3 text-sm">
-              <p><strong class="text-ink">Me gustan:</strong>
-                @for (tag of categoryPreferences('positive'); track tag.tagKey) {
-                  <span class="ml-2 inline-flex rounded-full bg-[#eef3f6] px-3 py-1 text-ink">{{ profileTagLabel(tag.tagKey) }}</span>
-                } @empty { <span class="ml-2 text-[#7d9ab0]">Sin categorías declaradas.</span> }
-              </p>
-              <p><strong class="text-ink">Me dan curiosidad:</strong>
-                @for (tag of categoryPreferences('curious'); track tag.tagKey) {
-                  <span class="ml-2 inline-flex rounded-full bg-[#eef3f6] px-3 py-1 text-ink">{{ profileTagLabel(tag.tagKey) }}</span>
-                } @empty { <span class="ml-2 text-[#7d9ab0]">Sin categorías declaradas.</span> }
-              </p>
-              <p><strong class="text-ink">No me interesan por ahora:</strong>
-                @for (tag of categoryPreferences('negative'); track tag.tagKey) {
-                  <span class="ml-2 inline-flex rounded-full bg-[#fbe9e6] px-3 py-1 text-[#7a2c1f]">{{ profileTagLabel(tag.tagKey) }}</span>
-                } @empty { <span class="ml-2 text-[#7d9ab0]">Sin categorías declaradas.</span> }
-              </p>
-            </div>
-
-            <h3 class="mb-2 mt-8 text-sm font-bold uppercase tracking-wider text-ink">Libros</h3>
-            <div class="space-y-3 text-sm">
-              <p><strong class="text-ink">Disfrutados:</strong>
-                @for (book of profileBooks('Q01_LOVED_BOOKS'); track book.title ?? book.work_id ?? book.openLibraryId) {
-                  <span class="ml-2 inline-flex rounded-full bg-[#eef3f6] px-3 py-1 text-ink">{{ bookLabel(book) }}</span>
-                } @empty { <span class="ml-2 text-[#7d9ab0]">Sin libros declarados.</span> }
-              </p>
-              <p><strong class="text-ink">No disfrutados o abandonados:</strong>
-                @for (book of profileBooks('Q02_DISLIKED_BOOK'); track book.title ?? book.work_id ?? book.openLibraryId) {
-                  <span class="ml-2 inline-flex rounded-full bg-[#fbe9e6] px-3 py-1 text-[#7a2c1f]">{{ bookLabel(book) }}</span>
-                } @empty { <span class="ml-2 text-[#7d9ab0]">Sin libros declarados.</span> }
-              </p>
-            </div>
-
-            <h3 class="mb-2 mt-8 text-sm font-bold uppercase tracking-wider text-ink">Restricciones</h3>
-            @if (current.operationalConstraints; as constraints) {
-              <p class="text-sm text-[#536875]">
-                Páginas: {{ constraints.preferredPagesMin }} a {{ constraints.preferredPagesMax }}.
-                Sagas: {{ seriesLabel(constraints.seriesPreference) }}.
-                Idiomas: {{ constraints.acceptedLanguagesJson.join(', ') }}.
-                Formatos: {{ constraints.acceptedFormatsJson.join(', ') }}.
-              </p>
-            } @else {
-              <p class="text-sm text-[#7d9ab0]">Sin restricciones completas.</p>
-            }
-          </section>
-
-          @if (order(); as order) {
+          @if (blockedOrder(); as order) {
             <section class="rounded-sm border border-[#cad7df] bg-white p-6 sm:p-8">
               <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 class="font-display text-2xl font-bold tracking-[-0.03em] text-ink">Tu pedido</h2>
-                  <p class="mt-1 text-sm text-[#536875]">{{ order.packageName }} · {{ statusLabel(order) }}</p>
-                </div>
+                <h2 class="font-display text-2xl font-bold tracking-[-0.03em] text-ink">Tu pedido</h2>
                 <a
                   routerLink="/app/mi-paquete"
                   class="rounded-sm border border-[#7d9ab0] px-4 py-2 text-sm font-bold text-ink transition hover:bg-[#e6eef3]">
                   Seguir mi pedido
                 </a>
               </div>
-              @if (feedbackDone()) {
-                <p class="rounded-sm bg-[#e2f0e9] px-3 py-2 text-sm text-[#16442f]">
-                  ¡Gracias por tu feedback! Ya puedes elegir tu siguiente sorpresa.
+              <app-order-timeline [status]="order.fulfillment?.status ?? ''" [compact]="true" />
+              @if (order.fulfillment?.status === 'delivered') {
+                <p class="rounded-sm border-l-[3px] border-[#f0e0b0] bg-[#fff7e6] px-3 py-2 text-sm text-[#6b5310]">
+                  Para volver a pedir y seguir afinando tus recomendaciones, completa el cuestionario que viene en el
+                  <strong>código QR</strong> dentro de tu paquete. También lo encontrarás en tu correo electrónico.
                 </p>
               } @else {
                 <p class="text-sm text-[#536875]">
@@ -106,7 +46,84 @@ type ProfileBook = { title?: string; work_id?: string; openLibraryId?: string; a
                 </p>
               }
             </section>
+          } @else {
+            <app-buy-again [orders]="orders()" />
           }
+
+          <section class="rounded-sm border border-[#cad7df] bg-white p-6 sm:p-8">
+            <div class="mb-6">
+              <div>
+                <h2 class="font-display text-2xl font-bold tracking-[-0.03em] text-ink">Tus preferencias</h2>
+                <p class="mt-1 text-sm text-[#536875]">Con esto afinamos cada sorpresa.</p>
+              </div>
+            </div>
+
+            @if (readingOrder(); as order) {
+              @if (order.fulfillment?.bookTitle; as title) {
+                <div class="mb-8 flex items-start gap-4 rounded-sm border border-[#cad7df] bg-[#f7fafc] p-4 sm:p-5">
+                  @if (order.fulfillment?.coverUrl; as cover) {
+                    <img [src]="cover" [alt]="title" class="h-24 w-16 shrink-0 rounded-sm object-cover shadow-sm" />
+                  }
+                  <div>
+                    <h3 class="font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Leyendo actualmente</h3>
+                    <p class="mt-1 font-display text-xl font-bold tracking-[-0.02em] text-ink">{{ title }}</p>
+                    @if (order.fulfillment?.bookAuthor; as author) {
+                      <p class="mt-0.5 text-sm text-[#536875]">{{ author }}</p>
+                    }
+                  </div>
+                </div>
+              }
+            }
+
+            <h3 class="mb-2 text-sm font-bold uppercase tracking-wider text-ink">Categorías</h3>
+            <div class="space-y-3 text-sm">
+              <p><strong class="text-ink">Me gustan:</strong>
+                @for (tag of categoryPreferences('positive'); track tag.tagKey) {
+                  <span class="ml-2 my-1 inline-flex rounded-full bg-[#eef3f6] px-3 py-1 text-ink">{{ profileTagLabel(tag.tagKey) }}</span>
+                } @empty { <span class="ml-2 text-[#7d9ab0]">Sin categorías declaradas.</span> }
+              </p>
+              <p><strong class="text-ink">Me dan curiosidad:</strong>
+                @for (tag of categoryPreferences('curious'); track tag.tagKey) {
+                  <span class="ml-2 my-1 inline-flex rounded-full bg-[#eef3f6] px-3 py-1 text-ink">{{ profileTagLabel(tag.tagKey) }}</span>
+                } @empty { <span class="ml-2 text-[#7d9ab0]">Sin categorías declaradas.</span> }
+              </p>
+              <p><strong class="text-ink">No me interesan por ahora:</strong>
+                @for (tag of categoryPreferences('negative'); track tag.tagKey) {
+                  <span class="ml-2 my-1 inline-flex rounded-full bg-[#fbe9e6] px-3 py-1 text-[#7a2c1f]">{{ profileTagLabel(tag.tagKey) }}</span>
+                } @empty { <span class="ml-2 text-[#7d9ab0]">Sin categorías declaradas.</span> }
+              </p>
+            </div>
+
+            <h3 class="mb-2 mt-8 text-sm font-bold uppercase tracking-wider text-ink">Libros</h3>
+            <div class="space-y-8">
+              <div>
+                <app-book-carousel title="Disfrutados" [books]="enjoyedBooks()" />
+              </div>
+              <div>
+                <app-book-carousel title="No disfrutados o abandonados" [books]="notEnjoyedBooks()" />
+              </div>
+            </div>
+
+            <h3 class="mb-2 mt-8 text-sm font-bold uppercase tracking-wider text-ink">Preferencias</h3>
+            @if (current.operationalConstraints; as constraints) {
+              <div class="flex flex-wrap gap-2">
+                <span class="inline-flex rounded-full bg-[#eef3f6] px-3 py-1 text-sm text-ink">
+                  De {{ constraints.preferredPagesMin }} a {{ constraints.preferredPagesMax }} páginas
+                </span>
+                <span class="inline-flex rounded-full bg-[#eef3f6] px-3 py-1 text-sm text-ink">
+                  Sagas: {{ seriesLabel(constraints.seriesPreference) }}
+                </span>
+                @for (language of constraints.acceptedLanguagesJson; track language) {
+                  <span class="inline-flex rounded-full bg-[#eef3f6] px-3 py-1 text-sm text-ink">{{ languageLabel(language) }}</span>
+                }
+                @for (format of constraints.acceptedFormatsJson; track format) {
+                  <span class="inline-flex rounded-full bg-[#eef3f6] px-3 py-1 text-sm text-ink">{{ formatLabel(format) }}</span>
+                }
+              </div>
+            } @else {
+              <p class="text-sm text-[#7d9ab0]">Sin restricciones completas.</p>
+            }
+          </section>
 
           <section class="rounded-sm border border-[#cad7df] bg-[#fffdf7] p-6 sm:p-8">
             <h2 class="font-display text-2xl font-bold tracking-[-0.03em] text-ink">¿Cambiaste de opinión?</h2>
@@ -135,8 +152,16 @@ export class ProfileScreen {
   readonly profile = signal<ReaderProfile | null>(null);
   readonly loading = signal(false);
   readonly orders = signal<UserOrder[]>([]);
-  readonly order = computed(() => this.orders().find(orderIsActive) ?? null);
-  readonly feedbackDone = computed(() => (this.order() ? orderFeedbackDone(this.order()!) : false));
+  readonly blockedOrder = computed(() => {
+    const active = this.orders().find(orderIsActive) ?? null;
+    if (!active || active.fulfillment?.status === 'delivered') return null;
+    return !orderFeedbackDone(active) ? active : null;
+  });
+  readonly readingOrder = computed(() => {
+    const active = this.orders().find(orderIsActive) ?? null;
+    if (!active || active.fulfillment?.status !== 'delivered') return null;
+    return !orderFeedbackDone(active) ? active : null;
+  });
 
   constructor() {
     void this.loadProfile();
@@ -148,11 +173,6 @@ export class ProfileScreen {
       this.profile.set(profile);
       this.orders.set(orders);
     });
-  }
-
-  statusLabel(order: UserOrder): string {
-    const status = order.fulfillment?.status ?? '';
-    return FULFILLMENT_LABELS[status] ?? 'Pedido';
   }
 
   async redoQuestionnaire(): Promise<void> {
@@ -186,6 +206,30 @@ export class ProfileScreen {
       .flatMap((answer) => this.booksFromResponse(answer.rawResponse)) ?? [];
   }
 
+  enjoyedBooks(): ProfileBook[] {
+    const feedback = (this.profile()?.feedbackBooks ?? []).filter((book) => book.selectionFitRating !== null
+      ? book.selectionFitRating >= 4
+      : book.readingStatus === 'completed');
+    return this.mergeBooks([...this.profileBooks('Q01_LOVED_BOOKS'), ...feedback]);
+  }
+
+  notEnjoyedBooks(): ProfileBook[] {
+    const feedback = (this.profile()?.feedbackBooks ?? []).filter((book) => book.selectionFitRating !== null
+      ? book.selectionFitRating <= 2
+      : book.readingStatus === 'abandoned' || book.readingStatus === 'not_started');
+    return this.mergeBooks([...this.profileBooks('Q02_DISLIKED_BOOK'), ...feedback]);
+  }
+
+  private mergeBooks(books: ProfileBook[]): ProfileBook[] {
+    const seen = new Set<string>();
+    return books.filter((book) => {
+      const key = (book.title ?? book.work_id ?? book.openLibraryId ?? '').trim().toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
   bookLabel(book: ProfileBook): string {
     const title = book.title ?? book.work_id ?? book.openLibraryId ?? 'Libro sin título';
     return book.authors?.length ? `${title} - ${book.authors.join(', ')}` : title;
@@ -202,6 +246,19 @@ export class ProfileScreen {
       case 'no_preference': return 'sin preferencia';
       default: return value ?? 'sin preferencia';
     }
+  }
+
+  languageLabel(code: string): string {
+    const labels: Record<string, string> = {
+      es: 'Español', en: 'Inglés', pt: 'Portugués', fr: 'Francés', de: 'Alemán',
+      it: 'Italiano', nl: 'Neerlandés', ru: 'Ruso',
+    };
+    return labels[code] ?? code;
+  }
+
+  formatLabel(format: string): string {
+    const labels: Record<string, string> = { physical: 'Físico', ebook: 'Ebook', audiobook: 'Audiolibro' };
+    return labels[format] ?? format;
   }
 
   private booksFromResponse(value: unknown): ProfileBook[] {

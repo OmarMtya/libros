@@ -21,7 +21,7 @@ export class OrdersService {
   }
 
   async listOrders(userId: string) {
-    return this.prisma.order.findMany({
+    const orders = await this.prisma.order.findMany({
       where: { userId },
       select: {
         id: true, packageKey: true, packageName: true, totalCents: true, currency: true, status: true, createdAt: true, paidAt: true,
@@ -29,12 +29,53 @@ export class OrdersService {
         fulfillment: {
           select: {
             status: true, bookTitle: true, bookAuthor: true, coverUrl: true, trackingNumber: true, shippedAt: true, deliveredAt: true,
-            assignments: { where: { status: 'active' }, select: { id: true, feedbackCycleStatus: true } },
+            assignments: {
+              where: { status: 'active' },
+              select: {
+                id: true,
+                feedbackCycleStatus: true,
+                edition: {
+                  select: {
+                    title: true,
+                    book: {
+                      select: {
+                        canonicalTitle: true,
+                        openLibraryCoverId: true,
+                        authors: {
+                          select: { author: { select: { canonicalName: true } } },
+                          orderBy: { position: 'asc' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
         _count: { select: { feedbacks: true } },
       },
       orderBy: { createdAt: 'desc' },
+    });
+    return orders.map(({ fulfillment, ...order }) => {
+      if (!fulfillment) return { ...order, fulfillment: null };
+      const edition = fulfillment.assignments[0]?.edition ?? null;
+      const book = edition?.book ?? null;
+      const authors = (book?.authors ?? []).map(({ author }) => author.canonicalName);
+      const delivered = fulfillment.status === FulfillmentStatus.delivered;
+      return {
+        ...order,
+        fulfillment: {
+          status: fulfillment.status,
+          bookTitle: delivered ? (fulfillment.bookTitle ?? book?.canonicalTitle ?? edition?.title ?? null) : null,
+          bookAuthor: delivered ? (fulfillment.bookAuthor ?? (authors.length > 0 ? authors.join(', ') : null)) : null,
+          coverUrl: delivered ? (fulfillment.coverUrl ?? (book?.openLibraryCoverId != null ? `https://covers.openlibrary.org/b/id/${book.openLibraryCoverId}-L.jpg` : null)) : null,
+          trackingNumber: fulfillment.trackingNumber,
+          shippedAt: fulfillment.shippedAt,
+          deliveredAt: fulfillment.deliveredAt,
+          assignments: fulfillment.assignments.map(({ id, feedbackCycleStatus }) => ({ id, feedbackCycleStatus })),
+        },
+      };
     });
   }
 

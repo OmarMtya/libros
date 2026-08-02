@@ -14,7 +14,7 @@ type FeedbackForm = {
   positiveAspects: string[];
   negativeAspects: string[];
   selectionFitRating: number | null;
-  outcomeAttribution: string;
+  outcomeAttribution: string | null;
   freeText: string;
 };
 
@@ -99,7 +99,7 @@ const COMPLETION_LABELS: Record<number, string> = {
 
           @if (!feedback.started) {
             <label class="block">
-              <span class="text-sm font-semibold text-ink">¿Por qué no lo empezaste?</span>
+              <span class="text-sm font-semibold text-ink">¿Por qué no lo empezaste?<span class="ml-0.5 text-coral">*</span></span>
               <select [(ngModel)]="feedback.notStartedReason" class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
                 <option value="no_time">No tuve tiempo</option>
                 <option value="wrong_mood">No era el momento</option>
@@ -123,7 +123,7 @@ const COMPLETION_LABELS: Record<number, string> = {
             </label>
 
             <div>
-              <span class="text-sm font-semibold text-ink">Lo que SÍ me gustó</span>
+              <span class="text-sm font-semibold text-ink">Lo que SÍ me gustó<span class="ml-0.5 text-coral">*</span></span>
               <div class="mt-2 flex flex-wrap gap-2">
                 @for (item of positiveAspects; track item.key) {
                   <button type="button" class="rounded-full border px-3 py-1.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-40" [class.bg-ink]="feedback.positiveAspects.includes(item.key)" [class.text-white]="feedback.positiveAspects.includes(item.key)" [class.border-ink]="feedback.positiveAspects.includes(item.key)" [class.bg-white]="!feedback.positiveAspects.includes(item.key)" [class.text-ink]="!feedback.positiveAspects.includes(item.key)" [class.border-[#7d9ab0]]="!feedback.positiveAspects.includes(item.key)" [disabled]="aspectDisabled('positiveAspects', item.key)" (click)="toggleAspect('positiveAspects', item.key)">{{ item.label }}</button>
@@ -132,7 +132,7 @@ const COMPLETION_LABELS: Record<number, string> = {
             </div>
 
             <div>
-              <span class="text-sm font-semibold text-ink">Lo que NO me gustó</span>
+              <span class="text-sm font-semibold text-ink">Lo que NO me gustó<span class="ml-0.5 text-coral">*</span></span>
               <div class="mt-2 flex flex-wrap gap-2">
                 @for (item of negativeAspects; track item.key) {
                   <button type="button" class="rounded-full border px-3 py-1.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-40" [class.bg-coral]="feedback.negativeAspects.includes(item.key)" [class.text-white]="feedback.negativeAspects.includes(item.key)" [class.border-coral]="feedback.negativeAspects.includes(item.key)" [class.bg-white]="!feedback.negativeAspects.includes(item.key)" [class.text-ink]="!feedback.negativeAspects.includes(item.key)" [class.border-[#7d9ab0]]="!feedback.negativeAspects.includes(item.key)" [disabled]="aspectDisabled('negativeAspects', item.key)" (click)="toggleAspect('negativeAspects', item.key)">{{ item.label }}</button>
@@ -141,8 +141,9 @@ const COMPLETION_LABELS: Record<number, string> = {
             </div>
 
             <label class="block">
-              <span class="text-sm font-semibold text-ink">¿Qué hizo que te gustara o no el libro?</span>
+              <span class="text-sm font-semibold text-ink">¿Qué hizo que te gustara o no el libro?<span class="ml-0.5 text-coral">*</span></span>
               <select [(ngModel)]="feedback.outcomeAttribution" class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
+                <option value="" disabled>Selecciona una opción</option>
                 <option value="mostly_book">Principalmente el libro</option>
                 <option value="mixed">Mezcla</option>
                 <option value="mostly_timing">Principalmente el momento</option>
@@ -152,7 +153,7 @@ const COMPLETION_LABELS: Record<number, string> = {
             </label>
 
             <div>
-              <span class="text-sm font-semibold text-ink">¿Qué tan buena fue la selección para ti?</span>
+              <span class="text-sm font-semibold text-ink">¿Qué tan buena fue la selección para ti?<span class="ml-0.5 text-coral">*</span></span>
               <div class="mt-2 flex items-center gap-2">
                 @for (score of [1, 2, 3, 4, 5]; track score) {
                   <button type="button" class="h-10 w-10 rounded-full border text-sm font-bold transition" [class.bg-coral]="feedback.selectionFitRating === score" [class.text-white]="feedback.selectionFitRating === score" [class.border-coral]="feedback.selectionFitRating === score" [class.bg-white]="feedback.selectionFitRating !== score" [class.text-ink]="feedback.selectionFitRating !== score" [class.border-[#7d9ab0]]="feedback.selectionFitRating !== score" (click)="feedback.selectionFitRating = score">{{ score }}</button>
@@ -167,13 +168,17 @@ const COMPLETION_LABELS: Record<number, string> = {
             <textarea [(ngModel)]="feedback.freeText" rows="4" class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2" placeholder="Cuéntanos cualquier detalle…"></textarea>
           </label>
 
-          <button type="button" class="rounded-sm bg-coral px-6 py-3 text-sm font-bold text-white transition hover:bg-coral-deep disabled:opacity-60" (click)="submit()" [disabled]="submitting() || !canSubmit()">Enviar feedback</button>
+          @if (feedback.started && feedback.positiveAspects.length === 0 && feedback.negativeAspects.length === 0) {
+            <p class="mt-4 text-xs text-coral-deep">Selecciona al menos un aspecto, ya sea de "Lo que SÍ me gustó" o de "Lo que NO me gustó".</p>
+          }
+
+          <div class="flex justify-end">
+            <button type="button" class="rounded-sm bg-coral px-6 py-3 text-sm font-bold text-white transition hover:bg-coral-deep disabled:opacity-60" (click)="submit()" [disabled]="submitting() || !canSubmit()">Enviar feedback</button>
+          </div>
           @if (!canSubmit()) {
             <p class="mt-2 text-xs text-[#567088]">
               @if (!feedback.started) {
                 Selecciona el motivo por el que no lo empezaste para enviar.
-              } @else {
-                Para enviar, marca al menos un aspecto (que te haya gustado o no) y califica qué tan buena fue la selección.
               }
             </p>
           }
@@ -218,7 +223,7 @@ export class FeedbackToken {
     positiveAspects: [] as string[],
     negativeAspects: [] as string[],
     selectionFitRating: null,
-    outcomeAttribution: 'no_problem',
+    outcomeAttribution: null,
     freeText: '',
   };
 
@@ -279,7 +284,7 @@ export class FeedbackToken {
 
   canSubmit(): boolean {
     if (!this.feedback.started) return this.feedback.notStartedReason !== null;
-    return (this.feedback.positiveAspects.length > 0 || this.feedback.negativeAspects.length > 0) && this.feedback.selectionFitRating !== null;
+    return (this.feedback.positiveAspects.length > 0 || this.feedback.negativeAspects.length > 0) && this.feedback.selectionFitRating !== null && this.feedback.outcomeAttribution !== null;
   }
 
   private nearestCompletionStep(value: number): number {

@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { Router } from '@angular/router';
-import { ApiService, orderFeedbackDone, orderIsActive, ProductPackage, SessionDetail, UserOrder } from '../api.service';
+import { ApiService, orderFeedbackDone, orderIsActive, ProductPackage, UserOrder } from '../api.service';
 import { AuthService } from '../auth.service';
 import { OrderTimeline } from '../components/order-timeline';
 
@@ -86,24 +86,12 @@ const BOX_CONTENTS = [
                   Envíos de 5 a 10 días hábiles. Nos comunicaremos contigo en cada paso de tu pedido.
                 </p>
 
-                @if (questionnaireDone()) {
-                  <button
+                <button
                     class="w-full rounded-sm bg-coral px-6 py-3 text-sm font-bold text-white transition hover:bg-coral-deep"
                     type="button"
                     (click)="checkout()">
                     Ir al pago seguro
                   </button>
-                } @else {
-                  <p class="rounded-sm border-l-[3px] border-coral bg-[#fbe9e6] px-3 py-2 text-sm text-[#7a2c1f]">
-                    Antes de ir al pago, completa tu cuestionario para que podamos armar tu sorpresa.
-                  </p>
-                  <button
-                    class="w-full rounded-sm bg-ink px-6 py-3 text-sm font-bold text-white transition hover:bg-ink-soft"
-                    type="button"
-                    (click)="goToQuestionnaire()">
-                    Completar mi cuestionario
-                  </button>
-                }
 
                 <span class="inline-flex items-center justify-center gap-1.5 rounded-sm bg-white px-2 py-1">
                   <span class="font-display text-[11px] font-black italic leading-none text-[#1A1F71]">VISA</span>
@@ -147,13 +135,11 @@ export class Experience {
 
   readonly packages = signal<ProductPackage[]>([]);
   readonly orders = signal<UserOrder[]>([]);
-  readonly sessions = signal<SessionDetail[]>([]);
   readonly loading = signal(false);
   readonly package = computed(() => this.packages().find((p) => p.key === 'libro_sorpresa_fisico') ?? null);
   readonly activeOrder = computed(() => this.orders().find(orderIsActive) ?? null);
   readonly blocked = computed(() => Boolean(this.activeOrder() && !orderFeedbackDone(this.activeOrder()!)));
   readonly delivered = computed(() => this.activeOrder()?.fulfillment?.status === 'delivered');
-  readonly questionnaireDone = computed(() => this.sessions().some((session) => session.status === 'completed'));
 
   constructor() {
     void this.load();
@@ -162,10 +148,9 @@ export class Experience {
   async load(): Promise<void> {
     this.loading.set(true);
     try {
-      const [packages, orders, sessions] = await Promise.all([this.api.listPackages(), this.api.listOrders(), this.api.listSessions()]);
+      const [packages, orders] = await Promise.all([this.api.listPackages(), this.api.listOrders()]);
       this.packages.set(packages);
       this.orders.set(orders);
-      this.sessions.set(sessions);
     } finally {
       this.loading.set(false);
     }
@@ -175,12 +160,7 @@ export class Experience {
     void this.router.navigate(['/app/mi-paquete']);
   }
 
-  goToQuestionnaire(): void {
-    void this.router.navigate(['/app/cuestionario']);
-  }
-
   checkout(): void {
-    if (!this.questionnaireDone()) return;
     const pkg = this.package();
     if (!pkg) return;
     const session = this.auth.session();

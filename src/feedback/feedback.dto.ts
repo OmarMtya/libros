@@ -1,4 +1,4 @@
-import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
 
 export class FeedbackPayloadDto {
   @IsBoolean()
@@ -16,7 +16,7 @@ export class FeedbackPayloadDto {
   @Max(100)
   completionPercentage!: number;
 
-  @IsOptional()
+  @ValidateIf((object: FeedbackPayloadDto) => object.started === true)
   @IsInt()
   @Min(1)
   @Max(5)
