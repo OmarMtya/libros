@@ -21,7 +21,7 @@ import { ConfirmDialog } from './components/confirm-dialog';
 })
 export class App {
   private readonly router = inject(Router);
-  readonly showHeader = signal(true);
+  readonly showHeader = signal(!['/', '/app/login'].includes(window.location.pathname));
 
   constructor() {
     this.router.events.subscribe((event) => {
