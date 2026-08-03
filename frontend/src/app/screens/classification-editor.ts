@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, inject, signal, ViewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, inject, OnDestroy, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService, ClassificationDiagnostics, ClassificationEditor, EditorFeature, EditorTag, Tag } from '../api.service';
@@ -138,6 +138,25 @@ const clamp = (raw: string | number, min: number, max: number): number => {
           }
 
           @if (ed.status === 'draft') {
+            <section #aiSection class="rounded-sm border border-[#cad7df] bg-white p-4">
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <h2 class="font-semibold text-ink">Clasificar con IA</h2>
+                  <p class="mt-1 text-xs text-[#536875]">Sube el PDF del libro (formato de texto). El análisis corre en segundo plano y los valores se guardan directamente en el borrador: puedes cerrar o recargar la página sin perderlos. Revisa antes de guardar y aprobar.</p>
+                </div>
+                <button type="button" class="rounded-sm bg-ink px-4 py-2 text-sm font-bold text-white hover:bg-ink-soft disabled:cursor-wait disabled:opacity-60" (click)="pdfInput.click()" [disabled]="aiClassifying()">
+                  {{ aiClassifying() ? 'Analizando…' : 'Subir PDF y clasificar' }}
+                </button>
+                <input #pdfInput type="file" accept="application/pdf" hidden (change)="onPdfSelected($event)" />
+              </div>
+              @if (aiClassifying()) {
+                <p class="mt-3 flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-[#7d9ab0]">
+                  <svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  El análisis continúa en segundo plano y se guardará como borrador al terminar…
+                </p>
+              }
+            </section>
+
             <section class="rounded-sm border border-[#cad7df] bg-white p-4">
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <h2 class="font-semibold text-ink">Carga rápida por JSON</h2>
@@ -326,7 +345,7 @@ const clamp = (raw: string | number, min: number, max: number): number => {
     </div>
   `,
 })
-export class ClassificationEditorScreen {
+export class ClassificationEditorScreen implements OnDestroy {
   private readonly api = inject(ApiService);
   private readonly toast = inject(ToastService);
   private readonly route = inject(ActivatedRoute);
@@ -346,6 +365,15 @@ export class ClassificationEditorScreen {
   tagPasteJson = '';
   tagQuery = '';
   @ViewChild('tagPicker') private tagPicker: ElementRef<HTMLDivElement> | null = null;
+  readonly aiClassifying = signal(false);
+  readonly aiJobId = signal<string | null>(null);
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
+  @ViewChild('pdfInput') private pdfInput: ElementRef<HTMLInputElement> | null = null;
+  @ViewChild('aiSection') private aiSection: ElementRef<HTMLElement> | null = null;
+
+  ngOnDestroy(): void {
+    if (this.pollTimer) clearTimeout(this.pollTimer);
+  }
 
   constructor() {
     void this.load();
@@ -373,6 +401,15 @@ export class ClassificationEditorScreen {
       ]);
       this.editor.set(editor);
       this.diagnostics.set(diagnostics);
+      const active = await this.api.getActiveAiJob(editor.id).catch(() => null);
+      if (active && (active.status === 'pending' || active.status === 'processing')) {
+        this.aiClassifying.set(true);
+        this.aiJobId.set(active.id);
+        this.pollAiJob(active.id);
+      }
+      if (this.route.snapshot.queryParamMap.get('ai') === '1') {
+        setTimeout(() => this.aiSection?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+      }
     } catch (error) {
       this.toast.error(this.message(error));
       void this.router.navigate(['/app/admin']);
@@ -623,6 +660,63 @@ export class ClassificationEditorScreen {
     }
     this.pasteJson = '';
     this.pasteOpen.set(true);
+  }
+
+  async onPdfSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      this.toast.error('El archivo debe ser un PDF.');
+      input.value = '';
+      return;
+    }
+    if (file.size > 30 * 1024 * 1024) {
+      this.toast.error('El PDF es demasiado grande (máximo 30 MB).');
+      input.value = '';
+      return;
+    }
+    const editor = this.editor();
+    if (!editor) return;
+    this.aiClassifying.set(true);
+    try {
+      const { jobId } = await this.api.aiClassifyPdf(editor.id, file);
+      this.aiJobId.set(jobId);
+      this.toast.success('PDF subido. El análisis corre en segundo plano y se guardará como borrador.');
+      this.pollAiJob(jobId);
+    } catch (error) {
+      this.aiClassifying.set(false);
+      this.aiJobId.set(null);
+      this.toast.error(this.message(error));
+    } finally {
+      input.value = '';
+    }
+  }
+
+  private pollAiJob(jobId: string): void {
+    if (this.pollTimer) clearTimeout(this.pollTimer);
+    const tick = async () => {
+      try {
+        const job = await this.api.getAiJob(jobId);
+        if (job.status === 'done') {
+          this.aiClassifying.set(false);
+          this.aiJobId.set(null);
+          await this.load();
+          this.toast.success('Propuesta IA guardada en el borrador. Revísala y aprueba cuando esté lista.');
+        } else if (job.status === 'failed') {
+          this.aiClassifying.set(false);
+          this.aiJobId.set(null);
+          this.toast.error(job.error ?? 'El análisis con IA falló.');
+        } else {
+          this.pollTimer = setTimeout(tick, 2000);
+        }
+      } catch (error) {
+        this.aiClassifying.set(false);
+        this.aiJobId.set(null);
+        this.toast.error(this.message(error));
+      }
+    };
+    void tick();
   }
 
   closePaste(): void {

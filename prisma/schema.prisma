@@ -798,10 +798,27 @@ model BookClassificationVersion {
   assignments              CurationAssignment[]
   recommendationCandidates RecommendationCandidate[]
   feedbacks                ReadingFeedback[]
+  aiClassificationJobs     AiClassificationJob[]
 
   @@unique([bookEditionId, revision])
   @@unique([id, bookEditionId])
   @@map("book_classification_versions")
+}
+
+model AiClassificationJob {
+  id                      String                    @id @default(uuid()) @db.Uuid
+  classificationVersionId String                    @map("classification_version_id") @db.Uuid
+  actorId                 String                    @map("actor_id") @db.Uuid
+  status                  String                    @default("pending")
+  sourceMarkdown          String?                   @map("source_markdown")
+  proposalJson            Json?                     @map("proposal_json")
+  error                   String?
+  createdAt               DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  classification          BookClassificationVersion @relation(fields: [classificationVersionId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@map("ai_classification_jobs")
 }
 
 model BookFeature {

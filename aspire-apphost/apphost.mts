@@ -56,6 +56,8 @@ const api = await builder
   .withEnvironment('ADMIN_EMAILS', env.ADMIN_EMAILS ?? '')
   .withEnvironment('STRIPE_SECRET_KEY', env.STRIPE_SECRET_KEY ?? '')
   .withEnvironment('STRIPE_WEBHOOK_SECRET', env.STRIPE_WEBHOOK_SECRET ?? '')
+  .withEnvironment('DEEPSEEK_API_KEY', env.DEEPSEEK_API_KEY ?? '')
+  .withEnvironment('GOOGLE_BOOKS_API_KEY', env.GOOGLE_BOOKS_API_KEY ?? '')
   .waitFor(dbSetup);
 
 // Angular frontend (the docker-compose `frontend` service equivalent).

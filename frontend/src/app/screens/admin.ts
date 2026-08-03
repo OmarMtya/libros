@@ -170,6 +170,14 @@ const aspectLabels: Record<string, string> = {
                       <p class="mt-2 text-xs text-[#536875]">Abre (o crea) un borrador y edita las features y tags manualmente antes de aprobar.</p>
                     </details>
 
+                    <details class="mt-2 rounded-sm border border-[#d6e1e8] p-2">
+                      <summary class="cursor-pointer text-sm font-semibold text-ink">Clasificar con IA (subir PDF)</summary>
+                      <div class="mt-2">
+                        <p class="text-xs text-[#536875]">Crea el borrador y, dentro del editor, sube el PDF del libro para que la IA proponga las features y tags automáticamente. Revisa antes de guardar y aprobar.</p>
+                        <button type="button" class="mt-2 rounded-sm bg-ink px-4 py-2 text-sm font-bold text-white hover:bg-ink-soft disabled:opacity-60" (click)="createAiClassification(edition.id)" [disabled]="loading()">Crear clasificación con IA</button>
+                      </div>
+                    </details>
+
                     @for (classification of edition.classifications; track classification.id) {
                       <div class="mt-2 border-t border-[#e3ebf0] pt-2 text-xs">
                         <div class="flex flex-wrap items-center gap-2">
@@ -977,6 +985,19 @@ export class AdminScreen {
       });
       this.toast.success('Borrador listo. Completa las features y tags antes de aprobar.');
       void this.router.navigate(['/app/admin/clasificacion', created.id]);
+    });
+  }
+
+  async createAiClassification(editionId: string): Promise<void> {
+    await this.run(async () => {
+      const created = await this.api.createAdminClassificationDraft(editionId, {
+        contentTypeKey: this.newClassification.contentType,
+        contentTypeSchemaVersion: CONTENT_TYPE_SCHEMA_VERSION,
+        featureSchemaVersion: FEATURE_SCHEMA_VERSION,
+        tagTaxonomyVersion: TAG_TAXONOMY_VERSION,
+      });
+      this.toast.success('Borrador listo. Sube el PDF en el editor para clasificar con IA.');
+      void this.router.navigate(['/app/admin/clasificacion', created.id], { queryParams: { ai: 1 } });
     });
   }
 

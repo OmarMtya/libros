@@ -163,11 +163,11 @@ Cada fuente tiene un peso de confiabilidad base `r`:
 | `sample_text` | `0.60` | Requiere citar el fragmento exacto (`excerpt_ref`) |
 | `review_excerpt` | `0.45` | Deben ser reseñas curadas, con cita y atribución |
 | `author_interview` | `0.50` | Para features que el autor declara explícitamente |
-| `ai_classification` | `0.40` | Cap de contribución: aporte máximo agregado de IA = `0.40` por feature |
+| `ai_classification` | `0.95` | La IA declara su propia `confidence` (hasta `0.95`) según la evidencia de la muestra; sin cap de `0.40` |
 
 Reglas:
 
-1. La IA **no** declara su propia confianza. Toda salida IA se trata igual: contribuye a lo sumo `r = 0.40` al `source_agreement_weight`.
+1. La IA **declara** su propia `confidence` por feature/tag (escala `0.20–0.95` según la evidencia de la muestra; ver `book-classification-prompt.md` §3). Su aporte al `source_agreement_weight` usa `r = 0.95`.
 2. Una fuente puede aportar a varias features, pero cada feature tiene su propio `source_support_json`.
 3. Las fuentes se deduplican por `(source_type, excerpt_ref)`. Si dos reseñas distintas aportan a la misma feature, ambas cuentan.
 
@@ -219,7 +219,7 @@ Para una feature `f` del libro `b` con contribuciones de `n` fuentes distintas v
    - Caso B: curador rechaza todas las fuentes y fija `curator_value` sin apoyo →
      `confidence = 0.60`, `source_support_json.review_action = "override_no_source"`. Requiere seguimiento.
    - Caso C: sin revisión humana → `confidence = clamp(confidence_raw, 0, 0.90)`.
-   - Caso D: única fuente es IA → `confidence <= 0.40` por cap; nunca mayor.
+   - Caso D: única fuente es IA → `confidence = clamp(confidence_declarada_por_IA, 0, 0.95)`; sin cap de `0.40`.
 
 7. `value` final persistido = `consensus_value` redondeado a `NUMERIC(5,4)` con `HALF_UP`. Si el consenso resulta inestable (varianza alta y sin review) → `value = null`, `confidence = 0`.
 
@@ -240,7 +240,7 @@ Para una feature `f` del libro `b` con contribuciones de `n` fuentes distintas v
     {
       "source_type": "ai_classification",
       "observed_value": 0.70,
-      "r": 0.40,
+      "r": 0.95,
       "excerpt_ref": "book_01J.../sample/ch01#p1-12",
       "rationale": "Anzuelo explícito en la primera página"
     },
@@ -638,8 +638,8 @@ El backend:
 ## 15. Pruebas de aceptación
 
 1. **Sin clasificación**: un libro sin filas en `book_features` tiene `feature_coverage_ratio = 0` (sobre `scoring_required_minimum`), `is_candidate_ready = false`.
-2. **Cap IA**: una feature con única fuente `ai_classification` produce `confidence <= 0.40`.
-3. **Voto múltiple**: dos reseñas + IA con `value = 0.70` y `0.65` producen `confidence > 0.40`.
+2. **Cap IA**: una feature con única fuente `ai_classification` produce `confidence <= 0.95` (usa la `confidence` declarada por la IA según la evidencia de la muestra).
+3. **Voto múltiple**: dos reseñas + IA con `value` cercanos producen `confidence >= 0.60` (mayor a la de una sola fuente).
 4. **Discrepancia**: dos fuentes con `|value_i − value_j| > 0.20` marcan `review_status = needs_review`, no entran en scoring.
 5. **Varianza alta**: `source_variance >= 0.10` deja la feature en `value = null`, `confidence = 0`.
 6. **Override curador sin fuente**: `confidence = 0.60` y `review_action = override_curator_value`.

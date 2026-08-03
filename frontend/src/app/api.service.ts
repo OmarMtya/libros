@@ -311,6 +311,8 @@ export type SaveClassificationResult = {
   diagnostics: ClassificationDiagnostics;
 };
 
+export type AiJob = { id: string; status: 'pending' | 'processing' | 'done' | 'failed'; error: string | null };
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly auth = inject(AuthService);
@@ -442,6 +444,20 @@ export class ApiService {
 
   getAdminClassificationDiagnostics(id: string): Promise<ClassificationDiagnostics> {
     return firstValueFrom(this.http.get<ClassificationDiagnostics>(`${this.baseUrl}/admin/classifications/${id}/diagnostics`, this.options()));
+  }
+
+  aiClassifyPdf(id: string, file: File): Promise<{ jobId: string }> {
+    const form = new FormData();
+    form.append('pdf', file);
+    return firstValueFrom(this.http.post<{ jobId: string }>(`${this.baseUrl}/admin/classifications/${id}/ai-propose-pdf`, form, this.options()));
+  }
+
+  getAiJob(jobId: string): Promise<AiJob> {
+    return firstValueFrom(this.http.get<AiJob>(`${this.baseUrl}/admin/classifications/ai-jobs/${jobId}`, this.options()));
+  }
+
+  getActiveAiJob(id: string): Promise<AiJob | null> {
+    return firstValueFrom(this.http.get<AiJob | null>(`${this.baseUrl}/admin/classifications/${id}/ai-job`, this.options()));
   }
 
   approveAdminClassification(id: string): Promise<AdminClassification> {
