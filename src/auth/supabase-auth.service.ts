@@ -44,11 +44,18 @@ export class SupabaseAuthService {
     const displayName = claims.user_metadata?.full_name?.trim() || claims.user_metadata?.name?.trim() || null;
     const adminEmails = new Set((process.env.ADMIN_EMAILS ?? '').split(',').map((value) => value.trim().toLowerCase()).filter(Boolean));
     const role = email && adminEmails.has(email) ? UserRole.admin : UserRole.customer;
-    const user = await this.prisma.user.upsert({
-      where: { id: claims.sub },
-      create: { id: claims.sub, email, displayName, role, lastSignedInAt: new Date() },
-      update: { email, displayName, role, lastSignedInAt: new Date() },
-    });
+    const data = { email, displayName, role, lastSignedInAt: new Date() };
+    const bySub = await this.prisma.user.findUnique({ where: { id: claims.sub } });
+    if (bySub) {
+      const user = await this.prisma.user.update({ where: { id: bySub.id }, data });
+      return { id: user.id, email: user.email, displayName: user.displayName, role: user.role };
+    }
+    const byEmail = email ? await this.prisma.user.findUnique({ where: { email } }) : null;
+    if (byEmail) {
+      const user = await this.prisma.user.update({ where: { id: byEmail.id }, data: { id: claims.sub, ...data } });
+      return { id: user.id, email: user.email, displayName: user.displayName, role: user.role };
+    }
+    const user = await this.prisma.user.create({ data: { id: claims.sub, ...data } });
     return { id: user.id, email: user.email, displayName: user.displayName, role: user.role };
   }
 }
