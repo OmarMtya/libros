@@ -139,6 +139,14 @@ type ProfileBook = { title?: string; work_id?: string; openLibraryId?: string; a
             </button>
           </section>
         </div>
+      } @else {
+        <section class="rounded-sm border border-[#cad7df] bg-white p-10 text-center">
+          <h2 class="font-display text-2xl font-bold tracking-[-0.03em] text-ink">Aún no tienes perfil lector</h2>
+          <p class="mt-2 mb-5 text-sm text-[#536875]">Responde el cuestionario para que armemos tus recomendaciones.</p>
+          <a routerLink="/app/cuestionario" class="inline-block rounded-sm bg-coral px-6 py-3 text-sm font-bold text-white transition hover:bg-coral-deep">
+            Hacer cuestionario
+          </a>
+        </section>
       }
     </div>
   `,
@@ -169,7 +177,17 @@ export class ProfileScreen {
 
   async loadProfile(): Promise<void> {
     await this.run(async () => {
-      const [profile, orders] = await Promise.all([this.api.getProfile(), this.api.listOrders()]);
+      const [profile, orders] = await Promise.all([
+        this.api.getProfile().catch((error) => {
+          if (error && error.status === 404) return null;
+          throw error;
+        }),
+        this.api.listOrders(),
+      ]);
+      if (!profile) {
+        await this.router.navigate(['/app/cuestionario']);
+        return;
+      }
       this.profile.set(profile);
       this.orders.set(orders);
     });
