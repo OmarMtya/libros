@@ -27,7 +27,15 @@ const invitationService = new FeedbackInvitationService();
 const catalogService = prisma ? new CatalogService(prisma as never, new BooksService()) : null;
 const curationService = prisma ? new CurationService(prisma as never, invitationService, new CuratorAuditService(prisma as never), new EmailService()) : null;
 const learningService = prisma ? new FeedbackLearningService(prisma as never, new ProfileService(prisma as never), new EvidenceFactory()) : null;
-const tokenService = prisma ? new FeedbackTokenService(prisma as never, invitationService, new FeedbackContextResolver(), learningService!) : null;
+const tokenService = prisma
+  ? new FeedbackTokenService(
+      prisma as never,
+      invitationService,
+      new FeedbackContextResolver(),
+      learningService!,
+      { notifyNewReader: async () => undefined, notifyNewFeedback: async () => undefined } as never,
+    )
+  : null;
 
 const REQUIRED_FICTION_FEATURES = [
   'hook_speed', 'narrative_pace', 'slow_burn_level', 'narrative_payoff', 'style_clarity',

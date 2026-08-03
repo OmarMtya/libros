@@ -64,7 +64,7 @@ function serviceWith(captured: { normalized?: unknown } = {}) {
   const evidenceFactory = { createMany: vi.fn().mockResolvedValue(undefined) } as unknown as EvidenceFactory;
   const tx = txMock(captured);
   prisma.$transaction = vi.fn().mockImplementation((run: (t: unknown) => Promise<unknown>) => run(tx));
-  const service = new QuestionnaireService(prisma, profiles, evidenceFactory);
+  const service = new QuestionnaireService(prisma, profiles, evidenceFactory, {} as never);
   return { service, prisma, profiles, evidenceFactory, tx };
 }
 

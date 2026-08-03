@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { AdminNotificationsService } from '../email/admin-notifications.service';
 import { FeedbackContextResolver, learningStatusFor } from './feedback-context.resolver';
 import { FeedbackInvitationService } from './feedback-invitation.service';
 import { FeedbackLearningService } from './feedback-learning.service';
@@ -41,6 +42,7 @@ export class FeedbackTokenService {
     private readonly invitations: FeedbackInvitationService,
     private readonly contextResolver: FeedbackContextResolver,
     private readonly learning: FeedbackLearningService,
+    private readonly adminNotifications: AdminNotificationsService,
   ) {}
 
   async resolveInvitation(token: string) {
@@ -91,7 +93,7 @@ export class FeedbackTokenService {
 
       const existing = await tx.readingFeedback.findUnique({ where: { feedbackInvitationId: invitation.id } });
       if (existing) {
-        if (existing.idempotencyKey === dto.idempotencyKey) return { feedback: existing, learningStatus: existing.learningStatus, recompute: null };
+        if (existing.idempotencyKey === dto.idempotencyKey) return { feedback: existing, learningStatus: existing.learningStatus, recompute: null, created: false, bookTitle: null };
         throw new ConflictException('Esta invitación ya fue utilizada para enviar un feedback.');
       }
       if (invitation.status !== 'pending') throw new ConflictException('Esta invitación ya fue utilizada.');
@@ -107,6 +109,8 @@ export class FeedbackTokenService {
       if (authenticatedUserId !== null && authenticatedUserId !== assignment.fulfillment.order.userId) {
         throw new ForbiddenException('Esta invitación pertenece a otro usuario.');
       }
+
+      const bookTitle = assignment.edition.book.canonicalTitle;
 
       const isFinal = isFinalFeedback(dto.readingStatus);
       const notStartedReason = dto.started ? null : (dto.notStartedReason ?? null);
@@ -183,8 +187,19 @@ export class FeedbackTokenService {
         data: { learningStatus, processingOutcome },
         include: { aspects: true },
       });
-      return { feedback: updated, context };
+      return { feedback: updated, context, created: true, bookTitle };
     });
+
+    if (result.created) {
+      await this.adminNotifications.notifyNewFeedback({
+        feedbackId: result.feedback.id,
+        userId: result.feedback.userId,
+        bookTitle: result.bookTitle ?? 'Libro',
+        readingStatus: result.feedback.readingStatus,
+        selectionFitRating: result.feedback.selectionFitRating,
+        freeText: result.feedback.freeText,
+      });
+    }
 
     if (result.feedback.learningStatus === 'pending_processing') {
       const learned = await this.learning.process(result.feedback.id);

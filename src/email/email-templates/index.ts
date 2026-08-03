@@ -1,3 +1,5 @@
+import { AdminFeedbackNotificationVars, renderAdminFeedbackNotification } from './admin-feedback-notification';
+import { AdminNewReaderVars, renderAdminNewReader } from './admin-new-reader';
 import { AdminOrderNotificationVars, renderAdminOrderNotification } from './admin-order-notification';
 import { DeliveredVars, renderDelivered } from './delivered';
 import { OrderConfirmationVars, renderOrderConfirmation } from './order-confirmation';
@@ -6,6 +8,8 @@ import { renderShipped, ShippedVars } from './shipped';
 export type EmailTemplateMap = {
   'order-confirmation': OrderConfirmationVars;
   'admin-order-notification': AdminOrderNotificationVars;
+  'admin-new-reader': AdminNewReaderVars;
+  'admin-feedback-notification': AdminFeedbackNotificationVars;
   shipped: ShippedVars;
   delivered: DeliveredVars;
 };
@@ -19,6 +23,8 @@ type Renderer<K extends EmailTemplateKey> = (vars: EmailTemplateMap[K]) => Rende
 export const EMAIL_TEMPLATES: { [K in EmailTemplateKey]: Renderer<K> } = {
   'order-confirmation': renderOrderConfirmation,
   'admin-order-notification': renderAdminOrderNotification,
+  'admin-new-reader': renderAdminNewReader,
+  'admin-feedback-notification': renderAdminFeedbackNotification,
   shipped: renderShipped,
   delivered: renderDelivered,
 };

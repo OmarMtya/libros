@@ -6,6 +6,7 @@ import { EvidenceFactory, EvidenceInput } from '../profile/evidence.factory';
 import { aggregateDimension, evidenceFingerprint, round } from '../profile/profile-calculation';
 import { buildPriorityVector, PRIORITY_VECTOR_MAPPING_VERSION, PRIORITY_VECTOR_NORMALIZATION_METHOD, PriorityFactor, PriorityVector } from '../scoring/priority-vector';
 import { deriveTagPreferences, tagEvidenceFingerprint } from '../feedback/feedback-tag-preferences';
+import { AdminNotificationsService } from '../email/admin-notifications.service';
 import { ProfileService } from '../profile/profile.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -18,6 +19,7 @@ export class QuestionnaireService {
     private readonly prisma: PrismaService,
     private readonly profiles: ProfileService,
     private readonly evidenceFactory: EvidenceFactory,
+    private readonly adminNotifications: AdminNotificationsService,
   ) {}
 
   async reset(userId: string) {
@@ -163,8 +165,13 @@ export class QuestionnaireService {
     const answered = new Set(session.answers.map((answer) => answer.questionKey));
     const missing = required.filter((question) => !answered.has(question.questionKey)).map((question) => question.questionKey);
     if (missing.length > 0) throw new BadRequestException({ message: 'Required questions are missing.', missing });
+    const priorCompletion = await this.prisma.readerProfileVersion.findFirst({
+      where: { profile: { userId: session.userId }, changeReason: 'questionnaire_completed' },
+      select: { id: true },
+    });
     const completed = await this.prisma.questionnaireSession.update({ where: { id: sessionId }, data: { status: 'completed', completedAt: new Date(), optimisticLockVersion: { increment: 1 } } });
     await this.profiles.recompute(session.userId, 'questionnaire_completed', completed.id);
+    if (!priorCompletion) await this.adminNotifications.notifyNewReader(session.userId);
     return completed;
   }
 

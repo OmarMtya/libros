@@ -36,7 +36,7 @@ function mockService() {
     recompute: vi.fn().mockResolvedValue({ profile: { id: 'profile-1' }, version: { version: 2 }, created: true }),
   } as unknown as ProfileService;
   const evidenceFactory = {} as unknown as EvidenceFactory;
-  const service = new QuestionnaireService(prisma, profiles, evidenceFactory);
+  const service = new QuestionnaireService(prisma, profiles, evidenceFactory, {} as never);
   return { service, tx, profiles };
 }
 

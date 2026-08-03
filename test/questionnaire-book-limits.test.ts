@@ -9,7 +9,7 @@ function serviceWith(validation: Record<string, unknown>) {
   const prisma = { $transaction: vi.fn() } as unknown as PrismaService;
   const profiles = {} as unknown as ProfileService;
   const evidenceFactory = {} as unknown as EvidenceFactory;
-  const service = new QuestionnaireService(prisma, profiles, evidenceFactory);
+  const service = new QuestionnaireService(prisma, profiles, evidenceFactory, {} as never);
   const question = {
     questionKey: 'Q01_LOVED_BOOKS',
     questionnaireVersion: 'onboarding/1.1',

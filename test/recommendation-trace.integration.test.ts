@@ -30,7 +30,15 @@ const profileService = prisma ? new ProfileService(prisma as never) : null;
 const scoringService = prisma ? new ScoringService(prisma as never, profileService!) : null;
 const curationService = prisma ? new CurationService(prisma as never, new FeedbackInvitationService(), new CuratorAuditService(prisma as never), new EmailService()) : null;
 const learningService = prisma ? new FeedbackLearningService(prisma as never, profileService!, new EvidenceFactory()) : null;
-const tokenService = prisma ? new FeedbackTokenService(prisma as never, new FeedbackInvitationService(), new FeedbackContextResolver(), learningService!) : null;
+const tokenService = prisma
+  ? new FeedbackTokenService(
+      prisma as never,
+      new FeedbackInvitationService(),
+      new FeedbackContextResolver(),
+      learningService!,
+      { notifyNewReader: async () => undefined, notifyNewFeedback: async () => undefined } as never,
+    )
+  : null;
 
 const REQUIRED_FICTION_FEATURES = [
   'hook_speed', 'narrative_pace', 'slow_burn_level', 'narrative_payoff', 'style_clarity',
