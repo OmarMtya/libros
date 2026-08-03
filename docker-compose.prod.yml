@@ -1,0 +1,17 @@
+# Producción: solo la API (frontend vive en Firebase Hosting, la BD en Supabase).
+# En el VPS se despliega con docker run (--env-file /opt/libros-api/.env -p 3002:3000),
+# este compose documenta la configuración equivalente.
+services:
+  api:
+    image: ghcr.io/omarmtya/libros/api:latest
+    container_name: libros-api
+    restart: unless-stopped
+    env_file: .env.prod
+    ports:
+      - "3002:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/v1/packages').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s

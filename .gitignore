@@ -4,3 +4,4 @@ dist/
 coverage/
 .slim/deepwork/
 .aspire/
+.firebase/

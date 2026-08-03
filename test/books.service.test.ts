@@ -74,6 +74,7 @@ describe('BooksService', () => {
       publicationYear: 2016,
       isbn: '9788408163435',
       coverUrl: 'https://covers.openlibrary.org/b/id/15156378-M.jpg',
+      coverId: 15156378,
     });
     expect(fetchMock.mock.calls[0]![0]!).toBe('https://openlibrary.org/books/OL37070014M.json');
   });

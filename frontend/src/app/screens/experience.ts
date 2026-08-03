@@ -5,7 +5,7 @@ import { ApiService, orderFeedbackDone, orderIsActive, ProductPackage, UserOrder
 import { AuthService } from '../auth.service';
 import { OrderTimeline } from '../components/order-timeline';
 
-const PAYMENT_LINK = 'https://buy.stripe.com/test_28E14ndpyfG1eixeTjenS00';
+const PAYMENT_LINK = 'https://buy.stripe.com/28E14ndpyfG1eixeTjenS00';
 
 const PACKAGE_MEDIA = {
   label: 'Libro físico',

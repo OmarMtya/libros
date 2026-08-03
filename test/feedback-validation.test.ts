@@ -6,6 +6,7 @@ function basePayload(overrides: Partial<Parameters<typeof validateFeedbackPayloa
     started: true,
     readingStatus: 'completed' as const,
     completionPercentage: 100,
+    selectionFitRating: 4,
     ...overrides,
   };
 }

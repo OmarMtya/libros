@@ -1,0 +1,52 @@
+name: CI/CD — Web (Firebase Hosting)
+
+concurrency:
+  group: web-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'firebase.json'
+      - '.firebaserc'
+      - '.github/workflows/deploy-web.yml'
+
+jobs:
+  deploy-web:
+    name: Build y deploy a Firebase Hosting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Config de producción (runtime-config.js)
+        run: |
+          cat > frontend/public/runtime-config.js <<'EOF'
+          // Config de producción — generada por CI/CD
+          window.LIBROS_CONFIG = {
+            apiUrl: 'https://api.milibrosorpresa.com/v1',
+            supabaseUrl: 'https://yukgwouhyahhvylxycim.supabase.co',
+            supabasePublishableKey: 'sb_publishable_Hz2woNNa3dM6rSY-HV1XJA_J5UK6p9i',
+          };
+          EOF
+
+      - name: Install + Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy to Firebase Hosting
+        run: firebase deploy --only hosting --project milibrosorpresa --token ${{ secrets.FIREBASE_TOKEN }}
