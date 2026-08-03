@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { SessionStore } from '../session-store';
 
 @Component({
@@ -7,8 +7,8 @@ import { SessionStore } from '../session-store';
   imports: [RouterLink, RouterLinkActive],
   template: `
     <header class="mx-auto flex max-w-6xl items-center justify-between border-b border-[#cad7df] px-4 py-4 sm:px-6">
-      <a routerLink="/app" class="font-mono text-[0.82rem] font-medium tracking-[0.08em] text-ink no-underline" aria-label="Libro sorpresa, inicio">
-        LIBRO <span class="bg-coral px-1 py-0.5 text-white">SORPRESA</span>
+      <a routerLink="/app" class="font-mono text-[0.82rem] font-medium tracking-[0.08em] text-ink no-underline" aria-label="Mi Libro Sorpresa, inicio">
+        MI LIBRO <span class="bg-coral px-1 py-0.5 text-white">SORPRESA</span>
       </a>
 
       @if (store.authenticated()) {
@@ -44,12 +44,14 @@ import { SessionStore } from '../session-store';
 })
 export class Header {
   readonly store = inject(SessionStore);
+  private readonly router = inject(Router);
   readonly busy = signal(false);
 
   async signOut(): Promise<void> {
     this.busy.set(true);
     try {
       await this.store.signOut();
+      await this.router.navigate(['/']);
     } finally {
       this.busy.set(false);
     }

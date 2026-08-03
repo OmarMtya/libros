@@ -80,7 +80,6 @@ enum UserRole {
 
 enum ProductPackageKey {
   libro_sorpresa_fisico
-  libro_sorpresa_completo
 }
 
 enum RecommendationStatus {

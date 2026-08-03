@@ -29,7 +29,7 @@ const TRUST_LINE = ['Libro físico', 'Pago único', 'Sin suscripción', 'Envío 
       <div class="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col justify-center gap-10 px-4 py-12 sm:px-6 lg:flex-row lg:items-center lg:gap-16">
         <section class="max-w-xl lg:flex-1">
           <a routerLink="/" class="inline-flex items-center gap-2 font-display text-2xl font-extrabold tracking-[-0.03em] text-white no-underline">
-            Libro <span class="relative inline-block isolate">Sorpresa</span>
+            Mi libro <span class="bg-coral px-1 py-0.5 text-white">Sorpresa</span>
           </a>
 
           <p class="mb-5 mt-10 font-mono text-xs uppercase tracking-[0.12em] text-marker">Tu próxima historia empieza aquí</p>
@@ -147,6 +147,22 @@ const TRUST_LINE = ['Libro físico', 'Pago único', 'Sin suscripción', 'Envío 
                 </p>
               }
 
+              @if (mode() === 'register') {
+                <label class="flex items-start gap-2.5 text-sm leading-relaxed text-[#536875]">
+                  <input
+                    type="checkbox"
+                    name="acceptedTerms"
+                    [(ngModel)]="acceptedTerms"
+                    class="mt-0.5 h-4 w-4 shrink-0 accent-coral-deep">
+                  <span>
+                    He leído y acepto los
+                    <a routerLink="/terminos-y-condiciones" class="font-semibold text-ink underline underline-offset-2 hover:text-coral">Términos y Condiciones</a>
+                    y el
+                    <a routerLink="/aviso-de-privacidad" class="font-semibold text-ink underline underline-offset-2 hover:text-coral">Aviso de Privacidad</a>.
+                  </span>
+                </label>
+              }
+
               @if (!auth.configured) {
                 <p class="rounded-sm border-l-[3px] border-marker bg-[#fff7e6] px-3 py-2 text-sm text-[#6b5310]">
                   El acceso se habilitará al conectar el proyecto de Supabase.
@@ -195,7 +211,7 @@ const TRUST_LINE = ['Libro físico', 'Pago único', 'Sin suscripción', 'Envío 
           </div>
 
           <p class="mt-5 text-center font-mono text-[11px] uppercase tracking-[0.08em] text-mist/80">
-            Libro Sorpresa — Elegimos historias pensando en quien las va a leer.
+            Mi libro Sorpresa — Elegimos historias pensando en quien las va a leer.
           </p>
         </section>
       </div>
@@ -238,11 +254,13 @@ export class Login {
   name = '';
   email = '';
   password = '';
+  acceptedTerms = false;
 
   switchMode(mode: 'login' | 'register'): void {
     this.mode.set(mode);
     this.error.set(null);
     this.info.set(null);
+    this.acceptedTerms = false;
   }
 
   async submit(): Promise<void> {
@@ -260,6 +278,10 @@ export class Login {
       }
       if (password.length < 6) {
         this.error.set('La contraseña debe tener al menos 6 caracteres.');
+        return;
+      }
+      if (!this.acceptedTerms) {
+        this.error.set('Para crear tu cuenta, acepta los Términos y Condiciones y el Aviso de Privacidad.');
         return;
       }
     }

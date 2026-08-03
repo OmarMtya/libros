@@ -118,7 +118,7 @@ export const QUESTIONS: QuestionSeed[] = [
   ] },
   { key: 'Q11_GENRES_THEMES', text: 'Elige géneros, temas o ambientaciones.', type: 'structured', required: true, order: 12 },
   { key: 'Q12_LENGTH_SERIES', text: '¿Cuántas páginas prefieres y qué prefieres leer: libros autoconclusivos o sagas?', type: 'structured', required: true, order: 13 },
-  { key: 'Q13_FORMAT_LANGUAGE', text: '¿En qué idiomas y formatos quieres recibir recomendaciones?', type: 'structured', required: true, order: 14 },
+  { key: 'Q13_FORMAT_LANGUAGE', text: '¿En qué idiomas quieres recibir recomendaciones?', type: 'structured', required: true, order: 14 },
   { key: 'Q14_DISCOVERY_APPETITE', text: '¿Qué tanto quieres alejarnos de lo que ya sabes que te gusta?', type: 'scale', required: true, order: 15, options: [{ key: 'scale', label: 'Escala 1 a 5', mappings: scale('discovery_appetite', 'q14_discovery_appetite') }] },
   { key: 'Q15_ADDITIONAL_COMMENTS', text: '¿Hay algo más que debamos considerar al elegir tu libro?', type: 'structured', required: false, order: 16, validation: { maxLength: 2000 } },
 ];

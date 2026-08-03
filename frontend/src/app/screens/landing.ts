@@ -87,9 +87,10 @@ const FAQS = [
 ];
 
 const FOOTER_LINKS = [
-  { href: '#', label: 'Aviso de privacidad' },
-  { href: '#', label: 'Términos y condiciones' },
-  { href: '#', label: 'Contacto' },
+  { route: '/terminos-y-condiciones', label: 'Términos y condiciones' },
+  { route: '/aviso-de-privacidad', label: 'Aviso de privacidad' },
+  { route: '/eliminacion-de-cuenta-y-datos', label: 'Eliminación de cuenta y datos' },
+  { route: '/contacto', label: 'Contacto' },
 ];
 
 @Directive({
@@ -144,7 +145,7 @@ export class Reveal {
             href="#inicio"
             class="font-display text-xl font-extrabold tracking-[-0.03em] text-ink no-underline"
             aria-label="Mi Libro Sorpresa, inicio">
-            Mi Libro <span class="relative inline-block isolate">Sorpresa</span>
+            Mi Libro <span class="bg-coral px-1 py-0.5 text-white">Sorpresa</span>
           </a>
         </nav>
       </header>
@@ -425,7 +426,7 @@ export class Reveal {
           <div class="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
             <div>
               <p class="font-display text-2xl font-extrabold tracking-[-0.03em] text-white">
-                Mi Libro <span class="text-marker">Sorpresa</span>
+                Mi Libro <span class="bg-coral px-1 py-0.5 text-white">Sorpresa</span>
               </p>
               <p class="mt-3 max-w-xs text-sm leading-relaxed text-[#c6d3de]">
                 Libros elegidos con datos, criterio y cuidado.
@@ -436,8 +437,7 @@ export class Reveal {
                 @for (link of FOOTER_LINKS; track link.label) {
                   <li>
                     <a
-                      href="{{ link.href }}"
-                      (click)="$event.preventDefault()"
+                      [routerLink]="link.route"
                       class="text-sm text-[#c6d3de] no-underline transition hover:text-white">
                       {{ link.label }}
                     </a>

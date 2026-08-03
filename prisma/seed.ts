@@ -51,8 +51,7 @@ async function main() {
   await upsertTags(prisma);
 
   const packages = [
-    { key: ProductPackageKey.libro_sorpresa_fisico, name: 'Libro sorpresa', description: 'Libro físico elegido para ti.', priceCents: 49900, includedFormats: ['physical'] },
-    { key: ProductPackageKey.libro_sorpresa_completo, name: 'Experiencia completa', description: 'Libro físico, ebook y audiolibro cuando estén disponibles.', priceCents: 79900, includedFormats: ['physical', 'ebook', 'audiobook'] },
+    { key: ProductPackageKey.libro_sorpresa_fisico, name: 'Mi libro Sorpresa', description: 'Libro físico elegido para ti.', priceCents: 49900, includedFormats: ['physical'] },
   ];
   for (const productPackage of packages) {
     await prisma.productPackage.upsert({

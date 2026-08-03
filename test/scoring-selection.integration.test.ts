@@ -5,6 +5,7 @@ import { CatalogService } from '../src/books/catalog.service';
 import { BooksService } from '../src/books/books.service';
 import { CurationService } from '../src/curation/curation.service';
 import { CuratorAuditService } from '../src/curation/curator-audit.service';
+import { EmailService } from '../src/email/email.service';
 import { FeedbackInvitationService } from '../src/feedback/feedback-invitation.service';
 import { ProfileService } from '../src/profile/profile.service';
 import { ScoringService } from '../src/scoring/scoring.service';
@@ -22,7 +23,7 @@ const prisma = url ? new PrismaClient({ datasources: { db: { url } } }) : null;
 const catalogService = prisma ? new CatalogService(prisma as never, new BooksService()) : null;
 const profileService = prisma ? new ProfileService(prisma as never) : null;
 const scoringService = prisma ? new ScoringService(prisma as never, profileService!) : null;
-const curationService = prisma ? new CurationService(prisma as never, new FeedbackInvitationService(), new CuratorAuditService(prisma as never)) : null;
+const curationService = prisma ? new CurationService(prisma as never, new FeedbackInvitationService(), new CuratorAuditService(prisma as never), new EmailService()) : null;
 
 const REQUIRED_FICTION_FEATURES = [
   'hook_speed', 'narrative_pace', 'slow_burn_level', 'narrative_payoff', 'style_clarity',

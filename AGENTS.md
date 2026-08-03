@@ -4,9 +4,9 @@ Información del proyecto y reglas de trabajo para agentes que operen en este re
 
 ## Visión general
 
-Aplicación "Libro sorpresa": sistema de perfilado lector que selecciona libros sorpresa de forma
+Aplicación "Mi Libro Sorpresa": sistema de perfilado lector que selecciona libros sorpresa de forma
 consistente durante un MVP. El lector responde un cuestionario, se construye un perfil y se le
-asigna un libro físico (y en el paquete completo, también ebook y audiolibro generado por IA).
+asigna un libro físico.
 
 ## Reglas de trabajo
 
@@ -64,8 +64,7 @@ docker exec -e "PGPASSWORD=<password del contenedor>" postgres-<id> psql -U post
 
 El paquete de producto se siembra en `prisma/seed.ts` y se sirve desde `GET /v1/packages`:
 
-- `libro_sorpresa_fisico` → "Libro sorpresa" (solo físico). "Experiencia completa"
-  (`libro_sorpresa_completo`) ya no se ofrece.
+- `libro_sorpresa_fisico` → "Mi libro Sorpresa" (solo físico). Es el único paquete que se ofrece.
 
 Las fotografías de la tarjeta viven en `frontend/src/app/screens/experience.ts`
 (imagen libre de Pexels). Al cambiar la descripción del paquete hay que actualizar tanto
@@ -139,3 +138,14 @@ Las fotografías de la tarjeta viven en `frontend/src/app/screens/experience.ts`
   ```
 - Si `libros_test` se queda atrás en migraciones, actualizarla (sin tocar la de desarrollo):
   `$env:DATABASE_URL='postgresql://...@localhost:52612/libros_test'; npx prisma migrate deploy; npx prisma db seed`.
+
+<!-- CODEGRAPH_START -->
+## CodeGraph
+
+In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the repo root), reach for it BEFORE grep/find or reading files when you need to understand or locate code:
+
+- **MCP tool** (when available): `codegraph_explore` answers most code questions in one call — the relevant symbols' verbatim source plus the call paths between them, including dynamic-dispatch hops grep can't follow. Name a file or symbol in the query to read its current line-numbered source. If it's listed but deferred, load it by name via tool search.
+- **Shell** (always works): `codegraph explore "<symbol names or question>"` prints the same output.
+
+If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is the user's decision.
+<!-- CODEGRAPH_END -->

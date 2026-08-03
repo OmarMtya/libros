@@ -1,5 +1,6 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { FulfillmentStatus, Prisma } from '@prisma/client';
+import { EmailService } from '../email/email.service';
 import { FeedbackInvitationService } from '../feedback/feedback-invitation.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AssignDto, ReplaceDto } from './curation.dto';
@@ -9,10 +10,13 @@ const LOGISTIC_FROZEN = new Set(['shipped', 'in_delivery', 'delivered', 'cancele
 
 @Injectable()
 export class CurationService {
+  private readonly logger = new Logger(CurationService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly invitations: FeedbackInvitationService,
     private readonly audit: CuratorAuditService,
+    private readonly email: EmailService,
   ) {}
 
   async listFulfillments(status?: string) {
@@ -114,7 +118,7 @@ export class CurationService {
   }
 
   async ship(assignmentId: string) {
-    return this.prisma.$transaction(async (tx) => {
+    const created = await this.prisma.$transaction(async (tx) => {
       const assignment = await tx.curationAssignment.findUnique({
         where: { id: assignmentId },
         include: { fulfillment: { select: { id: true, status: true } }, classification: { select: { status: true, bookEditionId: true } } },
@@ -138,6 +142,8 @@ export class CurationService {
       });
       return created;
     });
+    await this.sendShippedEmail(assignmentId);
+    return created;
   }
 
   async startDelivery(assignmentId: string) {
@@ -162,7 +168,7 @@ export class CurationService {
   }
 
   async delivered(assignmentId: string) {
-    return this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.$transaction(async (tx) => {
       const assignment = await tx.curationAssignment.findUnique({
         where: { id: assignmentId },
         include: { fulfillment: { select: { id: true, status: true } } },
@@ -180,6 +186,116 @@ export class CurationService {
       });
       return updated;
     });
+    await this.sendDeliveredEmail(assignmentId);
+    return updated;
+  }
+
+  private trackUrl(): string {
+    const appUrl = process.env.APP_URL ?? 'http://localhost:4200';
+    return `${appUrl.replace(/\/$/, '')}/app/mi-paquete`;
+  }
+
+  private async sendShippedEmail(assignmentId: string): Promise<void> {
+    try {
+      const assignment = await this.prisma.curationAssignment.findUnique({
+        where: { id: assignmentId },
+        select: {
+          fulfillment: {
+            select: {
+              trackingNumber: true,
+              order: {
+                select: {
+                  packageName: true,
+                  user: { select: { email: true, displayName: true } },
+                },
+              },
+            },
+          },
+        },
+      });
+      const email = assignment?.fulfillment.order.user.email;
+      if (!email) return;
+      const firstName = assignment.fulfillment.order.user.displayName?.split(' ')[0] || email.split('@')[0] || 'Lector';
+      await this.email.send(
+        'shipped',
+        email,
+        {
+          firstName,
+          packageName: assignment.fulfillment.order.packageName,
+          trackingNumber: assignment.fulfillment.trackingNumber,
+          trackUrl: this.trackUrl(),
+        },
+        `libros/order-shipped/${assignmentId}`,
+      );
+    } catch (error) {
+      this.logger.error('No se pudo enviar el correo de envío:', error instanceof Error ? error.stack : error);
+    }
+  }
+
+  private async sendDeliveredEmail(assignmentId: string): Promise<void> {
+    try {
+      const assignment = await this.prisma.curationAssignment.findUnique({
+        where: { id: assignmentId },
+        select: {
+          edition: {
+            select: {
+              title: true,
+              book: {
+                select: {
+                  canonicalTitle: true,
+                  openLibraryCoverId: true,
+                  authors: {
+                    select: { author: { select: { canonicalName: true } } },
+                    orderBy: { position: 'asc' },
+                  },
+                },
+              },
+            },
+          },
+          fulfillment: {
+            select: {
+              bookTitle: true,
+              bookAuthor: true,
+              coverUrl: true,
+              order: { select: { user: { select: { email: true, displayName: true } } } },
+            },
+          },
+        },
+      });
+      if (!assignment) return;
+      const email = assignment.fulfillment.order.user.email;
+      if (!email) return;
+
+      const invitation = await this.prisma.feedbackInvitation.findFirst({
+        where: { curationAssignmentId: assignmentId, status: 'pending' },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true },
+      });
+      if (!invitation) return;
+      const feedbackUrl = this.invitations.urlFor(this.invitations.generateToken(invitation.id));
+
+      const book = assignment.edition?.book;
+      const bookTitle = assignment.fulfillment.bookTitle ?? book?.canonicalTitle ?? assignment.edition?.title ?? null;
+      const coverUrl = assignment.fulfillment.coverUrl
+        ?? (book?.openLibraryCoverId != null ? `https://covers.openlibrary.org/b/id/${book.openLibraryCoverId}-L.jpg` : null);
+      const author = assignment.fulfillment.bookAuthor
+        ?? (book?.authors.length ? book.authors.map(({ author: item }) => item.canonicalName).join(', ') : null);
+
+      const firstName = assignment.fulfillment.order.user.displayName?.split(' ')[0] || email.split('@')[0] || 'Lector';
+      await this.email.send(
+        'delivered',
+        email,
+        {
+          firstName,
+          book: bookTitle ? { title: bookTitle, author, coverUrl } : null,
+          feedbackUrl,
+          trackUrl: this.trackUrl(),
+        },
+        `libros/order-delivered/${assignmentId}`,
+      );
+    } catch (error) {
+      this.logger.error('No se pudo enviar el correo de entrega:', error instanceof Error ? error.stack : error);
+    }
   }
 
   async unpack(assignmentId: string) {

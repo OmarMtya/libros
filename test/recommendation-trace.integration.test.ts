@@ -5,6 +5,7 @@ import { BooksService } from '../src/books/books.service';
 import { CatalogService } from '../src/books/catalog.service';
 import { CurationService } from '../src/curation/curation.service';
 import { CuratorAuditService } from '../src/curation/curator-audit.service';
+import { EmailService } from '../src/email/email.service';
 import { FeedbackContextResolver } from '../src/feedback/feedback-context.resolver';
 import { FeedbackInvitationService } from '../src/feedback/feedback-invitation.service';
 import { FeedbackLearningService } from '../src/feedback/feedback-learning.service';
@@ -27,7 +28,7 @@ const prisma = url ? new PrismaClient({ datasources: { db: { url } } }) : null;
 const catalogService = prisma ? new CatalogService(prisma as never, new BooksService()) : null;
 const profileService = prisma ? new ProfileService(prisma as never) : null;
 const scoringService = prisma ? new ScoringService(prisma as never, profileService!) : null;
-const curationService = prisma ? new CurationService(prisma as never, new FeedbackInvitationService(), new CuratorAuditService(prisma as never)) : null;
+const curationService = prisma ? new CurationService(prisma as never, new FeedbackInvitationService(), new CuratorAuditService(prisma as never), new EmailService()) : null;
 const learningService = prisma ? new FeedbackLearningService(prisma as never, profileService!, new EvidenceFactory()) : null;
 const tokenService = prisma ? new FeedbackTokenService(prisma as never, new FeedbackInvitationService(), new FeedbackContextResolver(), learningService!) : null;
 

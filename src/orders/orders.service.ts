@@ -1,16 +1,19 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { FulfillmentStatus, OrderStatus, PaymentProvider, PaymentStatus, Prisma, ProductPackageKey } from '@prisma/client';
 import Stripe from 'stripe';
+import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 const PAYMENT_LINK_PREFIXES: Array<{ prefix: string; packageKey: ProductPackageKey }> = [
   { prefix: 'libro_sorpresa_fisico-', packageKey: 'libro_sorpresa_fisico' },
-  { prefix: 'libro_sorpresa_completo-', packageKey: 'libro_sorpresa_completo' },
 ];
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly email: EmailService,
+  ) {}
 
   async listPackages() {
     return this.prisma.productPackage.findMany({
@@ -125,7 +128,7 @@ export class OrdersService {
   async processStripeEvent(event: Stripe.Event) {
     const session = event.data.object as Stripe.Checkout.Session;
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      const result = await this.prisma.$transaction(async (tx) => {
         await tx.paymentEvent.create({
           data: {
             providerEventId: event.id,
@@ -174,12 +177,68 @@ export class OrdersService {
         });
         await tx.paymentEvent.update({ where: { providerEventId: event.id }, data: { paymentId: payment.id } });
         await tx.fulfillment.create({ data: { orderId: order.id } });
-        return { received: true, processed: true };
+        return {
+          received: true,
+          processed: true,
+          confirmation: user.email
+            ? {
+                to: user.email,
+                displayName: user.displayName,
+                orderId: order.id,
+                packageName: product.name,
+                totalCents: order.totalCents,
+                currency,
+                address: shipping ? this.formatAddress(shipping) : null,
+              }
+            : null,
+        };
       });
+
+      if (result.processed && result.confirmation) await this.sendOrderConfirmation(result.confirmation);
+      const { confirmation: _confirmation, ...response } = result;
+      return response;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return { received: true, duplicate: true };
       throw error;
     }
+  }
+
+  private async sendOrderConfirmation(info: {
+    to: string;
+    displayName: string | null;
+    orderId: string;
+    packageName: string;
+    totalCents: number;
+    currency: string;
+    address: string | null;
+  }): Promise<void> {
+    const firstName = info.displayName?.split(' ')[0] || info.to.split('@')[0] || 'Lector';
+    const orderRef = `LS-${info.orderId.slice(0, 8).toUpperCase()}`;
+    const total = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(info.totalCents / 100);
+    await this.email.send(
+      'order-confirmation',
+      info.to,
+      {
+        firstName,
+        packageName: info.packageName,
+        orderRef,
+        totalLabel: `$${total} ${info.currency}`,
+        address: info.address,
+        trackUrl: this.trackUrl(),
+      },
+      `libros/order-confirmed/${info.orderId}`,
+    );
+  }
+
+  private trackUrl(): string {
+    const appUrl = process.env.APP_URL ?? 'http://localhost:4200';
+    return `${appUrl.replace(/\/$/, '')}/app/mi-paquete`;
+  }
+
+  private formatAddress(address: { recipientName: string; street: string; interiorNumber?: string | null; city: string; state: string; postalCode: string }): string {
+    const streetLine = [address.street, address.interiorNumber].filter(Boolean).join(' ');
+    const cityLine = [address.city, address.state, address.postalCode].filter(Boolean).join(', ');
+    return [address.recipientName, streetLine, cityLine].filter(Boolean).join(' · ');
   }
 
   private parseClientReference(reference: string | null) {

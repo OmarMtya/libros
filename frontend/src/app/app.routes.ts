@@ -14,5 +14,9 @@ export const routes: Routes = [
   { path: 'app/admin', loadComponent: () => import('./screens/admin').then((m) => m.AdminScreen), canActivate: [authGuard, adminGuard] },
   { path: 'app/admin/clasificacion/:id', loadComponent: () => import('./screens/classification-editor').then((m) => m.ClassificationEditorScreen), canActivate: [authGuard, adminGuard] },
   { path: 'feedback/:token', loadComponent: () => import('./screens/feedback-token').then((m) => m.FeedbackToken) },
+  { path: 'terminos-y-condiciones', loadComponent: () => import('./screens/terminos').then((m) => m.Terminos) },
+  { path: 'aviso-de-privacidad', loadComponent: () => import('./screens/aviso-privacidad').then((m) => m.AvisoPrivacidad) },
+  { path: 'eliminacion-de-cuenta-y-datos', loadComponent: () => import('./screens/eliminacion').then((m) => m.Eliminacion) },
+  { path: 'contacto', loadComponent: () => import('./screens/contacto').then((m) => m.Contacto) },
   { path: '**', redirectTo: '' },
 ];
