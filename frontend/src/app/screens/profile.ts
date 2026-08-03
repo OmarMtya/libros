@@ -184,7 +184,7 @@ export class ProfileScreen {
         }),
         this.api.listOrders(),
       ]);
-      if (!profile) {
+      if (!profile || !(profile.questionnaireSessions ?? []).some((session) => session.status === 'completed')) {
         await this.router.navigate(['/app/cuestionario']);
         return;
       }
