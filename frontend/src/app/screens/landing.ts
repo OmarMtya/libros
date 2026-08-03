@@ -136,7 +136,7 @@ export class Reveal {
     `,
   ],
   template: `
-    <div class="min-h-screen overflow-x-hidden bg-paper pb-24 text-graphite md:pb-0">
+    <div class="min-h-screen overflow-x-hidden bg-paper text-graphite">
       <header class="sticky top-0 z-40 border-b border-[#cad7df] bg-paper/95 backdrop-blur">
         <nav
           class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6"
@@ -452,12 +452,6 @@ export class Reveal {
           </div>
         </div>
       </footer>
-
-      <div class="fixed inset-x-0 bottom-0 z-40 border-t border-[#cad7df] bg-white/95 px-4 py-3 backdrop-blur md:hidden">
-        <a routerLink="/app" class="{{ btnPrimary }} w-full">
-          Crear mi perfil lector
-        </a>
-      </div>
     </div>
   `,
 })
