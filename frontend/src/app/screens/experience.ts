@@ -4,8 +4,9 @@ import { Router } from '@angular/router';
 import { ApiService, orderFeedbackDone, orderIsActive, ProductPackage, UserOrder } from '../api.service';
 import { AuthService } from '../auth.service';
 import { OrderTimeline } from '../components/order-timeline';
+import { environment } from '../../environments/environment';
 
-const PAYMENT_LINK = 'https://buy.stripe.com/28E14ndpyfG1eixeTjenS00';
+const PAYMENT_LINK = environment.paymentLink;
 
 const PACKAGE_MEDIA = {
   label: 'Libro físico',

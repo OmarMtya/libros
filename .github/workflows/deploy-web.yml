@@ -28,17 +28,6 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Config de producción (runtime-config.js)
-        run: |
-          cat > frontend/public/runtime-config.js <<'EOF'
-          // Config de producción — generada por CI/CD
-          window.LIBROS_CONFIG = {
-            apiUrl: 'https://api.milibrosorpresa.com/v1',
-            supabaseUrl: 'https://yukgwouhyahhvylxycim.supabase.co',
-            supabasePublishableKey: 'sb_publishable_Hz2woNNa3dM6rSY-HV1XJA_J5UK6p9i',
-          };
-          EOF
-
       - name: Install + Build frontend
         working-directory: frontend
         run: |

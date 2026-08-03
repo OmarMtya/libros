@@ -73,13 +73,18 @@ Las fotografías de la tarjeta viven en `frontend/src/app/screens/experience.ts`
 ## Pagos con Stripe (importante)
 
 - El flujo usa **Payment Links** (sin código de sesión de checkout). El botón "Ir al pago seguro"
-  redirige directo al link en `frontend/src/app/screens/experience.ts` (`PAYMENT_LINK`),
+  redirige directo al link definido en los environments de Angular
+  (`frontend/src/app/screens/experience.ts` usa `environment.paymentLink`),
   agregando `prefilled_email` y `client_reference_id=<packageKey>-<userId>`.
+- **Config por environment** (`frontend/src/environments/`): `environment.ts` es desarrollo
+  (`ng serve`, `ng build --configuration development`) y `environment.prod.ts` se usa con el build de
+  producción (`ng build`, `--configuration production`) vía `fileReplacements` en `angular.json`.
+  Incluyen `apiUrl`, `supabaseUrl`, `supabasePublishableKey` y `paymentLink`.
 - **Detectar modo test vs producción:** la URL de un payment link en modo prueba contiene
   `/test_` (ej. `https://buy.stripe.com/test_28E14...`); sin `/test_` es producción.
-  - Test: `https://buy.stripe.com/test_28E14ndpyfG1eixeTjenS00`
-  - Producción: `https://buy.stripe.com/28E14ndpyfG1eixeTjenS00` (el de "experiencia completa"
-    ya no se usa).
+  - Test (`environment.ts`): `https://buy.stripe.com/test_28E14ndpyfG1eixeTjenS00`
+  - Producción (`environment.prod.ts`): `https://buy.stripe.com/28E14ndpyfG1eixeTjenS00`
+    (el de "experiencia completa" ya no se usa).
 - El webhook lo reenvía localmente `stripe listen --forward-to http://localhost:3000/v1/webhooks/stripe`
   (modo **test** por defecto). El `STRIPE_WEBHOOK_SECRET` del `.env` es el `whsec_...` que imprime
   `stripe listen`; los eventos en modo test se prueban con la tarjeta `4242 4242 4242 4242`.

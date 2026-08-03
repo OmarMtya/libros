@@ -3,6 +3,7 @@ import { HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from './auth.service';
+import { environment } from '../environments/environment';
 
 export type Question = {
   questionKey: string;
@@ -313,7 +314,7 @@ export type SaveClassificationResult = {
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly auth = inject(AuthService);
-  private readonly baseUrl = window.LIBROS_CONFIG?.apiUrl ?? 'http://localhost:3000/v1';
+  private readonly baseUrl = environment.apiUrl;
 
   constructor(private readonly http: HttpClient) {}
 

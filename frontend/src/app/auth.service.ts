@@ -1,19 +1,14 @@
 import { Injectable, signal } from '@angular/core';
 import { Session, createClient } from '@supabase/supabase-js';
-
-type RuntimeConfig = { apiUrl?: string; supabaseUrl?: string; supabasePublishableKey?: string };
-
-declare global {
-  interface Window { LIBROS_CONFIG?: RuntimeConfig }
-}
+import { environment } from '../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   readonly session = signal<Session | null>(null);
   readonly ready = signal(false);
-  readonly configured = Boolean(window.LIBROS_CONFIG?.supabaseUrl && window.LIBROS_CONFIG?.supabasePublishableKey);
+  readonly configured = Boolean(environment.supabaseUrl && environment.supabasePublishableKey);
   private readonly client = this.configured
-    ? createClient(window.LIBROS_CONFIG!.supabaseUrl!, window.LIBROS_CONFIG!.supabasePublishableKey!)
+    ? createClient(environment.supabaseUrl!, environment.supabasePublishableKey!)
     : null;
   private readonly readyPromise = this.init();
 
