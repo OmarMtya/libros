@@ -177,9 +177,22 @@ export class OrdersService {
         });
         await tx.paymentEvent.update({ where: { providerEventId: event.id }, data: { paymentId: payment.id } });
         await tx.fulfillment.create({ data: { orderId: order.id } });
+        const orderInfo = {
+          orderId: order.id,
+          orderRef: `LS-${order.id.slice(0, 8).toUpperCase()}`,
+          customerName: user.displayName ?? user.email ?? 'Cliente',
+          customerEmail: user.email ?? '',
+          packageName: product.name,
+          subtotalCents: order.subtotalCents,
+          shippingCents: order.shippingCents,
+          totalCents: order.totalCents,
+          currency,
+          address: shipping ? this.formatAddress(shipping) : null,
+        };
         return {
           received: true,
           processed: true,
+          orderInfo,
           confirmation: user.email
             ? {
                 to: user.email,
@@ -195,7 +208,8 @@ export class OrdersService {
       });
 
       if (result.processed && result.confirmation) await this.sendOrderConfirmation(result.confirmation);
-      const { confirmation: _confirmation, ...response } = result;
+      if (result.processed && result.orderInfo) await this.notifyAdminsOfNewOrder(result.orderInfo);
+      const { confirmation: _confirmation, orderInfo: _orderInfo, ...response } = result;
       return response;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return { received: true, duplicate: true };
@@ -228,6 +242,47 @@ export class OrdersService {
       },
       `libros/order-confirmed/${info.orderId}`,
     );
+  }
+
+  private async notifyAdminsOfNewOrder(info: {
+    orderId: string;
+    orderRef: string;
+    customerName: string;
+    customerEmail: string;
+    packageName: string;
+    subtotalCents: number;
+    shippingCents: number;
+    totalCents: number;
+    currency: string;
+    address: string | null;
+  }): Promise<void> {
+    const admins = await this.prisma.user.findMany({
+      where: { role: 'admin', email: { not: null } },
+      select: { email: true, displayName: true },
+    });
+    if (admins.length === 0) return;
+    const formatAmount = (cents: number) =>
+      `$${new Intl.NumberFormat('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(cents / 100)} ${info.currency}`;
+    const adminUrl = `${(process.env.APP_URL ?? 'http://localhost:4200').replace(/\/$/, '')}/app/admin`;
+    for (const admin of admins) {
+      if (!admin.email) continue;
+      await this.email.send(
+        'admin-order-notification',
+        admin.email,
+        {
+          orderRef: info.orderRef,
+          customerName: info.customerName,
+          customerEmail: info.customerEmail,
+          packageName: info.packageName,
+          subtotalLabel: formatAmount(info.subtotalCents),
+          shippingLabel: formatAmount(info.shippingCents),
+          totalLabel: formatAmount(info.totalCents),
+          address: info.address,
+          adminUrl,
+        },
+        `libros/admin-order-notified/${info.orderId}/${admin.email}`,
+      );
+    }
   }
 
   private trackUrl(): string {

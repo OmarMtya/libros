@@ -89,6 +89,43 @@ describe('email templates', () => {
     expect(html).not.toContain('El libro que llegó');
   });
 
+  it('admin-order-notification incluye toda la información de la orden', () => {
+    const { subject, html } = renderEmail('admin-order-notification', {
+      orderRef: 'LS-ABC12345',
+      customerName: 'Ana Pérez',
+      customerEmail: 'ana@correo.com',
+      packageName: 'Mi libro Sorpresa',
+      subtotalLabel: '$499 MXN',
+      shippingLabel: '$0 MXN',
+      totalLabel: '$499 MXN',
+      address: 'Ana Pérez · Calle 1 · CDMX',
+      adminUrl: 'https://app.example.com/app/admin',
+    });
+    expect(subject).toContain('LS-ABC12345');
+    expect(subject).toContain('Ana Pérez');
+    expect(html).toContain('Nuevo pedido');
+    expect(html).toContain('ana@correo.com');
+    expect(html).toContain('$499 MXN');
+    expect(html).toContain('Ana Pérez · Calle 1 · CDMX');
+    expect(html).toContain('https://app.example.com/app/admin');
+    expect(html).toContain('Revisar en el panel');
+  });
+
+  it('admin-order-notification funciona sin dirección de envío', () => {
+    const { html } = renderEmail('admin-order-notification', {
+      orderRef: 'LS-ABC12345',
+      customerName: 'Ana Pérez',
+      customerEmail: 'ana@correo.com',
+      packageName: 'Mi libro Sorpresa',
+      subtotalLabel: '$499 MXN',
+      shippingLabel: '$0 MXN',
+      totalLabel: '$499 MXN',
+      adminUrl: 'https://app.example.com/app/admin',
+    });
+    expect(html).toContain('Revisar en el panel');
+    expect(html).not.toContain('Envío a');
+  });
+
   it('escapa variables dinámicas para evitar inyección HTML', () => {
     const { html } = renderEmail('order-confirmation', {
       firstName: '<script>alert(1)</script>',
