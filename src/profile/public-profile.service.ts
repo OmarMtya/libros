@@ -40,28 +40,25 @@ export class PublicProfileService {
     });
     if (!profile) throw new NotFoundException('Perfil no encontrado.');
     const isOwner = viewerUserId != null && viewerUserId === profile.userId;
-    if (profile.user.questionnaireSessions.length === 0) {
-      if (isOwner) {
-        return {
-          notReady: true,
-          slug: profile.publicSlug,
-          displayName: profile.user.displayName,
-          avatarUrl: profile.user.avatarUrl,
-          isOwner: true,
-          aiDescription: null,
-          aiDescriptionStatus: 'none',
-          aiDescriptionGeneratedAt: null,
-          categories: { liked: [], curious: [], notInterested: [] },
-          constraints: null,
-          books: { enjoyed: [], notEnjoyed: [] },
-          currentlyReading: null,
-        };
-      }
-      throw new NotFoundException('Perfil no encontrado.');
-    }
-
-    const categories = await this.categories(profile.tagPreferences);
+    const notReady = profile.user.questionnaireSessions.length === 0;
     const [books, currentlyReading] = await Promise.all([this.books(profile.userId), this.currentlyReading(profile.userId)]);
+    if (notReady) {
+      return {
+        notReady: true,
+        slug: profile.publicSlug,
+        displayName: profile.user.displayName,
+        avatarUrl: profile.user.avatarUrl,
+        isOwner,
+        aiDescription: null,
+        aiDescriptionStatus: 'none',
+        aiDescriptionGeneratedAt: null,
+        categories: { liked: [], curious: [], notInterested: [] },
+        constraints: null,
+        books,
+        currentlyReading,
+      };
+    }
+    const categories = await this.categories(profile.tagPreferences);
     return {
       slug: profile.publicSlug,
       displayName: profile.user.displayName,

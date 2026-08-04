@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService, PublicProfile } from '../api.service';
 import { AuthService } from '../auth.service';
 import { BookCarousel } from '../components/book-carousel';
@@ -71,7 +71,17 @@ const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
               </div>
             </div>
 
-            @if (current.aiDescription?.trim()) {
+            @if (current.notReady) {
+              <div class="mt-6 rounded-sm border border-[#f0e0b0] bg-[#fff7e6] px-5 py-4">
+                <p class="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-[#6b5310]">Cuestionario pendiente</p>
+                @if (current.isOwner) {
+                  <p class="mt-2 text-sm text-[#6b5310]">Tu cuestionario está pendiente. Completa tus respuestas para que tu perfil muestre tus gustos.</p>
+                  <a routerLink="/app/cuestionario" class="mt-3 inline-block rounded-sm bg-coral px-4 py-2 text-xs font-bold text-white transition hover:bg-coral-deep">Completar cuestionario</a>
+                } @else {
+                  <p class="mt-2 text-sm text-[#6b5310]">Este lector aún no ha completado su cuestionario. Cuando lo haga, aquí verás sus gustos y preferencias.</p>
+                }
+              </div>
+            } @else if (current.aiDescription?.trim()) {
               <div class="mt-6 rounded-sm border border-[#cad7df] bg-[#f7fafc] px-5 py-4">
                 <p class="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-[#567088]">Cómo leo</p>
                 <p class="mt-2 text-sm leading-relaxed text-ink">{{ current.aiDescription }}</p>
@@ -118,7 +128,10 @@ const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
 
           <section class="rounded-sm border border-[#cad7df] bg-white p-6 sm:p-8">
             <h2 class="mb-3 text-sm font-bold uppercase tracking-wider text-ink">Categorías</h2>
-            <div class="space-y-3 text-sm">
+            @if (current.notReady) {
+              <p class="text-sm text-[#7d9ab0]">Sin responder aún. Se mostrarán al completar el cuestionario.</p>
+            } @else {
+              <div class="space-y-3 text-sm">
               <p><strong class="text-ink">Me gustan:</strong>
                 @for (tag of current.categories.liked; track tag.key) {
                   <span class="ml-2 my-1 inline-flex rounded-full bg-[#eef3f6] px-3 py-1 text-ink">{{ categoryLabel(tag) }}</span>
@@ -135,6 +148,7 @@ const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
                 } @empty { <span class="ml-2 text-[#7d9ab0]">Sin categorías declaradas.</span> }
               </p>
             </div>
+            }
 
             <h2 class="mb-2 mt-8 text-sm font-bold uppercase tracking-wider text-ink">Libros</h2>
             <div class="space-y-8">
@@ -178,7 +192,6 @@ const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
 export class PublicProfileScreen {
   private readonly api = inject(ApiService);
   private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
   private readonly dialog = inject(DialogService);
@@ -290,10 +303,6 @@ export class PublicProfileScreen {
         if (error && error.status === 404) return null;
         throw error;
       });
-      if (profile?.notReady && profile.isOwner) {
-        void this.router.navigate(['/app/cuestionario'], { queryParams: { from: 'perfil' } });
-        return;
-      }
       this.profile.set(profile);
     } catch (error) {
       this.toast.error(error instanceof Error ? error.message : 'No pudimos cargar el perfil.');
@@ -309,10 +318,6 @@ export class PublicProfileScreen {
       if (error && error.status === 404) return null;
       throw error;
     });
-    if (profile?.notReady && profile.isOwner) {
-      void this.router.navigate(['/app/cuestionario'], { queryParams: { from: 'perfil' } });
-      return;
-    }
     if (profile) this.profile.set(profile);
   }
 
