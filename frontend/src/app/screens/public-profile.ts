@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService, PublicProfile } from '../api.service';
 import { AuthService } from '../auth.service';
 import { BookCarousel } from '../components/book-carousel';
@@ -178,6 +178,7 @@ const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
 export class PublicProfileScreen {
   private readonly api = inject(ApiService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
   private readonly dialog = inject(DialogService);
@@ -289,6 +290,10 @@ export class PublicProfileScreen {
         if (error && error.status === 404) return null;
         throw error;
       });
+      if (profile?.notReady && profile.isOwner) {
+        void this.router.navigate(['/app/cuestionario'], { queryParams: { from: 'perfil' } });
+        return;
+      }
       this.profile.set(profile);
     } catch (error) {
       this.toast.error(error instanceof Error ? error.message : 'No pudimos cargar el perfil.');
@@ -304,6 +309,10 @@ export class PublicProfileScreen {
       if (error && error.status === 404) return null;
       throw error;
     });
+    if (profile?.notReady && profile.isOwner) {
+      void this.router.navigate(['/app/cuestionario'], { queryParams: { from: 'perfil' } });
+      return;
+    }
     if (profile) this.profile.set(profile);
   }
 

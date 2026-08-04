@@ -38,7 +38,25 @@ export class PublicProfileService {
         operationalConstraints: true,
       },
     });
-    if (!profile || profile.user.questionnaireSessions.length === 0) {
+    if (!profile) throw new NotFoundException('Perfil no encontrado.');
+    const isOwner = viewerUserId != null && viewerUserId === profile.userId;
+    if (profile.user.questionnaireSessions.length === 0) {
+      if (isOwner) {
+        return {
+          notReady: true,
+          slug: profile.publicSlug,
+          displayName: profile.user.displayName,
+          avatarUrl: profile.user.avatarUrl,
+          isOwner: true,
+          aiDescription: null,
+          aiDescriptionStatus: 'none',
+          aiDescriptionGeneratedAt: null,
+          categories: { liked: [], curious: [], notInterested: [] },
+          constraints: null,
+          books: { enjoyed: [], notEnjoyed: [] },
+          currentlyReading: null,
+        };
+      }
       throw new NotFoundException('Perfil no encontrado.');
     }
 
@@ -48,7 +66,7 @@ export class PublicProfileService {
       slug: profile.publicSlug,
       displayName: profile.user.displayName,
       avatarUrl: profile.user.avatarUrl,
-      isOwner: viewerUserId != null && viewerUserId === profile.userId,
+      isOwner,
       aiDescription: profile.aiDescription,
       aiDescriptionStatus: profile.aiDescriptionStatus,
       aiDescriptionGeneratedAt: profile.aiDescriptionGeneratedAt,

@@ -116,6 +116,7 @@ export type PublicProfileBook = {
 };
 export type PublicProfile = {
   slug: string;
+  notReady?: boolean;
   displayName: string | null;
   avatarUrl: string | null;
   isOwner: boolean;

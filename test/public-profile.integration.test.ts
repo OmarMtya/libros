@@ -91,8 +91,16 @@ run('public-profile (integration)', () => {
     await expect(publicService!.get('no-such-slug')).rejects.toThrow('Perfil no encontrado');
   });
 
-  it('rejects profiles without a completed questionnaire', async () => {
+  it('rejects profiles without a completed questionnaire for non-owners', async () => {
     const { profile } = await createReader(false);
     await expect(publicService!.get(profile.publicSlug!)).rejects.toThrow('Perfil no encontrado');
+  });
+
+  it('returns notReady for the owner without a completed questionnaire', async () => {
+    const { userId, profile } = await createReader(false);
+    const view = await publicService!.get(profile.publicSlug!, userId);
+    expect(view.notReady).toBe(true);
+    expect(view.isOwner).toBe(true);
+    expect(view.slug).toBe(profile.publicSlug);
   });
 });
