@@ -1,6 +1,8 @@
-import { Component, HostListener, inject, signal } from '@angular/core';
+import { Component, HostListener, inject, OnInit, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { SessionStore } from '../session-store';
+import { ApiService } from '../api.service';
+import { AuthService } from '../auth.service';
 
 @Component({
   selector: 'app-shell',
@@ -8,15 +10,15 @@ import { SessionStore } from '../session-store';
   template: `
     <div class="min-h-screen bg-paper">
       <aside class="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-[#cad7df] bg-white md:flex">
-        <a routerLink="/app/perfil" class="flex h-16 shrink-0 items-center border-b border-[#cad7df] px-5 font-mono text-[0.82rem] font-medium tracking-[0.08em] text-ink no-underline" aria-label="Mi Libro Sorpresa, inicio">
-          MI LIBRO <span class="bg-coral px-1 py-0.5 text-white">SORPRESA</span>
+        <a routerLink="/app/experiencia" class="flex h-16 shrink-0 items-center gap-2 border-b border-[#cad7df] px-5 font-mono text-[0.82rem] font-medium tracking-[0.08em] text-ink no-underline" aria-label="Mi Libro Sorpresa, inicio">
+          MI LIBRO<span class="bg-coral px-1 py-0.5 text-white">SORPRESA</span>
         </a>
 
         <nav class="flex-1 space-y-7 overflow-y-auto px-3 py-5" aria-label="Navegación principal">
           <div>
             <p class="mb-2 px-3 font-mono text-[10px] uppercase tracking-[0.08em] text-[#7d9ab0]">Mi cuenta</p>
             <ul class="space-y-1">
-              <li><a routerLink="/app/perfil" routerLinkActive="bg-[#fbe9e6] text-coral" class="block rounded-sm px-3 py-2 text-sm font-semibold text-ink no-underline transition hover:bg-[#eef3f6] hover:text-coral">Mi perfil</a></li>
+              <li><a [routerLink]="profileLink() ?? null" (click)="onProfileClick($event)" routerLinkActive="bg-[#fbe9e6] text-coral" class="block rounded-sm px-3 py-2 text-sm font-semibold text-ink no-underline transition hover:bg-[#eef3f6] hover:text-coral">Mi perfil</a></li>
               <li><a routerLink="/app/cuestionario" routerLinkActive="bg-[#fbe9e6] text-coral" class="block rounded-sm px-3 py-2 text-sm font-semibold text-ink no-underline transition hover:bg-[#eef3f6] hover:text-coral">Mi cuestionario</a></li>
               <li><a routerLink="/app/experiencia" routerLinkActive="bg-[#fbe9e6] text-coral" class="block rounded-sm px-3 py-2 text-sm font-semibold text-ink no-underline transition hover:bg-[#eef3f6] hover:text-coral">Mi experiencia</a></li>
               <li><a routerLink="/app/mi-paquete" routerLinkActive="bg-[#fbe9e6] text-coral" class="block rounded-sm px-3 py-2 text-sm font-semibold text-ink no-underline transition hover:bg-[#eef3f6] hover:text-coral">Mi paquete</a></li>
@@ -46,7 +48,7 @@ import { SessionStore } from '../session-store';
 
       <div class="md:pl-64">
         <header class="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-[#cad7df] bg-paper/95 px-4 backdrop-blur md:hidden">
-          <a routerLink="/app/perfil" class="font-mono text-[0.8rem] font-medium tracking-[0.08em] text-ink no-underline">
+          <a routerLink="/app/experiencia" class="font-mono text-[0.8rem] font-medium tracking-[0.08em] text-ink no-underline">
             MI LIBRO <span class="bg-coral px-1 py-0.5 text-white">SORPRESA</span>
           </a>
           <button
@@ -63,7 +65,7 @@ import { SessionStore } from '../session-store';
 
       <nav class="fixed inset-x-0 bottom-0 z-30 border-t border-[#cad7df] bg-white md:hidden" aria-label="Navegación móvil">
         <div class="flex">
-          <a routerLink="/app/perfil" routerLinkActive="text-coral" class="flex flex-1 flex-col items-center gap-1 py-2 text-[10px] font-bold text-[#52636f] no-underline">
+          <a [routerLink]="profileLink() ?? null" (click)="onProfileClick($event)" routerLinkActive="text-coral" class="flex flex-1 flex-col items-center gap-1 py-2 text-[10px] font-bold text-[#52636f] no-underline">
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
             Perfil
           </a>
@@ -99,11 +101,43 @@ import { SessionStore } from '../session-store';
     </div>
   `,
 })
-export class AppShell {
+export class AppShell implements OnInit {
   readonly store = inject(SessionStore);
   private readonly router = inject(Router);
+  private readonly api = inject(ApiService);
+  private readonly auth = inject(AuthService);
   readonly busy = signal(false);
   readonly moreOpen = signal(false);
+  readonly profileLink = signal<string[] | null>(null);
+
+  ngOnInit(): void {
+    void this.resolveProfileLink();
+  }
+
+  async onProfileClick(event: Event): Promise<void> {
+    if (this.profileLink()) return;
+    event.preventDefault();
+    const path = await this.resolveProfilePath();
+    const target = path ?? ['/app/cuestionario'];
+    this.profileLink.set(target);
+    void this.router.navigate(target);
+  }
+
+  private async resolveProfileLink(): Promise<void> {
+    const path = await this.resolveProfilePath();
+    if (path) this.profileLink.set(path);
+  }
+
+  private async resolveProfilePath(): Promise<string[] | null> {
+    try {
+      await this.auth.whenReady();
+      const profile = await this.api.getProfile();
+      if (profile?.publicSlug) return ['/app/perfil', profile.publicSlug];
+      return null;
+    } catch {
+      return null;
+    }
+  }
 
   @HostListener('window:resize')
   onResize(): void {

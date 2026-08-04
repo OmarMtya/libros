@@ -30,14 +30,19 @@ function mockService() {
   };
   const prisma = {
     $transaction: vi.fn().mockImplementation(async (callback: unknown) => (callback as (tx: TxRecord) => Promise<unknown>)(tx)),
+    readerProfile: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
   } as unknown as PrismaService;
   const profiles = {
     ensureProfile: vi.fn().mockResolvedValue({ id: 'profile-1', userId: 'user-1' }),
     recompute: vi.fn().mockResolvedValue({ profile: { id: 'profile-1' }, version: { version: 2 }, created: true }),
   } as unknown as ProfileService;
   const evidenceFactory = {} as unknown as EvidenceFactory;
-  const service = new QuestionnaireService(prisma, profiles, evidenceFactory, {} as never);
-  return { service, tx, profiles };
+  const descriptions = {
+    hasActiveFeedbackCycles: vi.fn().mockResolvedValue(false),
+    triggerGeneration: vi.fn().mockResolvedValue(undefined),
+  };
+  const service = new QuestionnaireService(prisma, profiles, evidenceFactory, {} as never, descriptions as never);
+  return { service, tx, profiles, descriptions };
 }
 
 describe('questionnaire reset', () => {
@@ -78,5 +83,23 @@ describe('questionnaire reset', () => {
       select: { id: true },
     });
     expect(tx.readerEvidence.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('invalidates the AI description and triggers regeneration when there are no active feedbacks', async () => {
+    const { service, descriptions } = mockService();
+
+    await service.reset('user-1');
+
+    expect(descriptions.hasActiveFeedbackCycles).toHaveBeenCalledWith('user-1');
+    expect(descriptions.triggerGeneration).toHaveBeenCalledWith('user-1');
+  });
+
+  it('defers regeneration (status pending) when there are active feedbacks', async () => {
+    const { service, descriptions } = mockService();
+    (descriptions.hasActiveFeedbackCycles as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+
+    await service.reset('user-1');
+
+    expect(descriptions.triggerGeneration).not.toHaveBeenCalled();
   });
 });

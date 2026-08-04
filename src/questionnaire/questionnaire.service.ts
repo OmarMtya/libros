@@ -7,6 +7,7 @@ import { aggregateDimension, evidenceFingerprint, round } from '../profile/profi
 import { buildPriorityVector, PRIORITY_VECTOR_MAPPING_VERSION, PRIORITY_VECTOR_NORMALIZATION_METHOD, PriorityFactor, PriorityVector } from '../scoring/priority-vector';
 import { deriveTagPreferences, tagEvidenceFingerprint } from '../feedback/feedback-tag-preferences';
 import { AdminNotificationsService } from '../email/admin-notifications.service';
+import { ProfileDescriptionService } from '../profile/profile-description.service';
 import { ProfileService } from '../profile/profile.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -20,6 +21,7 @@ export class QuestionnaireService {
     private readonly profiles: ProfileService,
     private readonly evidenceFactory: EvidenceFactory,
     private readonly adminNotifications: AdminNotificationsService,
+    private readonly descriptions: ProfileDescriptionService,
   ) {}
 
   async reset(userId: string) {
@@ -40,7 +42,17 @@ export class QuestionnaireService {
         await tx.readerEvidence.updateMany({ where: { id: { in: ids } }, data: { status: 'rejected', deactivatedAt: new Date() } });
       }
     });
+    await this.invalidateAiDescription(userId);
     return this.profiles.recompute(userId, 'questionnaire_reset');
+  }
+
+  async invalidateAiDescription(userId: string): Promise<void> {
+    const deferred = await this.descriptions.hasActiveFeedbackCycles(userId);
+    await this.prisma.readerProfile.updateMany({
+      where: { userId },
+      data: { aiDescription: null, aiDescriptionStatus: deferred ? 'pending' : 'invalidated' },
+    });
+    if (!deferred) await this.descriptions.triggerGeneration(userId);
   }
 
   async listSessions(userId: string) {
@@ -171,6 +183,11 @@ export class QuestionnaireService {
     });
     const completed = await this.prisma.questionnaireSession.update({ where: { id: sessionId }, data: { status: 'completed', completedAt: new Date(), optimisticLockVersion: { increment: 1 } } });
     await this.profiles.recompute(session.userId, 'questionnaire_completed', completed.id);
+    if (await this.descriptions.hasActiveFeedbackCycles(session.userId)) {
+      await this.prisma.readerProfile.updateMany({ where: { userId: session.userId }, data: { aiDescriptionStatus: 'pending' } });
+    } else {
+      await this.descriptions.triggerGeneration(session.userId);
+    }
     if (!priorCompletion) await this.adminNotifications.notifyNewReader(session.userId);
     return completed;
   }

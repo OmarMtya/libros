@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { ProfileDescriptionService } from '../profile/profile-description.service';
 import { ProfileService } from '../profile/profile.service';
 import { EvidenceFactory, EvidenceInput } from '../profile/evidence.factory';
 import { round4 } from '../scoring/compatibility';
@@ -36,6 +37,7 @@ export class FeedbackLearningService {
     private readonly prisma: PrismaService,
     private readonly profiles: ProfileService,
     private readonly evidenceFactory: EvidenceFactory,
+    private readonly descriptions: ProfileDescriptionService,
   ) {}
 
   async process(feedbackId: string) {
@@ -88,6 +90,7 @@ export class FeedbackLearningService {
       });
 
       await this.profiles.recompute(feedback.userId, 'feedback_learning', feedbackId);
+      await this.descriptions.triggerGeneration(feedback.userId);
       const updated = await this.prisma.readingFeedback.findUniqueOrThrow({ where: { id: feedbackId } });
       return { feedback: updated, learningStatus: 'processed', recompute: null };
     } catch (error) {

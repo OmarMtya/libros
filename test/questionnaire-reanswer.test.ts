@@ -55,7 +55,7 @@ function serviceWith(overrides: Record<string, unknown>) {
     recompute: vi.fn().mockResolvedValue({}),
   } as unknown as ProfileService;
   const evidenceFactory = { createMany: vi.fn().mockResolvedValue(undefined) } as unknown as EvidenceFactory;
-  const service = new QuestionnaireService(prisma, profiles, evidenceFactory, {} as never);
+  const service = new QuestionnaireService(prisma, profiles, evidenceFactory, {} as never, {} as never);
   return { service, prisma, profiles, evidenceFactory };
 }
 

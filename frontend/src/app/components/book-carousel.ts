@@ -156,9 +156,9 @@ export type BookCarouselItem = {
                     </div>
 
                     <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                      <span class="rounded-full bg-[#eef3f6] px-2.5 py-1 font-semibold text-ink">{{ readingStatusLabel(review.readingStatus) }}</span>
+                      <span class="rounded-full bg-ink px-2.5 py-1 font-semibold text-white">{{ readingStatusLabel(review.readingStatus) }}</span>
                       @if (review.selectionFitRating !== null) {
-                        <span class="inline-flex items-center gap-1" [attr.aria-label]="'Le gustó ' + review.selectionFitRating + ' de 5'">
+                        <span class="inline-flex items-center gap-1" [attr.aria-label]="'Me gustó ' + review.selectionFitRating + ' de 5'">
                           @for (filled of stars(review.selectionFitRating); track $index) {
                             <svg class="h-4 w-4" [class.text-coral]="filled" [class.text-[#d8e1e8]]="!filled" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401Z" clip-rule="evenodd"/></svg>
                           }
@@ -173,23 +173,23 @@ export type BookCarouselItem = {
                       </div>
                     }
 
-                    @if (review.negativeAspects.length > 0) {
+                    @if (review.positiveAspects.length > 0) {
                       <div class="mt-2">
-                        <p class="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-[#7a2c1f]">Por qué no le gustó</p>
+                        <p class="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-[#567088]">Qué me gustó</p>
                         <ul class="mt-1.5 flex flex-wrap gap-1.5">
-                          @for (key of review.negativeAspects; track key) {
-                            <li class="rounded-full border border-[#e2b8b0] bg-[#fbe9e6] px-2.5 py-1 text-xs font-medium text-[#7a2c1f]">{{ negativeLabel(key) }}</li>
+                          @for (key of review.positiveAspects; track key) {
+                            <li class="rounded-full bg-coral px-2.5 py-1 text-xs font-medium text-white">{{ positiveLabel(key) }}</li>
                           }
                         </ul>
                       </div>
                     }
 
-                    @if (review.positiveAspects.length > 0) {
+                    @if (review.negativeAspects.length > 0) {
                       <div class="mt-2">
-                        <p class="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-[#567088]">Qué le gustó</p>
+                        <p class="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-[#7a2c1f]">Por qué no me gustó</p>
                         <ul class="mt-1.5 flex flex-wrap gap-1.5">
-                          @for (key of review.positiveAspects; track key) {
-                            <li class="rounded-full bg-[#eef3f6] px-2.5 py-1 text-xs font-medium text-ink">{{ positiveLabel(key) }}</li>
+                          @for (key of review.negativeAspects; track key) {
+                            <li class="rounded-full border border-[#e2b8b0] bg-[#fbe9e6] px-2.5 py-1 text-xs font-medium text-[#7a2c1f]">{{ negativeLabel(key) }}</li>
                           }
                         </ul>
                       </div>
@@ -272,11 +272,11 @@ export class BookCarousel implements OnDestroy {
 
   readingStatusLabel(status: string): string {
     switch (status) {
-      case 'completed': return 'Lo terminó';
-      case 'abandoned': return 'Lo abandonó';
+      case 'completed': return 'Lo terminé';
+      case 'abandoned': return 'Lo abandoné';
       case 'in_progress': return 'En curso';
       case 'paused': return 'En pausa';
-      case 'not_started': return 'No lo empezó';
+      case 'not_started': return 'No lo he empezado';
       default: return status;
     }
   }

@@ -134,6 +134,7 @@ model User {
   id                   String                @id @default(uuid()) @db.Uuid
   email                String?               @unique @db.VarChar(320)
   displayName          String?               @map("display_name")
+  avatarUrl            String?               @map("avatar_url")
   role                 UserRole              @default(customer)
   createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   lastSignedInAt       DateTime?             @map("last_signed_in_at") @db.Timestamptz(6)
@@ -247,6 +248,10 @@ model ReaderProfile {
   evidenceMaturity        Decimal                  @default(0) @map("evidence_maturity") @db.Decimal(5, 4)
   readyToRecommend        Boolean                  @default(false) @map("ready_to_recommend")
   summary                 String?
+  publicSlug              String?                  @unique @map("public_slug") @db.VarChar(64)
+  aiDescription           String?                  @map("ai_description") @db.VarChar(400)
+  aiDescriptionStatus     String                   @default("none") @map("ai_description_status") @db.VarChar(20)
+  aiDescriptionGeneratedAt DateTime?               @map("ai_description_generated_at") @db.Timestamptz(6)
   snapshotJson            Json                     @default("{}") @map("snapshot_json")
   createdAt               DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt               DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)

@@ -65,4 +65,42 @@ export class AuthService {
     const { error } = await this.client.auth.signOut();
     if (error) throw error;
   }
+
+  get googleAvatarUrl(): string | null {
+    const metadata = this.session()?.user.user_metadata as Record<string, unknown> | undefined;
+    const picture = metadata?.['avatar_url'] ?? metadata?.['picture'];
+    return typeof picture === 'string' && picture && picture !== 'undefined' ? picture : null;
+  }
+
+  async updateName(fullName: string): Promise<void> {
+    if (!this.client) throw new Error('Configura Supabase para editar tu nombre.');
+    const name = fullName.trim();
+    if (!name) throw new Error('Escribe un nombre.');
+    const { error } = await this.client.auth.updateUser({ data: { full_name: name } });
+    if (error) throw error;
+    await this.client.auth.refreshSession();
+  }
+
+  async replaceAvatar(file: File): Promise<string> {
+    if (!this.client) throw new Error('Configura Supabase para subir tu foto.');
+    const userId = this.userId;
+    if (!userId) throw new Error('Inicia sesión para subir tu foto.');
+    const extension = this.avatarExtension(file.name);
+    const path = `${userId}/avatar_${Date.now()}.${extension}`;
+    const { error } = await this.client.storage.from('avatars').upload(path, file, { upsert: false, contentType: file.type });
+    if (error) throw error;
+    const { data: existing } = await this.client.storage.from('avatars').list(userId);
+    const stale = (existing ?? [])
+      .filter((item) => item.name !== path.split('/').pop())
+      .map((item) => `${userId}/${item.name}`);
+    if (stale.length > 0) await this.client.storage.from('avatars').remove(stale);
+    const { data } = this.client.storage.from('avatars').getPublicUrl(path);
+    return data.publicUrl;
+  }
+
+  private avatarExtension(name: string): string {
+    const match = /\.([a-z0-9]{2,5})$/i.exec(name);
+    const extension = (match?.[1] ?? 'png').toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'webp'].includes(extension) ? extension : 'png';
+  }
 }

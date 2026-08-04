@@ -40,22 +40,28 @@ export class SupabaseAuthService {
   }
 
   private async synchronizeUser(claims: SupabaseJwtClaims): Promise<AuthenticatedUser> {
+    const metadata = claims.user_metadata as Record<string, unknown> | undefined;
     const email = claims.email?.trim().toLowerCase() || null;
-    const displayName = claims.user_metadata?.full_name?.trim() || claims.user_metadata?.name?.trim() || null;
+    const displayName = typeof metadata?.full_name === 'string' && metadata.full_name.trim() ? metadata.full_name.trim() : typeof metadata?.name === 'string' && metadata.name.trim() ? metadata.name.trim() : null;
+    const googleAvatar = typeof metadata?.avatar_url === 'string' && metadata.avatar_url
+      ? metadata.avatar_url
+      : typeof metadata?.picture === 'string' && metadata.picture
+        ? metadata.picture
+        : null;
     const adminEmails = new Set((process.env.ADMIN_EMAILS ?? '').split(',').map((value) => value.trim().toLowerCase()).filter(Boolean));
     const role = email && adminEmails.has(email) ? UserRole.admin : UserRole.customer;
     const data = { email, displayName, role, lastSignedInAt: new Date() };
-    const bySub = await this.prisma.user.findUnique({ where: { id: claims.sub } });
+    const bySub = await this.prisma.user.findUnique({ where: { id: claims.sub }, select: { id: true, avatarUrl: true } });
     if (bySub) {
-      const user = await this.prisma.user.update({ where: { id: bySub.id }, data });
+      const user = await this.prisma.user.update({ where: { id: bySub.id }, data: googleAvatar && !bySub.avatarUrl ? { ...data, avatarUrl: googleAvatar } : data });
       return { id: user.id, email: user.email, displayName: user.displayName, role: user.role };
     }
-    const byEmail = email ? await this.prisma.user.findUnique({ where: { email } }) : null;
+    const byEmail = email ? await this.prisma.user.findUnique({ where: { email }, select: { id: true, avatarUrl: true } }) : null;
     if (byEmail) {
-      const user = await this.prisma.user.update({ where: { id: byEmail.id }, data: { id: claims.sub, ...data } });
+      const user = await this.prisma.user.update({ where: { id: byEmail.id }, data: { id: claims.sub, ...(googleAvatar && !byEmail.avatarUrl ? { ...data, avatarUrl: googleAvatar } : data) } });
       return { id: user.id, email: user.email, displayName: user.displayName, role: user.role };
     }
-    const user = await this.prisma.user.create({ data: { id: claims.sub, ...data } });
+    const user = await this.prisma.user.create({ data: { id: claims.sub, ...data, ...(googleAvatar ? { avatarUrl: googleAvatar } : {}) } });
     return { id: user.id, email: user.email, displayName: user.displayName, role: user.role };
   }
 }

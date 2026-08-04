@@ -26,7 +26,7 @@ const prisma = url ? new PrismaClient({ datasources: { db: { url } } }) : null;
 const invitationService = new FeedbackInvitationService();
 const catalogService = prisma ? new CatalogService(prisma as never, new BooksService()) : null;
 const curationService = prisma ? new CurationService(prisma as never, invitationService, new CuratorAuditService(prisma as never), new EmailService()) : null;
-const learningService = prisma ? new FeedbackLearningService(prisma as never, new ProfileService(prisma as never), new EvidenceFactory()) : null;
+const learningService = prisma ? new FeedbackLearningService(prisma as never, new ProfileService(prisma as never), new EvidenceFactory(), { triggerGeneration: async () => undefined, hasActiveFeedbackCycles: async () => false, generateNow: async () => undefined } as never) : null;
 const tokenService = prisma
   ? new FeedbackTokenService(
       prisma as never,

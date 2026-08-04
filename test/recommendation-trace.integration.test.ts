@@ -29,7 +29,7 @@ const catalogService = prisma ? new CatalogService(prisma as never, new BooksSer
 const profileService = prisma ? new ProfileService(prisma as never) : null;
 const scoringService = prisma ? new ScoringService(prisma as never, profileService!) : null;
 const curationService = prisma ? new CurationService(prisma as never, new FeedbackInvitationService(), new CuratorAuditService(prisma as never), new EmailService()) : null;
-const learningService = prisma ? new FeedbackLearningService(prisma as never, profileService!, new EvidenceFactory()) : null;
+const learningService = prisma ? new FeedbackLearningService(prisma as never, profileService!, new EvidenceFactory(), { triggerGeneration: async () => undefined, hasActiveFeedbackCycles: async () => false, generateNow: async () => undefined } as never) : null;
 const tokenService = prisma
   ? new FeedbackTokenService(
       prisma as never,

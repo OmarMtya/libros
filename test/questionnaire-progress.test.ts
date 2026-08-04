@@ -46,7 +46,7 @@ function serviceWith(answers: Array<{ questionKey: string; normalizedResponse: u
   } as unknown as PrismaService;
   const profiles = {} as unknown as ProfileService;
   const evidenceFactory = {} as unknown as EvidenceFactory;
-  const service = new QuestionnaireService(prisma, profiles, evidenceFactory, {} as never);
+  const service = new QuestionnaireService(prisma, profiles, evidenceFactory, {} as never, {} as never);
   return { service, prisma };
 }
 

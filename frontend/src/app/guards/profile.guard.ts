@@ -17,6 +17,5 @@ export const profileGuard: CanActivateFn = async (_route, state) => {
 
 function redirectSource(url: string): string {
   if (url.includes('/app/experiencia')) return 'experiencia';
-  if (url.includes('/app/perfil')) return 'perfil';
   return 'unknown';
 }

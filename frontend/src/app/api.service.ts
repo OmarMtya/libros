@@ -80,6 +80,12 @@ export type Profile = {
   globalProfileCoverage: string;
   onboardingCoreCoverage: string;
   evidenceMaturity: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  publicSlug: string | null;
+  aiDescription: string | null;
+  aiDescriptionStatus: 'none' | 'generating' | 'ready' | 'pending' | 'invalidated';
+  aiDescriptionGeneratedAt: string | null;
   dimensions: Array<{ dimensionKey: string; value: string | null; confidence: string; evidenceCount: number }>;
   tagPreferences?: Array<{ tagKey: string; tagType: string; affinity: string; confidence: string; evidenceCount: number }>;
   operationalConstraints: { preferredPagesMin: number | null; preferredPagesMax: number | null; seriesPreference: string | null; acceptedLanguagesJson: string[]; acceptedFormatsJson: string[]; formatSource: string | null } | null;
@@ -88,6 +94,38 @@ export type Profile = {
   evidence?: Array<{ dimensionKey: string; observedValue: string; reasonCode: string; baseWeight: string; specificityFactor: string; finalWeight: string; status: string; createdAt: string }>;
   questionnaireSessions?: ProfileSession[];
   feedbackBooks?: ProfileFeedbackBook[];
+};
+
+export type PublicProfileCategory = { key: string; label: string };
+export type PublicProfileBookReview = {
+  readingStatus: string;
+  selectionFitRating: number | null;
+  started: boolean;
+  completionPercentage: number;
+  notStartedReason: string | null;
+  outcomeAttribution: string | null;
+  positiveAspects: string[];
+  negativeAspects: string[];
+  freeText: string | null;
+};
+export type PublicProfileBook = {
+  title: string;
+  authors: string[];
+  coverUrl: string | null;
+  review: PublicProfileBookReview | null;
+};
+export type PublicProfile = {
+  slug: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  isOwner: boolean;
+  aiDescription: string | null;
+  aiDescriptionStatus: string;
+  aiDescriptionGeneratedAt: string | null;
+  categories: { liked: PublicProfileCategory[]; curious: PublicProfileCategory[]; notInterested: PublicProfileCategory[] };
+  constraints: { preferredPagesMin: number | null; preferredPagesMax: number | null; seriesPreference: string | null; languages: string[]; formats: string[] } | null;
+  books: { enjoyed: PublicProfileBook[]; notEnjoyed: PublicProfileBook[] };
+  currentlyReading: { title: string | null; author: string | null; coverUrl: string | null } | null;
 };
 
 export type ProductPackage = { key: 'libro_sorpresa_fisico'; name: string; description: string; priceCents: number; shippingCents: number; currency: string; includedFormats: string[] };
@@ -357,6 +395,18 @@ export class ApiService {
 
   getProfile(): Promise<Profile> {
     return firstValueFrom(this.http.get<Profile>(`${this.baseUrl}/me/reader-profile`, this.options()));
+  }
+
+  getPublicProfile(slug: string): Promise<PublicProfile> {
+    return firstValueFrom(this.http.get<PublicProfile>(`${this.baseUrl}/public/profiles/${encodeURIComponent(slug)}`, this.options()));
+  }
+
+  regenerateDescription(): Promise<unknown> {
+    return firstValueFrom(this.http.post(`${this.baseUrl}/me/reader-profile/regenerate-description`, {}, this.options()));
+  }
+
+  updateAvatar(url: string): Promise<{ avatarUrl: string | null }> {
+    return firstValueFrom(this.http.patch<{ avatarUrl: string | null }>(`${this.baseUrl}/me/reader-profile/avatar`, { url }, this.options()));
   }
 
   submitFeedback(body: Record<string, unknown>): Promise<unknown> {

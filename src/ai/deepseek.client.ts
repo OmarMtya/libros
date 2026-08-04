@@ -10,6 +10,12 @@ export type DeepseekChatJsonInput = {
   maxTokens?: number;
 };
 
+export type DeepseekChatTextInput = {
+  system: string;
+  user: string;
+  maxTokens?: number;
+};
+
 export class DeepseekClient {
   constructor(private readonly apiKey: string) {}
 
@@ -18,14 +24,21 @@ export class DeepseekClient {
       throw new ServiceUnavailableException('DEEPSEEK_API_KEY no está configurada. Agrega la llave al .env y reinicia el AppHost.');
     }
     for (let attempt = 1; attempt <= 2; attempt++) {
-      const content = await this.complete({ system, user, maxTokens });
+      const content = await this.complete({ system, user, maxTokens, responseFormat: 'json', reasoningEffort: 'high' });
       const parsed = this.tryParse(content);
       if (parsed !== null) return parsed;
     }
     throw new BadRequestException('La IA no devolvió un JSON válido. Inténtalo de nuevo.');
   }
 
-  private async complete(input: { system: string; user: string; maxTokens: number }): Promise<string> {
+  async chatText({ system, user, maxTokens }: DeepseekChatTextInput): Promise<string> {
+    if (!this.apiKey) {
+      throw new ServiceUnavailableException('DEEPSEEK_API_KEY no está configurada. Agrega la llave al .env y reinicia el AppHost.');
+    }
+    return this.complete({ system, user, maxTokens: maxTokens ?? 800, responseFormat: 'text', reasoningEffort: 'low' });
+  }
+
+  private async complete(input: { system: string; user: string; maxTokens: number; responseFormat: 'json' | 'text'; reasoningEffort: 'high' | 'low' }): Promise<string> {
     const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -38,8 +51,8 @@ export class DeepseekClient {
           { role: 'system', content: input.system },
           { role: 'user', content: input.user },
         ],
-        reasoning_effort: 'high',
-        response_format: { type: 'json_object' },
+        reasoning_effort: input.reasoningEffort,
+        response_format: input.responseFormat === 'json' ? { type: 'json_object' } : { type: 'text' },
         max_tokens: input.maxTokens,
       }),
     });

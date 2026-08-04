@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
 import { EvidenceStatus, Prisma } from '@prisma/client';
 import Decimal from 'decimal.js';
 import { CALCULATION_VERSION, DIMENSIONS, ONBOARDING_CORE_DIMENSIONS, PROFILE_SCHEMA_VERSION, TAG_TAXONOMY_VERSION } from './catalog';
@@ -22,9 +23,12 @@ export class ProfileService {
   async ensureProfile(userId: string) {
     await this.prisma.user.upsert({ where: { id: userId }, create: { id: userId }, update: {} });
     const existing = await this.prisma.readerProfile.findUnique({ where: { userId } });
-    if (existing) return existing;
+    if (existing) {
+      await this.ensurePublicSlug(existing.id);
+      return this.prisma.readerProfile.findUniqueOrThrow({ where: { userId } });
+    }
 
-    return this.prisma.readerProfile.create({
+    const profile = await this.prisma.readerProfile.create({
       data: {
         userId,
         schemaVersion: PROFILE_SCHEMA_VERSION,
@@ -32,9 +36,32 @@ export class ProfileService {
         dimensions: { createMany: { data: DIMENSIONS.map((dimension) => ({ dimensionKey: dimension.key })) } },
       },
     });
+    await this.ensurePublicSlug(profile.id);
+    return this.prisma.readerProfile.findUniqueOrThrow({ where: { userId } });
+  }
+
+  async ensurePublicSlug(profileId: string): Promise<string> {
+    const existing = await this.prisma.readerProfile.findUniqueOrThrow({ where: { id: profileId }, select: { publicSlug: true } });
+    if (existing.publicSlug) return existing.publicSlug;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const slug = randomBytes(12).toString('base64url');
+      try {
+        const updated = await this.prisma.readerProfile.update({ where: { id: profileId }, data: { publicSlug: slug }, select: { publicSlug: true } });
+        return updated.publicSlug!;
+      } catch (error) {
+        if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error;
+      }
+    }
+    throw new ConflictException('No se pudo generar un slug público único.');
+  }
+
+  private async ensurePublicSlugForUser(userId: string): Promise<void> {
+    const profile = await this.prisma.readerProfile.findUnique({ where: { userId }, select: { id: true } });
+    if (profile) await this.ensurePublicSlug(profile.id);
   }
 
   async getProfile(userId: string) {
+    await this.ensurePublicSlugForUser(userId);
     const profile = await this.prisma.readerProfile.findUnique({
       where: { userId },
       include: {
@@ -46,6 +73,8 @@ export class ProfileService {
         evidence: { orderBy: [{ status: 'asc' }, { createdAt: 'asc' }] },
         user: {
           select: {
+            displayName: true,
+            avatarUrl: true,
             questionnaireSessions: {
               orderBy: { startedAt: 'desc' },
               include: { answers: { orderBy: { answeredAt: 'asc' } } },
@@ -132,7 +161,7 @@ export class ProfileService {
         freeText: feedback.freeText,
       });
     }
-    return { ...readerProfile, questionnaireSessions: user.questionnaireSessions, feedbackBooks: feedbackBooksMapped };
+    return { ...readerProfile, displayName: user.displayName, avatarUrl: user.avatarUrl, questionnaireSessions: user.questionnaireSessions, feedbackBooks: feedbackBooksMapped };
   }
 
   async getVersions(userId: string) {

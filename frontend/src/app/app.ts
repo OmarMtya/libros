@@ -3,6 +3,7 @@ import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { AppShell } from './components/app-shell';
 import { ToastHost } from './components/toast';
 import { ConfirmDialog } from './components/confirm-dialog';
+import { AuthService } from './auth.service';
 
 @Component({
   selector: 'app-root',
@@ -20,18 +21,23 @@ import { ConfirmDialog } from './components/confirm-dialog';
 })
 export class App {
   private readonly router = inject(Router);
-  readonly showShell = signal(inShell(window.location.pathname));
+  private readonly auth = inject(AuthService);
+  readonly showShell = signal(inShell(window.location.pathname, false));
 
   constructor() {
+    void this.auth.whenReady().then(() => this.apply());
     this.router.events.subscribe((event) => {
-      if (event instanceof NavigationEnd) {
-        const path = event.urlAfterRedirects.split('?')[0].split('#')[0];
-        this.showShell.set(inShell(path));
-      }
+      if (event instanceof NavigationEnd) this.apply();
     });
+  }
+
+  private apply(): void {
+    this.showShell.set(inShell(window.location.pathname, this.auth.userId != null));
   }
 }
 
-function inShell(path: string): boolean {
-  return path.startsWith('/app') && path !== '/app/login';
+function inShell(path: string, loggedIn: boolean): boolean {
+  if (!path.startsWith('/app') || path === '/app/login') return false;
+  if (path.startsWith('/app/perfil/')) return loggedIn;
+  return true;
 }
