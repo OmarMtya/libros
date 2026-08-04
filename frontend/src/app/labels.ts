@@ -54,3 +54,49 @@ export const DISLIKED_BOOK_REASONS = [
   { key: 'not_engaging', label: 'No me enganchó' },
   { key: 'other', label: 'Otro' },
 ];
+
+export const FEEDBACK_POSITIVE_ASPECTS: Record<string, string> = {
+  story_progress: 'El avance de la historia',
+  tension_curiosity: 'La tensión o curiosidad',
+  characters: 'Los personajes',
+  writing_style: 'La forma de escribir',
+  ideas_reflection: 'Las ideas o reflexiones',
+  atmosphere: 'La atmósfera',
+};
+
+export const FEEDBACK_NEGATIVE_ASPECTS: Record<string, string> = {
+  slow_without_payoff: 'Fue lento sin una recompensa clara',
+  confusing: 'Resultó confuso',
+  style_too_ornate: 'El estilo fue demasiado recargado',
+  too_much_introspection: 'Tuvo demasiada introspección',
+  repetitive: 'Se sintió repetitivo',
+  too_demanding: 'Exigía demasiado esfuerzo',
+  topic_no_interest: 'No me interesó el tema',
+  length_problem: 'El tamaño fue un problema',
+};
+
+export const FEEDBACK_NOT_STARTED_REASONS: Record<string, string> = {
+  no_time: 'No tuve tiempo',
+  wrong_mood: 'No era el momento',
+  read_something_else: 'Leí otra cosa',
+  format_or_size: 'Formato o tamaño',
+  did_not_attract_me: 'No me atrajo',
+  other: 'Otro',
+};
+
+export const FEEDBACK_OUTCOME_ATTRIBUTIONS: Record<string, string> = {
+  mostly_book: 'Principalmente el libro',
+  mixed: 'Mezcla',
+  mostly_timing: 'Principalmente el momento',
+  external_circumstance: 'Circunstancia externa',
+  no_problem: 'Nada en particular',
+};
+
+export const FEEDBACK_COMPLETION_LABELS: Record<number, string> = {
+  5: 'Apenas lo empezó',
+  18: 'Leí una parte',
+  38: 'Menos de la mitad',
+  63: 'Más de la mitad',
+  88: 'Casi lo terminó',
+  100: 'Lo terminó',
+};

@@ -1,18 +1,16 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { ApiService, orderFeedbackDone, orderIsActive, Profile as ReaderProfile, UserOrder } from '../api.service';
-import { DialogService } from '../dialog.service';
+import { ApiService, Profile as ReaderProfile, ProfileFeedbackBook } from '../api.service';
+import { AuthService } from '../auth.service';
 import { TAG_LABELS } from '../labels';
 import { ToastService } from '../toast.service';
-import { OrderTimeline } from '../components/order-timeline';
-import { BookCarousel } from '../components/book-carousel';
-import { BuyAgain } from '../components/buy-again';
+import { BookCarousel, BookReview } from '../components/book-carousel';
 
-type ProfileBook = { title?: string; work_id?: string; openLibraryId?: string; authors?: string[]; coverUrl?: string | null };
+type ProfileBook = { title?: string; work_id?: string; openLibraryId?: string; authors?: string[]; coverUrl?: string | null; review?: BookReview | null };
 
 @Component({
   selector: 'app-profile',
-  imports: [RouterLink, OrderTimeline, BookCarousel, BuyAgain],
+  imports: [RouterLink, BookCarousel],
   template: `
     <div class="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <p class="mb-2 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Tu ficha de lectura</p>
@@ -24,56 +22,13 @@ type ProfileBook = { title?: string; work_id?: string; openLibraryId?: string; a
         </section>
       } @else if (profile(); as current) {
         <div class="space-y-6">
-          @if (blockedOrder(); as order) {
-            <section class="rounded-sm border border-[#cad7df] bg-white p-6 sm:p-8">
-              <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <h2 class="font-display text-2xl font-bold tracking-[-0.03em] text-ink">Tu pedido</h2>
-                <a
-                  routerLink="/app/mi-paquete"
-                  class="rounded-sm border border-[#7d9ab0] px-4 py-2 text-sm font-bold text-ink transition hover:bg-[#e6eef3]">
-                  Seguir mi pedido
-                </a>
-              </div>
-              <app-order-timeline [status]="order.fulfillment?.status ?? ''" [compact]="true" />
-              @if (order.fulfillment?.status === 'delivered') {
-                <p class="rounded-sm border-l-[3px] border-[#f0e0b0] bg-[#fff7e6] px-3 py-2 text-sm text-[#6b5310]">
-                  Para volver a pedir y seguir afinando tus recomendaciones, completa el cuestionario que viene en el
-                  <strong>código QR</strong> dentro de tu paquete. También lo encontrarás en tu correo electrónico.
-                </p>
-              } @else {
-                <p class="text-sm text-[#536875]">
-                  Tu envío está en proceso. Envíos de 5 a 10 días hábiles; te comunicaremos cada paso.
-                </p>
-              }
-            </section>
-          } @else {
-            <app-buy-again [orders]="orders()" />
-          }
-
           <section class="rounded-sm border border-[#cad7df] bg-white p-6 sm:p-8">
             <div class="mb-6">
               <div>
-                <h2 class="font-display text-2xl font-bold tracking-[-0.03em] text-ink">Tus preferencias</h2>
+                <h2 class="font-display text-2xl font-bold tracking-[-0.03em] text-ink">{{ displayName() }}</h2>
                 <p class="mt-1 text-sm text-[#536875]">Con esto afinamos cada sorpresa.</p>
               </div>
             </div>
-
-            @if (readingOrder(); as order) {
-              @if (order.fulfillment?.bookTitle; as title) {
-                <div class="mb-8 flex items-start gap-4 rounded-sm border border-[#cad7df] bg-[#f7fafc] p-4 sm:p-5">
-                  @if (order.fulfillment?.coverUrl; as cover) {
-                    <img [src]="cover" [alt]="title" class="h-24 w-16 shrink-0 rounded-sm object-cover shadow-sm" />
-                  }
-                  <div>
-                    <h3 class="font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Leyendo actualmente</h3>
-                    <p class="mt-1 font-display text-xl font-bold tracking-[-0.02em] text-ink">{{ title }}</p>
-                    @if (order.fulfillment?.bookAuthor; as author) {
-                      <p class="mt-0.5 text-sm text-[#536875]">{{ author }}</p>
-                    }
-                  </div>
-                </div>
-              }
-            }
 
             <h3 class="mb-2 text-sm font-bold uppercase tracking-wider text-ink">Categorías</h3>
             <div class="space-y-3 text-sm">
@@ -124,20 +79,6 @@ type ProfileBook = { title?: string; work_id?: string; openLibraryId?: string; a
               <p class="text-sm text-[#7d9ab0]">Sin restricciones completas.</p>
             }
           </section>
-
-          <section class="rounded-sm border border-[#cad7df] bg-[#fffdf7] p-6 sm:p-8">
-            <h2 class="font-display text-2xl font-bold tracking-[-0.03em] text-ink">¿Cambiaste de opinión?</h2>
-            <p class="mt-1 mb-4 max-w-lg text-sm text-[#536875]">
-              Puedes responder el cuestionario de nuevo. Tus respuestas anteriores se descartan y tu perfil se vuelve a calcular.
-            </p>
-            <button
-              class="rounded-sm bg-coral px-6 py-3 text-sm font-bold text-white transition hover:bg-coral-deep disabled:cursor-wait disabled:opacity-60"
-              type="button"
-              (click)="redoQuestionnaire()"
-              [disabled]="loading()">
-              Hacer cuestionario de nuevo
-            </button>
-          </section>
         </div>
       } @else {
         <section class="rounded-sm border border-[#cad7df] bg-white p-10 text-center">
@@ -154,21 +95,16 @@ type ProfileBook = { title?: string; work_id?: string; openLibraryId?: string; a
 export class ProfileScreen {
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
-  private readonly dialog = inject(DialogService);
+  private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
 
   readonly profile = signal<ReaderProfile | null>(null);
   readonly loading = signal(false);
-  readonly orders = signal<UserOrder[]>([]);
-  readonly blockedOrder = computed(() => {
-    const active = this.orders().find(orderIsActive) ?? null;
-    if (!active || active.fulfillment?.status === 'delivered') return null;
-    return !orderFeedbackDone(active) ? active : null;
-  });
-  readonly readingOrder = computed(() => {
-    const active = this.orders().find(orderIsActive) ?? null;
-    if (!active || active.fulfillment?.status !== 'delivered') return null;
-    return !orderFeedbackDone(active) ? active : null;
+
+  readonly displayName = computed(() => {
+    const metadata = this.auth.session()?.user.user_metadata as Record<string, unknown> | undefined;
+    const name = typeof metadata?.['full_name'] === 'string' ? metadata['full_name'] : typeof metadata?.['name'] === 'string' ? metadata['name'] : null;
+    return name?.trim() || 'Tus preferencias';
   });
 
   constructor() {
@@ -177,35 +113,15 @@ export class ProfileScreen {
 
   async loadProfile(): Promise<void> {
     await this.run(async () => {
-      const [profile, orders] = await Promise.all([
-        this.api.getProfile().catch((error) => {
-          if (error && error.status === 404) return null;
-          throw error;
-        }),
-        this.api.listOrders(),
-      ]);
+      const profile = await this.api.getProfile().catch((error) => {
+        if (error && error.status === 404) return null;
+        throw error;
+      });
       if (!profile || !(profile.questionnaireSessions ?? []).some((session) => session.status === 'completed')) {
         await this.router.navigate(['/app/cuestionario']);
         return;
       }
       this.profile.set(profile);
-      this.orders.set(orders);
-    });
-  }
-
-  async redoQuestionnaire(): Promise<void> {
-    const confirmed = await this.dialog.confirm({
-      title: '¿Cambiaste de opinión?',
-      message: '¿Seguro que quieres responder el cuestionario de nuevo? Tus respuestas actuales se descartarán.',
-      confirmLabel: 'Hacer cuestionario de nuevo',
-      cancelLabel: 'Cancelar',
-      danger: true,
-    });
-    if (!confirmed) return;
-    await this.run(async () => {
-      await this.api.resetQuestionnaire();
-      this.profile.set(null);
-      await this.router.navigate(['/app/cuestionario']);
     });
   }
 
@@ -224,28 +140,56 @@ export class ProfileScreen {
       .flatMap((answer) => this.booksFromResponse(answer.rawResponse)) ?? [];
   }
 
-  enjoyedBooks(): ProfileBook[] {
-    const feedback = (this.profile()?.feedbackBooks ?? []).filter((book) => book.selectionFitRating !== null
-      ? book.selectionFitRating >= 4
-      : book.readingStatus === 'completed');
+  readonly enjoyedBooks = computed<ProfileBook[]>(() => {
+    const feedback = (this.profile()?.feedbackBooks ?? [])
+      .filter((book) => book.selectionFitRating !== null
+        ? book.selectionFitRating >= 4
+        : book.readingStatus === 'completed')
+      .map((book) => this.bookWithReview(book));
     return this.mergeBooks([...this.profileBooks('Q01_LOVED_BOOKS'), ...feedback]);
-  }
+  });
 
-  notEnjoyedBooks(): ProfileBook[] {
-    const feedback = (this.profile()?.feedbackBooks ?? []).filter((book) => book.selectionFitRating !== null
-      ? book.selectionFitRating <= 2
-      : book.readingStatus === 'abandoned' || book.readingStatus === 'not_started');
+  readonly notEnjoyedBooks = computed<ProfileBook[]>(() => {
+    const feedback = (this.profile()?.feedbackBooks ?? [])
+      .filter((book) => book.selectionFitRating !== null
+        ? book.selectionFitRating <= 2
+        : book.readingStatus === 'abandoned' || book.readingStatus === 'not_started')
+      .map((book) => this.bookWithReview(book));
     return this.mergeBooks([...this.profileBooks('Q02_DISLIKED_BOOK'), ...feedback]);
+  });
+
+  private bookWithReview(book: ProfileFeedbackBook): ProfileBook {
+    return {
+      title: book.title,
+      authors: book.authors,
+      coverUrl: book.coverUrl,
+      review: {
+        readingStatus: book.readingStatus,
+        selectionFitRating: book.selectionFitRating,
+        started: book.started,
+        completionPercentage: book.completionPercentage,
+        notStartedReason: book.notStartedReason,
+        outcomeAttribution: book.outcomeAttribution,
+        positiveAspects: book.positiveAspects,
+        negativeAspects: book.negativeAspects,
+        freeText: book.freeText,
+      },
+    };
   }
 
   private mergeBooks(books: ProfileBook[]): ProfileBook[] {
-    const seen = new Set<string>();
-    return books.filter((book) => {
+    const seen = new Map<string, ProfileBook>();
+    for (const book of books) {
       const key = (book.title ?? book.work_id ?? book.openLibraryId ?? '').trim().toLowerCase();
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+      if (!key) continue;
+      const existing = seen.get(key);
+      if (existing) {
+        if (!existing.review && book.review) existing.review = book.review;
+        continue;
+      }
+      seen.set(key, book);
+    }
+    return [...seen.values()];
   }
 
   bookLabel(book: ProfileBook): string {

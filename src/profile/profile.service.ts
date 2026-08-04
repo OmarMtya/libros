@@ -61,10 +61,18 @@ export class ProfileService {
       orderBy: { submittedAt: 'desc' },
       select: {
         id: true,
+        started: true,
+        notStartedReason: true,
         readingStatus: true,
+        completionPercentage: true,
         selectionFitRating: true,
+        outcomeAttribution: true,
+        freeText: true,
         isFinal: true,
         submittedAt: true,
+        aspects: {
+          select: { polarity: true, optionKey: true },
+        },
         edition: {
           select: {
             title: true,
@@ -91,6 +99,13 @@ export class ProfileService {
       isFinal: boolean;
       submittedAt: Date;
       coverUrl: string | null;
+      started: boolean;
+      completionPercentage: number;
+      notStartedReason: string | null;
+      outcomeAttribution: string | null;
+      positiveAspects: string[];
+      negativeAspects: string[];
+      freeText: string | null;
     }> = [];
     for (const feedback of feedbackBooks) {
       const book = feedback.edition?.book;
@@ -108,6 +123,13 @@ export class ProfileService {
         isFinal: feedback.isFinal,
         submittedAt: feedback.submittedAt,
         coverUrl: coverId !== null ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg` : null,
+        started: feedback.started,
+        completionPercentage: feedback.completionPercentage,
+        notStartedReason: feedback.notStartedReason,
+        outcomeAttribution: feedback.outcomeAttribution,
+        positiveAspects: feedback.aspects.filter((aspect) => aspect.polarity === 'positive').map((aspect) => aspect.optionKey),
+        negativeAspects: feedback.aspects.filter((aspect) => aspect.polarity === 'negative').map((aspect) => aspect.optionKey),
+        freeText: feedback.freeText,
       });
     }
     return { ...readerProfile, questionnaireSessions: user.questionnaireSessions, feedbackBooks: feedbackBooksMapped };

@@ -66,6 +66,13 @@ export type ProfileFeedbackBook = {
   isFinal: boolean;
   submittedAt: string;
   coverUrl: string | null;
+  started: boolean;
+  completionPercentage: number;
+  notStartedReason: string | null;
+  outcomeAttribution: string | null;
+  positiveAspects: string[];
+  negativeAspects: string[];
+  freeText: string | null;
 };
 export type Profile = {
   currentVersion: number;

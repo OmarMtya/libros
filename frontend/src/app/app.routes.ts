@@ -8,7 +8,7 @@ export const routes: Routes = [
   { path: 'app/login', loadComponent: () => import('./screens/login').then((m) => m.Login) },
   { path: 'app', redirectTo: 'app/perfil', pathMatch: 'full' },
   { path: 'app/cuestionario', loadComponent: () => import('./screens/questionnaire').then((m) => m.Questionnaire), canActivate: [authGuard] },
-  { path: 'app/experiencia', loadComponent: () => import('./screens/experience').then((m) => m.Experience), canActivate: [authGuard] },
+  { path: 'app/experiencia', loadComponent: () => import('./screens/experience').then((m) => m.Experience), canActivate: [authGuard, profileGuard] },
   { path: 'app/perfil', loadComponent: () => import('./screens/profile').then((m) => m.ProfileScreen), canActivate: [authGuard, profileGuard] },
   { path: 'app/mi-paquete', loadComponent: () => import('./screens/mi-paquete').then((m) => m.MiPaquete), canActivate: [authGuard] },
   { path: 'app/lectores', loadComponent: () => import('./screens/readers').then((m) => m.Readers), canActivate: [authGuard, adminGuard] },

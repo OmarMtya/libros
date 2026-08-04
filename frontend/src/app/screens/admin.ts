@@ -12,7 +12,7 @@ const CONTENT_TYPE_SCHEMA_VERSION = 'content-types/1.0';
 const FEATURE_SCHEMA_VERSION = 'book-features/1.0';
 const TAG_TAXONOMY_VERSION = 'tag-tax/1.0.1';
 
-const notStartedReasons: Record<string, string> = {
+const notStartedReasons: Partial<Record<string, string>> = {
   no_time: 'No tuve tiempo',
   wrong_mood: 'No era el momento',
   read_something_else: 'Leí otra cosa',
@@ -21,7 +21,7 @@ const notStartedReasons: Record<string, string> = {
   other: 'Otro',
 };
 
-const outcomeAttributions: Record<string, string> = {
+const outcomeAttributions: Partial<Record<string, string>> = {
   mostly_book: 'Principalmente el libro',
   mixed: 'Mezcla',
   mostly_timing: 'Principalmente el momento',
@@ -29,7 +29,7 @@ const outcomeAttributions: Record<string, string> = {
   no_problem: 'Nada en particular',
 };
 
-const completionLabels: Record<number, string> = {
+const completionLabels: Partial<Record<number, string>> = {
   5: 'Apenas lo empecé',
   18: 'Leí una parte',
   38: 'Menos de la mitad',
@@ -38,7 +38,7 @@ const completionLabels: Record<number, string> = {
   100: 'Lo terminé',
 };
 
-const aspectLabels: Record<string, string> = {
+const aspectLabels: Partial<Record<string, string>> = {
   story_progress: 'El avance de la historia',
   tension_curiosity: 'La tensión o curiosidad',
   characters: 'Los personajes',
@@ -466,7 +466,7 @@ const aspectLabels: Record<string, string> = {
                               [class.text-[#16442f]]="aspect.polarity === 'positive'"
                               [class.bg-[#fbe9e6]]="aspect.polarity === 'negative'"
                               [class.text-[#7a2c1f]]="aspect.polarity === 'negative'"
-                            >{{ aspectLabels[aspect.optionKey] ?? aspect.optionKey }}</span>
+                            >{{ aspectLabel(aspect.optionKey) }}</span>
                           }
                         </div>
                       }
@@ -622,7 +622,6 @@ export class AdminScreen {
   readonly notStartedReasons = notStartedReasons;
   readonly outcomeAttributions = outcomeAttributions;
   readonly completionLabels = completionLabels;
-  readonly aspectLabels = aspectLabels;
   readonly newBookResults = signal<BookResult[]>([]);
   readonly newBookSearch = signal<{ loading: boolean; error: string | null }>({ loading: false, error: null });
   readonly creatingBook = signal(false);
@@ -637,6 +636,10 @@ export class AdminScreen {
     void this.loadBooks();
     if (this.tab() === 'curation') void this.loadAssignments();
     if (this.tab() === 'orders') void this.loadOrders();
+  }
+
+  aspectLabel(key: string): string {
+    return aspectLabels[key] ?? key;
   }
 
   selectTab(tab: 'catalog' | 'curation' | 'orders'): void {

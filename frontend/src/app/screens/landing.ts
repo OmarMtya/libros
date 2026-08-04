@@ -12,77 +12,69 @@ const STEPS = [
   {
     number: '01',
     title: 'Cuéntanos cómo lees',
-    text: 'Responde un cuestionario de 5 a 7 minutos. No necesitas saber describirte como lector: nosotros hacemos las preguntas.',
+    text: 'Responde un cuestionario breve sobre lo que disfrutas, lo que evitas y lo que esperas encontrar en una historia.',
   },
   {
     number: '02',
     title: 'Construimos tu perfil lector',
-    text: 'Ordenamos tus respuestas para entender qué ritmo, estilos, emociones y temas disfrutas.',
+    text: 'Convertimos tus respuestas en preferencias claras sobre ritmo, personajes, emociones, complejidad, ambientación y otros aspectos de la lectura.',
   },
   {
     number: '03',
     title: 'Investigamos y comparamos',
-    text: 'El sistema compara candidatos, pero una persona investiga los finalistas y toma la decisión final.',
+    text: 'Buscamos distintos candidatos y analizamos qué tan bien podría responder cada uno a tu perfil.',
   },
   {
     number: '04',
-    title: 'Recibes tu sorpresa',
-    text: 'Preparamos tu libro, un separador y una carta que explica por qué elegimos esa historia.',
-  },
-];
-
-const WHAT_YOU_GET: Array<{ icon: 'book' | 'letter' | 'bookmark' | 'box'; title: string; text: string }> = [
-  {
-    icon: 'book',
-    title: 'Un libro físico',
-    text: 'Una historia elegida a partir de tu perfil.',
+    title: 'Una persona toma la decisión final',
+    text: 'El perfil orienta la búsqueda, pero no elige automáticamente. Una persona investiga los mejores candidatos y selecciona el libro final.',
   },
   {
-    icon: 'letter',
-    title: 'Una carta personalizada',
-    text: 'Te contamos por qué elegimos esa historia y qué creemos que puedes descubrir en ella.',
-  },
-  {
-    icon: 'bookmark',
-    title: 'Un separador',
-    text: 'Un pequeño detalle para acompañarte durante la lectura.',
-  },
-  {
-    icon: 'box',
-    title: 'Envío incluido',
-    text: 'El precio ya lo incluye. Sin costos inesperados al final.',
+    number: '05',
+    title: 'Cuéntanos cómo resultó',
+    text: 'Cuando termines el libro, puedes compartir tu experiencia. La incorporamos a tu perfil lector.',
   },
 ];
 
 const PRICE_INCLUDES = [
-  'Análisis de tu perfil lector.',
-  'Selección humana del libro.',
-  'Carta y separador.',
+  'Un libro físico.',
+  'Carta personalizada y separador.',
   'Envío incluido.',
-  'Pago único.',
-  'Sin suscripción.',
+  'Pago único, sin suscripción y a tu ritmo.',
 ];
 
 const FAQS = [
   {
-    q: '¿El libro lo elige una inteligencia artificial o es al azar?',
-    a: 'Ninguno de los dos. El sistema ordena tus preferencias y compara candidatos, pero una persona investiga y toma la decisión final.',
+    q: '¿El libro lo elige una inteligencia artificial?',
+    a: 'No. Tus respuestas ayudan a construir un perfil y a comparar distintos candidatos, pero una persona investiga las opciones y toma la decisión final.',
+  },
+  {
+    q: '¿Hay un humano leyendo mis respuestas?',
+    a: 'Sí. Además de tu cuestionario inicial, nos interesa mucho lo que nos cuentas al terminar cada lectura. Usamos herramientas para ordenar y comparar toda esa información, pero la decisión final siempre la toma una persona: alguien de nuestro equipo revisa los candidatos y elige qué libro enviarte. No es todo automático ni todo manual; tus respuestas orientan la búsqueda y el perfil que construimos contigo es lo más valioso de la experiencia.',
+  },
+  {
+    q: '¿Qué hace diferente esta experiencia de un club o una caja de libros?',
+    a: 'No elegimos un solo libro para enviarlo a todos. Cada selección comienza con un perfil lector individual y con la búsqueda de candidatos que puedan encajar con esa persona. Además, acompañamos el envío con una carta que explica por qué elegimos ese título: el proceso es totalmente personal, de principio a fin.',
+  },
+  {
+    q: '¿Mi perfil cambia con el tiempo?',
+    a: 'Sí. Cuando termines una lectura podrás contarnos qué funcionó y qué no. Esa experiencia nos ayudará a afinar futuras selecciones.',
   },
   {
     q: '¿Puedo elegir el título?',
-    a: 'La elección del título forma parte de la sorpresa. En el cuestionario podrás compartir lo que prefieres y lo que prefieres evitar.',
+    a: 'No. Descubrir el título forma parte de la experiencia. En el cuestionario sí podrás contarnos qué buscas, qué prefieres evitar y qué libros ya conoces.',
   },
   {
     q: '¿Necesito contratar una suscripción?',
-    a: 'No. Es una compra única de $499 MXN y tú decides cuándo quieres repetir la experiencia.',
+    a: 'No. Es una compra única de $499 MXN. Tú decides si quieres repetir la experiencia y cuándo hacerlo. Cada lectura nos ayuda a entender mejor tu perfil y a dar más valor a tus próximas selecciones.',
   },
   {
     q: '¿Qué sucede después de recibir el libro?',
-    a: 'Léelo a tu ritmo. Cuando termines, puedes contarnos qué funcionó para afinar tus próximas recomendaciones.',
+    a: 'Léelo a tu ritmo. Cuando termines, podrás contarnos qué disfrutaste y qué no funcionó. Usaremos esa experiencia para conocer mejor tu forma de leer y orientar futuras selecciones.',
   },
   {
     q: '¿Pueden garantizar que el libro me encantará?',
-    a: 'No sería honesto prometerlo: la lectura es personal. Lo que sí aseguramos es que cada libro se elige con investigación y cuidado.',
+    a: 'No sería honesto prometerlo. La lectura es personal. Lo que sí podemos garantizar es que el título será investigado y elegido a partir de tu perfil, no al azar ni como una recomendación genérica.',
   },
 ];
 
@@ -163,23 +155,22 @@ export class Reveal {
             <div>
               <p class="mb-5 inline-flex items-center gap-2 rounded-sm border border-[#9eb2c1] bg-white px-3 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-ink">
                 <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-coral"></span>
-                Selección humana, con apoyo de datos
+                 Un libro elegido a partir de ti
               </p>
               <h1 class="mb-6 max-w-[13ch] font-display text-[2.65rem] font-bold leading-[0.95] tracking-[-0.055em] text-ink sm:text-6xl lg:text-7xl">
-                Tu próximo libro <span class="relative isolate whitespace-nowrap">no se elige al azar<span aria-hidden="true" class="absolute inset-x-0 bottom-1 -z-10 h-4 bg-marker/60 sm:h-5"></span></span>.
+                 Tu próximo libro no se elige para todos.<br><span class="relative isolate whitespace-nowrap">Se elige para ti<span aria-hidden="true" class="absolute inset-x-0 bottom-1 -z-10 h-4 bg-marker/60 sm:h-5"></span></span>.
               </h1>
               <p class="mb-8 max-w-[46ch] text-lg leading-relaxed text-[#536875]">
-                Cuéntanos cómo lees y qué buscas. Analizamos tus respuestas y una persona elige un libro sorpresa pensado para ti.
+                 Tus respuestas se convierten en un perfil lector: qué te atrapa, qué te aburre, qué quieres sentir y qué prefieres evitar.<br><br>
+                 Con ese perfil investigamos y comparamos libros hasta encontrar el candidato con mejores razones para encajar contigo.
               </p>
               <div>
                 <a routerLink="/app" class="{{ btnPrimary }} w-full sm:w-auto">
-                  Descubrir mi próximo libro
+                   Crear mi perfil lector
                 </a>
               </div>
               <p class="mt-7 font-mono text-[11px] uppercase tracking-[0.08em] text-[#567088]">
-                Libro físico <span aria-hidden="true" class="text-marker">·</span> Pago único
-                <span aria-hidden="true" class="text-marker">·</span> Sin suscripción
-                <span aria-hidden="true" class="text-marker">·</span> Envío incluido
+                 Responder el cuestionario toma entre 5 y 7 minutos.
               </p>
             </div>
 
@@ -221,13 +212,10 @@ export class Reveal {
         <section id="como-funciona" class="scroll-mt-24">
           <div class="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
             <div reveal class="mb-12 max-w-2xl">
-              <p class="mb-3 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Cómo funciona</p>
-              <h2 class="mb-4 font-display text-3xl font-bold leading-[1.02] tracking-[-0.04em] text-ink sm:text-5xl">
-                De tus preferencias a una elección con sentido
-              </h2>
-              <p class="text-lg leading-relaxed text-[#536875]">
-                Un cuestionario para conocerte y una persona que elige tu libro a partir de tus respuestas.
-              </p>
+               <p class="mb-3 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">De tus preferencias a una elección con sentido</p>
+               <h2 class="mb-4 font-display text-3xl font-bold leading-[1.02] tracking-[-0.04em] text-ink sm:text-5xl">
+                 No buscamos cualquier buen libro. Buscamos uno que tenga sentido para ti.
+               </h2>
             </div>
 
             <ol class="mx-auto max-w-3xl">
@@ -253,61 +241,8 @@ export class Reveal {
 
             <div reveal class="mt-2 text-center">
               <a routerLink="/app" class="{{ btnDark }}">
-                Comenzar mi cuestionario
+                 Comenzar mi perfil lector
               </a>
-            </div>
-          </div>
-        </section>
-
-        <section id="que-recibes" class="scroll-mt-24">
-          <div class="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
-            <div reveal class="mb-12 max-w-2xl">
-              <p class="mb-3 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Qué recibes</p>
-              <h2 class="mb-4 font-display text-3xl font-bold leading-[1.02] tracking-[-0.04em] text-ink sm:text-5xl">
-                Una experiencia pensada solo para ti.
-              </h2>
-            </div>
-
-            <div class="grid gap-5 sm:grid-cols-2">
-              @for (item of WHAT_YOU_GET; track item.title; let i = $index) {
-                <article reveal [style.transition-delay.ms]="i * 70" class="rounded-sm border border-[#cad7df] bg-white p-7 sm:p-8">
-                  <div class="mb-5 flex items-center justify-between">
-                    <span class="flex h-11 w-11 items-center justify-center rounded-sm bg-[#eef3f6] text-ink">
-                      @switch (item.icon) {
-                        @case ('book') {
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                          </svg>
-                        }
-                        @case ('letter') {
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18v12H3zM3 6l9 7 9-7" />
-                          </svg>
-                        }
-                        @case ('bookmark') {
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 3h12v18l-6-4-6 4V3z" />
-                          </svg>
-                        }
-                        @case ('box') {
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zM4.5 7.5L12 12l7.5-4.5M12 12v9" />
-                          </svg>
-                        }
-                      }
-                    </span>
-                    <span class="font-mono text-xs text-[#567088]">0{{ i + 1 }}</span>
-                  </div>
-                  <h3 class="mb-2 font-display text-xl font-bold tracking-[-0.02em] text-ink">{{ item.title }}</h3>
-                  <p class="text-[#536875]">{{ item.text }}</p>
-                </article>
-              }
-            </div>
-
-            <div reveal class="mx-auto mt-12 max-w-4xl border-y border-marker/60 bg-marker/10 px-6 py-8 text-center sm:px-10">
-              <p class="font-display text-xl font-bold leading-snug tracking-[-0.02em] text-ink sm:text-2xl">
-                No enviamos sobrantes de inventario ni vendemos el mismo libro para todos.
-              </p>
             </div>
           </div>
         </section>
@@ -319,18 +254,20 @@ export class Reveal {
             aria-hidden="true"
             class="absolute inset-0 h-full w-full object-cover opacity-20">
           <div aria-hidden="true" class="absolute inset-0 bg-gradient-to-b from-ink via-ink/70 to-ink"></div>
-          <div class="relative mx-auto max-w-3xl px-4 py-24 text-center sm:px-6 lg:py-36">
-            <p class="mb-8 font-mono text-xs uppercase tracking-[0.1em] text-mist">Nota de la editorial</p>
-            <h2 class="font-display text-4xl font-bold leading-[1.02] tracking-[-0.045em] sm:text-6xl">
-              Tal vez no sea el libro que habrías elegido.
-            </h2>
-            <p class="mt-4 font-display text-2xl font-bold leading-tight tracking-[-0.03em] text-coral sm:text-4xl">
-              Esa es parte de la idea.
-            </p>
-            <p class="mx-auto mt-8 max-w-xl text-lg leading-relaxed text-[#c6d3de]">
-              Queremos llevarte fuera de lo evidente, pero no lejos de ti. Encontrar ese punto en el que una lectura se
-              siente nueva, inesperada y, al mismo tiempo, extrañamente adecuada.
-            </p>
+          <div class="relative mx-auto max-w-4xl px-4 py-16 sm:px-6 sm:py-24">
+            <div reveal class="max-w-3xl">
+              <p class="mb-3 font-mono text-xs uppercase tracking-[0.08em] text-mist">El cuestionario es solo el comienzo</p>
+              <h2 class="mb-5 font-display text-3xl font-bold leading-[1.02] tracking-[-0.04em] text-white sm:text-5xl">
+                Cada lectura puede ayudarnos a conocerte mejor.
+              </h2>
+              <p class="text-lg leading-relaxed text-[#c6d3de]">
+                Las respuestas iniciales nos orientan. Tu experiencia con el libro nos da algo más valioso: saber qué ocurrió en una lectura concreta.<br><br>
+                A veces una historia parece ideal en papel y no logra atraparnos; otras veces, un detalle inesperado se vuelve lo mejor de la lectura. Eso también forma parte de conocerte como lector.
+              </p>
+              <p class="mt-8 border-l-4 border-coral pl-5 font-display text-xl font-bold leading-snug tracking-[-0.02em] text-white sm:text-2xl">
+                Tu primera selección nace de tus respuestas. Las siguientes se afinan con lo que nos cuentes al terminar.
+              </p>
+            </div>
           </div>
         </section>
 
@@ -349,7 +286,10 @@ export class Reveal {
                   </h2>
                   <p class="font-display text-6xl font-extrabold tracking-[-0.05em] text-ink sm:text-7xl">$499 MXN</p>
                   <p class="mx-auto mt-4 max-w-sm text-[#536875]">
-                    Un libro elegido para ti y enviado a tu puerta.
+                     Un libro elegido a partir de tu perfil y enviado a tu puerta.
+                  </p>
+                  <p class="mx-auto mt-6 max-w-md font-display text-lg font-bold leading-snug tracking-[-0.02em] text-ink">
+                    El valor de esta experiencia está en entender tu perfil, investigar alternativas y elegir con cuidado.
                   </p>
                 </div>
 
@@ -367,7 +307,7 @@ export class Reveal {
                     Crear mi perfil lector
                   </a>
                   <p class="mt-4 text-center text-sm text-[#567088]">
-                    Responder el cuestionario toma aproximadamente 5 a 7 minutos.
+                     Responder el cuestionario toma aproximadamente entre 5 y 7 minutos.
                   </p>
                 </div>
               </div>
@@ -406,13 +346,16 @@ export class Reveal {
         <section class="border-t border-[#cad7df] bg-marker/15">
           <div class="mx-auto max-w-3xl px-4 py-20 text-center sm:px-6 sm:py-28">
             <h2 class="mb-5 font-display text-4xl font-bold leading-[1.0] tracking-[-0.045em] text-ink sm:text-6xl">
-              Hay miles de libros esperando ser leídos.
+               Hay miles de buenos libros.
             </h2>
-            <p class="mx-auto mb-9 max-w-md text-lg text-[#536875]">
-              Empecemos por encontrar uno que tenga una buena razón para llegar hasta ti.
-            </p>
-            <a routerLink="/app" class="{{ btnPrimary }}">
-              Descubrir mi próximo libro
+             <p class="mx-auto mb-4 max-w-xl font-display text-2xl font-bold leading-tight tracking-[-0.03em] text-ink sm:text-3xl">
+               Busquemos uno que tenga buenas razones para ser el tuyo.
+             </p>
+             <p class="mx-auto mb-9 max-w-md text-lg text-[#536875]">
+               Todo comienza conociendo cómo lees.
+             </p>
+             <a routerLink="/app" class="{{ btnPrimary }}">
+               Crear mi perfil lector
             </a>
             <p class="mt-8 font-mono text-xs uppercase tracking-[0.08em] text-[#3e5a73]">
               Mi Libro Sorpresa — Elegimos historias pensando en quien las va a leer.
@@ -429,7 +372,7 @@ export class Reveal {
                 Mi Libro <span class="bg-coral px-1 py-0.5 text-white">Sorpresa</span>
               </p>
               <p class="mt-3 max-w-xs text-sm leading-relaxed text-[#c6d3de]">
-                Libros elegidos con datos, criterio y cuidado.
+                 Elegimos historias pensando en quien las va a leer.
               </p>
             </div>
             <nav aria-label="Enlaces del pie de página">
@@ -458,7 +401,6 @@ export class Reveal {
 export class Landing {
   readonly MEDIA = MEDIA;
   readonly STEPS = STEPS;
-  readonly WHAT_YOU_GET = WHAT_YOU_GET;
   readonly PRICE_INCLUDES = PRICE_INCLUDES;
   readonly FAQS = FAQS;
   readonly FOOTER_LINKS = FOOTER_LINKS;

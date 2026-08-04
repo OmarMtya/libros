@@ -1,6 +1,6 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService, BookResult, Question, Session, Tag } from '../api.service';
 import { AuthService } from '../auth.service';
 import { DISLIKED_BOOK_REASONS, LOVED_BOOK_ASPECTS, TAG_LABELS, TAG_TYPE_LABELS } from '../labels';
@@ -16,6 +16,12 @@ const TOTAL_QUESTIONS = 16;
   imports: [FormsModule, RouterLink],
   template: `
     <div class="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+      @if (redirectFrom() && !alreadyCompleted()) {
+        <section class="mb-6 rounded-sm border-l-[3px] border-coral bg-[#fdf3f0] px-4 py-3">
+          <p class="font-mono text-xs font-bold uppercase tracking-[0.08em] text-coral">Tu cuestionario está pendiente</p>
+          <p class="mt-1 text-sm leading-relaxed text-[#7a4a3d]">{{ redirectMessage() }}</p>
+        </section>
+      }
       @if (alreadyCompleted()) {
         <section class="rounded-sm border border-[#cad7df] bg-white p-8 text-center">
           <p class="mb-2 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Tu ficha de lectura</p>
@@ -451,6 +457,7 @@ const TOTAL_QUESTIONS = 16;
 export class Questionnaire {
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
 
@@ -460,6 +467,18 @@ export class Questionnaire {
   readonly alreadyCompleted = signal(false);
   readonly loading = signal(false);
   readonly history = signal<string[]>([]);
+  readonly redirectFrom = signal<string | null>(this.route.snapshot.queryParamMap.get('from'));
+
+  readonly redirectMessage = computed(() => {
+    switch (this.redirectFrom()) {
+      case 'experiencia':
+        return 'Para armarte tu sorpresa necesitamos conocer tu perfil lector. Termina tus respuestas para poder continuar.';
+      case 'perfil':
+        return 'Tu ficha de lectura se construye con tus respuestas. Termina el cuestionario para verla.';
+      default:
+        return 'Para continuar, termina de responder tu cuestionario.';
+    }
+  });
 
   readonly TOTAL_QUESTIONS = TOTAL_QUESTIONS;
   readonly lovedBookAspectsList = LOVED_BOOK_ASPECTS;
