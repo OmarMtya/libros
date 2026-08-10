@@ -378,18 +378,21 @@ export class QuestionnaireService {
         if (typeof openLibraryId !== 'string' || !openLibraryId.trim()) throw new BadRequestException(`Book at index ${index} is missing openLibraryId.`);
         if (question.questionnaireVersion === QUESTIONNAIRE_VERSION) {
           const editionId = book['edition_id'] ?? book['openLibraryEditionId'];
+          const rawCoverId = book['cover_id'] ?? book['coverId'];
+          if (rawCoverId !== undefined && rawCoverId !== null && (typeof rawCoverId !== 'number' || !Number.isInteger(rawCoverId) || rawCoverId <= 0)) throw new BadRequestException(`Book at index ${index} has invalid cover_id.`);
+          const coverId = typeof rawCoverId === 'number' ? rawCoverId : null;
           const freeText = book['free_text'];
           if (freeText !== undefined && freeText !== null && typeof freeText !== 'string') throw new BadRequestException(`Book at index ${index} has invalid free_text.`);
           if (question.questionKey === 'Q01_LOVED_BOOKS') {
             const likedAspects = this.readStrings(book, 'liked_aspects');
             if (!likedAspects.length || !likedAspects.every((aspect) => ['characters', 'prose', 'originality', 'ending', 'emotions', 'universe'].includes(aspect))) throw new BadRequestException(`Book at index ${index} requires at least one valid liked_aspect.`);
-            return { work_id: openLibraryId.trim(), edition_id: typeof editionId === 'string' ? editionId : null, liked_aspects: [...new Set(likedAspects)], free_text: freeText?.trim() || null };
+            return { work_id: openLibraryId.trim(), edition_id: typeof editionId === 'string' ? editionId : null, cover_id: coverId, liked_aspects: [...new Set(likedAspects)], free_text: freeText?.trim() || null };
           }
           const reasonCodes = this.readStrings(book, 'reason_codes').length ? this.readStrings(book, 'reason_codes') : this.readStrings(response, 'reason_codes');
           if (!reasonCodes.length || !reasonCodes.every((code) => ['too_conceptually_dense', 'too_slow', 'too_confusing', 'too_long', 'not_engaging', 'other'].includes(code))) throw new BadRequestException(`Book at index ${index} requires at least one valid reason_code.`);
           const responseFreeText = typeof response['free_text'] === 'string' ? response['free_text'] : response['reason'];
           if (responseFreeText !== undefined && responseFreeText !== null && typeof responseFreeText !== 'string') throw new BadRequestException('Book-search free_text must be a string or null.');
-          return { work_id: openLibraryId.trim(), edition_id: typeof editionId === 'string' ? editionId : null, reason_codes: [...new Set(reasonCodes)], free_text: (typeof freeText === 'string' ? freeText : responseFreeText)?.trim() || null };
+          return { work_id: openLibraryId.trim(), edition_id: typeof editionId === 'string' ? editionId : null, cover_id: coverId, reason_codes: [...new Set(reasonCodes)], free_text: (typeof freeText === 'string' ? freeText : responseFreeText)?.trim() || null };
         }
         const title = book['title'];
         if (typeof title !== 'string' || !title.trim()) throw new BadRequestException(`Book at index ${index} is missing title.`);
