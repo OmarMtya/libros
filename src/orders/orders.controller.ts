@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
+import { CreateAdminOrderDto } from './admin-order.dto';
 import { OrdersService } from './orders.service';
 
 @Controller('v1/packages')
@@ -30,5 +31,10 @@ export class AdminOrdersController {
   @Get()
   list(@Query('q') q?: string, @Query('status') status?: string, @Query('take') take?: string) {
     return this.orders.listAdminOrders(q, status, take);
+  }
+
+  @Post()
+  create(@Body() dto: CreateAdminOrderDto) {
+    return this.orders.createAdminOrder(dto);
   }
 }

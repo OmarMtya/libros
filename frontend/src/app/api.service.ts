@@ -437,6 +437,10 @@ export class ApiService {
     return firstValueFrom(this.http.get<AdminOrder[]>(`${this.baseUrl}/admin/orders`, { ...this.options(), params }));
   }
 
+  createAdminOrder(body: { userId: string; packageKey?: string }): Promise<{ received: boolean; processed: boolean }> {
+    return firstValueFrom(this.http.post<{ received: boolean; processed: boolean }>(`${this.baseUrl}/admin/orders`, body, this.options()));
+  }
+
   getMe(): Promise<CurrentUser> {
     return firstValueFrom(this.http.get<CurrentUser>(`${this.baseUrl}/me`, this.options()));
   }

@@ -2,7 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe, CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AdminAssignment, AdminBook, AdminCandidate, AdminEdition, AdminFulfillment, AdminOrder, AdminScoreResult, ApiService, BookResult } from '../api.service';
+import { AdminAssignment, AdminBook, AdminCandidate, AdminEdition, AdminFulfillment, AdminOrder, AdminScoreResult, AdminUser, ApiService, BookResult } from '../api.service';
 import { DialogService } from '../dialog.service';
 import { ToastService } from '../toast.service';
 import { FULFILLMENT_LABELS } from '../components/order-timeline';
@@ -500,6 +500,56 @@ const aspectLabels: Partial<Record<string, string>> = {
             <button type="button" class="rounded-sm bg-ink px-5 py-2 text-sm font-bold text-white hover:bg-ink-soft disabled:opacity-60" (click)="loadOrders()" [disabled]="loading()">Buscar</button>
           </div>
 
+          <details class="rounded-sm border border-[#cad7df] bg-white p-4">
+            <summary class="cursor-pointer font-semibold text-ink">Crear pedido administrativo (sin cargo)</summary>
+            <div class="mt-3">
+              <p class="mb-2 text-sm text-[#536875]">Registra un pedido gratuito para una persona existente. No se cobra ni se crea un pago, y entra directo a la curación.</p>
+              <div class="relative">
+                <input
+                  [(ngModel)]="freeOrderQuery"
+                  (ngModelChange)="onFreeOrderQuery()"
+                  placeholder="Busca por correo o nombre…"
+                  [disabled]="creatingFreeOrder()"
+                  class="w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2 disabled:cursor-wait disabled:opacity-60">
+                @if (freeOrderResults().length > 0 && freeOrderQuery && !freeOrderSearch().loading && !freeOrderSearch().error) {
+                  <ul class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-sm border border-[#9eb2c1] bg-white">
+                    @for (user of freeOrderResults(); track user.id) {
+                      <li>
+                        <button type="button" (click)="pickFreeOrderUser(user)" class="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-[#eaf1f6]">
+                          <span>
+                            {{ user.displayName || 'Sin nombre' }}@if (user.email) { — {{ user.email }} }
+                            <span class="ml-1 font-mono text-xs text-[#567088]">{{ user._count.orders }} pedido(s)</span>
+                          </span>
+                        </button>
+                      </li>
+                    }
+                  </ul>
+                }
+              </div>
+              @if (freeOrderQuery && freeOrderSearch().loading) {
+                <p class="mt-2 flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-[#7d9ab0]">
+                  <svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  Buscando…
+                </p>
+              }
+              @if (freeOrderQuery && freeOrderSearch().error) {
+                <div class="mt-2 rounded-sm border-l-[3px] border-coral bg-[#fbe9e6] px-3 py-2">
+                  <p class="text-sm text-[#7a2c1f]">{{ freeOrderSearch().error }}</p>
+                </div>
+              }
+              @if (freeOrderUser(); as user) {
+                <div class="mt-3 rounded-sm border border-[#d6e1e8] bg-[#f7fafc] px-3 py-2 text-sm">
+                  <p class="font-semibold text-ink">{{ user.displayName || 'Sin nombre' }} <span class="ml-1 font-mono text-xs text-[#567088]">{{ user.email }}</span></p>
+                  <p class="mt-1 text-xs text-[#536875]">Se creará el paquete «Mi libro Sorpresa» sin cargo. Sin pago registrado, entra a la curación en cuanto confirmes.</p>
+                  <div class="mt-2 flex gap-2">
+                    <button type="button" class="rounded-sm bg-ink px-4 py-2 text-sm font-bold text-white hover:bg-ink-soft disabled:opacity-60" [disabled]="loading() || creatingFreeOrder()" (click)="createFreeOrder()">Crear pedido sin cargo</button>
+                    <button type="button" class="rounded-sm border border-[#7d9ab0] px-4 py-2 text-sm font-bold text-[#7a2c1f] transition hover:bg-[#fbe9e6]" (click)="clearFreeOrderUser()">Quitar</button>
+                  </div>
+                </div>
+              }
+            </div>
+          </details>
+
           @if (orders().length > 0) {
             @for (order of orders(); track order.id) {
               <div class="rounded-sm border border-[#cad7df] bg-white p-4">
@@ -616,6 +666,13 @@ export class AdminScreen {
   orderQuery = '';
   orderStatus = '';
   newBookQuery = '';
+  freeOrderQuery = '';
+  readonly freeOrderResults = signal<AdminUser[]>([]);
+  readonly freeOrderSearch = signal<{ loading: boolean; error: string | null }>({ loading: false, error: null });
+  readonly freeOrderUser = signal<AdminUser | null>(null);
+  readonly creatingFreeOrder = signal(false);
+  private freeOrderTimer: ReturnType<typeof setTimeout> | null = null;
+  private freeOrderSeq = 0;
   newClassification = { contentType: 'fiction' };
   readonly tagLabels = TAG_LABELS;
   readonly tagTypeLabels = TAG_TYPE_LABELS;
@@ -653,6 +710,66 @@ export class AdminScreen {
     await this.run(async () => {
       this.orders.set(await this.api.listAdminOrders(this.orderQuery, this.orderStatus));
     });
+  }
+
+  onFreeOrderQuery(): void {
+    if (this.freeOrderTimer) clearTimeout(this.freeOrderTimer);
+    if (!this.freeOrderQuery.trim()) {
+      this.freeOrderSeq++;
+      this.freeOrderResults.set([]);
+      this.freeOrderSearch.set({ loading: false, error: null });
+      return;
+    }
+    this.freeOrderTimer = setTimeout(() => this.runFreeOrderSearch(this.freeOrderQuery), 300);
+  }
+
+  private runFreeOrderSearch(query: string): void {
+    const seq = ++this.freeOrderSeq;
+    this.freeOrderSearch.set({ loading: true, error: null });
+    this.api.listAdminUsers(query).then((users) => {
+      if (seq !== this.freeOrderSeq) return;
+      this.freeOrderResults.set(users);
+      this.freeOrderSearch.set({ loading: false, error: null });
+    }).catch(() => {
+      if (seq !== this.freeOrderSeq) return;
+      this.freeOrderResults.set([]);
+      this.freeOrderSearch.set({ loading: false, error: 'No pudimos buscar personas.' });
+    });
+  }
+
+  pickFreeOrderUser(user: AdminUser): void {
+    this.freeOrderUser.set(user);
+    this.freeOrderQuery = '';
+    this.freeOrderSeq++;
+    this.freeOrderResults.set([]);
+    this.freeOrderSearch.set({ loading: false, error: null });
+  }
+
+  clearFreeOrderUser(): void {
+    this.freeOrderUser.set(null);
+  }
+
+  async createFreeOrder(): Promise<void> {
+    const user = this.freeOrderUser();
+    if (!user) return;
+    const confirmed = await this.dialog.confirm({
+      title: 'Crear pedido administrativo',
+      message: `Se creará un pedido gratuito de «Mi libro Sorpresa» para ${user.displayName || user.email || 'esta persona'}. No se realizará ningún cobro ni se registrará un pago, y entrará a la curación. ¿Continuar?`,
+      confirmLabel: 'Crear sin cargo',
+      cancelLabel: 'Cancelar',
+    });
+    if (!confirmed) return;
+    this.creatingFreeOrder.set(true);
+    try {
+      await this.run(async () => {
+        await this.api.createAdminOrder({ userId: user.id });
+        this.toast.success('Pedido administrativo creado sin cargo.');
+        this.clearFreeOrderUser();
+        await this.loadOrders();
+      });
+    } finally {
+      this.creatingFreeOrder.set(false);
+    }
   }
 
   async fulfillAction(action: 'pack' | 'ship' | 'in-delivery' | 'delivered', order: AdminOrder): Promise<void> {
