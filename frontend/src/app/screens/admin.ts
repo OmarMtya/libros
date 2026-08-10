@@ -489,6 +489,58 @@ const aspectLabels: Partial<Record<string, string>> = {
 
       @if (tab() === 'orders') {
         <section class="space-y-4">
+          <div class="rounded-sm border border-[#cad7df] bg-white p-4">
+            <h2 class="font-semibold text-ink">Crear pedido administrativo sin cobro</h2>
+            <p class="mt-1 text-sm text-[#536875]">Selecciona un usuario para iniciar su pedido directamente en curación, sin abrir Stripe Checkout ni registrar un pago.</p>
+
+            @if (selectedAdminUser(); as user) {
+              <div class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-[#9eb2c1] bg-[#f2f6f9] px-3 py-2">
+                <span class="min-w-0">
+                  <strong class="block truncate text-ink">{{ user.displayName || user.email || 'Sin nombre' }}</strong>
+                  @if (user.email) { <small class="text-[#566e80]">{{ user.email }}</small> }
+                </span>
+                <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-xs font-bold hover:bg-[#e6eef3]" (click)="clearAdminUser()">Cambiar</button>
+              </div>
+            } @else {
+              <div class="relative mt-3">
+                <input
+                  [(ngModel)]="adminUserQuery"
+                  (ngModelChange)="onAdminUserQuery()"
+                  placeholder="Buscar por nombre o correo…"
+                  class="w-full max-w-md rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
+                @if (adminUserResults().length > 0 && !adminUserSearch().loading && !adminUserSearch().error) {
+                  <ul class="absolute z-10 mt-1 max-h-60 w-full max-w-md overflow-y-auto rounded-sm border border-[#9eb2c1] bg-white shadow">
+                    @for (user of adminUserResults(); track user.id) {
+                      <li>
+                        <button type="button" class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-[#eaf1f6]" (click)="pickAdminUser(user)">
+                          <span class="min-w-0">
+                            <strong class="block truncate text-ink">{{ user.displayName || user.email || 'Sin nombre' }}</strong>
+                            @if (user.email) { <small class="text-[#566e80]">{{ user.email }}</small> }
+                          </span>
+                          <span class="shrink-0 font-mono text-[11px] text-[#567088]">{{ user._count.orders }} pedido(s)</span>
+                        </button>
+                      </li>
+                    }
+                  </ul>
+                }
+                @if (adminUserSearch().loading) {
+                  <p class="mt-2 text-xs text-[#7d9ab0]">Buscando usuarios…</p>
+                }
+                @if (adminUserSearch().error) {
+                  <p class="mt-2 text-xs text-[#7a2c1f]">{{ adminUserSearch().error }}</p>
+                }
+              </div>
+            }
+
+            <button
+              type="button"
+              class="mt-3 rounded-sm bg-coral px-4 py-2 text-sm font-bold text-white hover:bg-coral-deep disabled:opacity-60"
+              [disabled]="loading() || !selectedAdminUser()"
+              (click)="createFreeAdminOrder()">
+              Crear pedido sin cobro
+            </button>
+          </div>
+
           <div class="flex gap-3">
             <input [(ngModel)]="orderQuery" (keydown.enter)="loadOrders()" placeholder="Buscar por persona…" class="w-full max-w-sm rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
             <select [(ngModel)]="orderStatus" (change)="loadOrders()" class="rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
@@ -568,6 +620,9 @@ export class AdminScreen {
   readonly assignments = signal<AdminAssignment[]>([]);
   readonly fulfillments = signal<AdminFulfillment[]>([]);
   readonly orders = signal<AdminOrder[]>([]);
+  readonly adminUserResults = signal<AdminUser[]>([]);
+  readonly adminUserSearch = signal<{ loading: boolean; error: string | null }>({ loading: false, error: null });
+  readonly selectedAdminUser = signal<AdminUser | null>(null);
   readonly scored = signal<Record<string, AdminCandidate[]>>({});
   readonly replaceTarget = signal<string | null>(null);
   readonly loading = signal(false);
@@ -582,6 +637,8 @@ export class AdminScreen {
   assignBookQuery = '';
   private orderTimer: ReturnType<typeof setTimeout> | null = null;
   private orderSeq = 0;
+  private adminUserTimer: ReturnType<typeof setTimeout> | null = null;
+  private adminUserSeq = 0;
   private bookTimer: ReturnType<typeof setTimeout> | null = null;
   private bookSeq = 0;
 
@@ -615,6 +672,7 @@ export class AdminScreen {
   bookQuery = '';
   orderQuery = '';
   orderStatus = '';
+  adminUserQuery = '';
   newBookQuery = '';
   newClassification = { contentType: 'fiction' };
   readonly tagLabels = TAG_LABELS;
@@ -652,6 +710,61 @@ export class AdminScreen {
   async loadOrders(): Promise<void> {
     await this.run(async () => {
       this.orders.set(await this.api.listAdminOrders(this.orderQuery, this.orderStatus));
+    });
+  }
+
+  onAdminUserQuery(): void {
+    if (this.adminUserTimer) clearTimeout(this.adminUserTimer);
+    if (!this.adminUserQuery.trim()) {
+      this.adminUserSeq++;
+      this.adminUserResults.set([]);
+      this.adminUserSearch.set({ loading: false, error: null });
+      return;
+    }
+    this.adminUserTimer = setTimeout(() => this.runAdminUserSearch(this.adminUserQuery), 300);
+  }
+
+  private runAdminUserSearch(query: string): void {
+    const seq = ++this.adminUserSeq;
+    this.adminUserSearch.set({ loading: true, error: null });
+    this.api.listAdminUsers(query).then((users) => {
+      if (seq !== this.adminUserSeq) return;
+      this.adminUserResults.set(users);
+      this.adminUserSearch.set({ loading: false, error: null });
+    }).catch(() => {
+      if (seq !== this.adminUserSeq) return;
+      this.adminUserResults.set([]);
+      this.adminUserSearch.set({ loading: false, error: 'No pudimos buscar usuarios.' });
+    });
+  }
+
+  pickAdminUser(user: AdminUser): void {
+    this.selectedAdminUser.set(user);
+    this.adminUserQuery = '';
+    this.adminUserResults.set([]);
+    this.adminUserSearch.set({ loading: false, error: null });
+  }
+
+  clearAdminUser(): void {
+    this.selectedAdminUser.set(null);
+  }
+
+  async createFreeAdminOrder(): Promise<void> {
+    const user = this.selectedAdminUser();
+    if (!user) return;
+    const name = user.displayName || user.email || 'este usuario';
+    const confirmed = await this.dialog.confirm({
+      title: 'Crear pedido sin cobro',
+      message: `Se creará un pedido administrativo para ${name}. No se abrirá Stripe Checkout ni se registrará un pago. ¿Continuar?`,
+      confirmLabel: 'Crear pedido',
+      cancelLabel: 'Cancelar',
+    });
+    if (!confirmed) return;
+    await this.run(async () => {
+      await this.api.createAdminOrder(user.id);
+      this.toast.success('Pedido administrativo creado y enviado a curación.');
+      this.clearAdminUser();
+      await this.loadOrders();
     });
   }
 
