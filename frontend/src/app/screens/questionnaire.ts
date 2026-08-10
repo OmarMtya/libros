@@ -849,12 +849,13 @@ export class Questionnaire {
     if (question.responseType === 'multi_select') return this.selectedKeys;
     if (question.responseType === 'ranking') return { ranking: this.selectedKeys };
     if (question.questionKey === 'Q01_LOVED_BOOKS') return {
-      books: this.lovedBooks.map((book) => ({ work_id: book.openLibraryId, edition_id: book.openLibraryEditionId, title: book.title, liked_aspects: this.lovedBookAspects[book.openLibraryId] ?? [], free_text: null })),
+      books: this.lovedBooks.map((book) => ({ work_id: book.openLibraryId, edition_id: book.openLibraryEditionId, cover_id: book.coverId, title: book.title, liked_aspects: this.lovedBookAspects[book.openLibraryId] ?? [], free_text: null })),
     };
     if (question.questionKey === 'Q02_DISLIKED_BOOK') return {
       books: this.dislikedBooks.map((book) => ({
         work_id: book.openLibraryId,
         edition_id: book.openLibraryEditionId,
+        cover_id: book.coverId,
         title: book.title,
         reason_codes: this.dislikedBookReasons[book.openLibraryId] ?? [],
         free_text: (this.dislikedBookReasonTexts[book.openLibraryId] ?? '').trim() || null,
@@ -895,6 +896,22 @@ export class Questionnaire {
     this.activeTagGroup = null;
   }
 
+  private savedBook(book: Record<string, unknown>): BookResult {
+    const coverId = typeof book['cover_id'] === 'number' && Number.isInteger(book['cover_id']) && book['cover_id'] > 0
+      ? book['cover_id']
+      : null;
+    return {
+      openLibraryId: String(book['work_id']),
+      openLibraryEditionId: typeof book['edition_id'] === 'string' ? book['edition_id'] : null,
+      coverId,
+      title: String(book['title'] ?? ''),
+      authors: [],
+      firstPublishYear: null,
+      coverUrl: coverId === null ? null : `https://covers.openlibrary.org/b/id/${coverId}-M.jpg`,
+      originalLanguage: 'es',
+    };
+  }
+
   private applySavedResponse(question: Question, response: unknown): void {
     this.resetAnswer();
     if (response === null || (response && typeof response === 'object' && (response as Record<string, unknown>)['skipped'] === true)) return;
@@ -909,13 +926,13 @@ export class Questionnaire {
     }
     if (question.questionKey === 'Q01_LOVED_BOOKS') {
       const books = Array.isArray(value('books')) ? value('books') as Array<Record<string, unknown>> : [];
-      this.lovedBooks = books.map((book) => ({ openLibraryId: String(book['work_id']), openLibraryEditionId: typeof book['edition_id'] === 'string' ? book['edition_id'] : null, title: String(book['title'] ?? ''), authors: [], firstPublishYear: null, coverUrl: null, originalLanguage: 'es' }));
+      this.lovedBooks = books.map((book) => this.savedBook(book));
       for (const book of books) this.lovedBookAspects[String(book['work_id'])] = Array.isArray(book['liked_aspects']) ? (book['liked_aspects'] as string[]) : [];
       return;
     }
     if (question.questionKey === 'Q02_DISLIKED_BOOK') {
       const books = Array.isArray(value('books')) ? value('books') as Array<Record<string, unknown>> : [];
-      this.dislikedBooks = books.map((book) => ({ openLibraryId: String(book['work_id']), openLibraryEditionId: typeof book['edition_id'] === 'string' ? book['edition_id'] : null, title: String(book['title'] ?? ''), authors: [], firstPublishYear: null, coverUrl: null, originalLanguage: 'es' }));
+      this.dislikedBooks = books.map((book) => this.savedBook(book));
       for (const book of books) {
         this.dislikedBookReasons[String(book['work_id'])] = Array.isArray(book['reason_codes']) ? (book['reason_codes'] as string[]) : [];
         this.dislikedBookReasonTexts[String(book['work_id'])] = typeof book['free_text'] === 'string' ? book['free_text'] : '';

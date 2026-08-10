@@ -31,7 +31,7 @@ describe('BooksService', () => {
       }],
     }));
     const results = await service.search('la paciente silenciosa', 8);
-    expect(results).toEqual([{ openLibraryId: 'OL19096402W', openLibraryEditionId: 'OL47457228M', title: 'La pacient silenciosa', authors: ['Alex Michaelides'], firstPublishYear: 2018, coverUrl: 'https://covers.openlibrary.org/b/id/15242046-M.jpg', originalLanguage: 'es' }]);
+    expect(results).toEqual([{ openLibraryId: 'OL19096402W', openLibraryEditionId: 'OL47457228M', coverId: 15242046, title: 'La pacient silenciosa', authors: ['Alex Michaelides'], firstPublishYear: 2018, coverUrl: 'https://covers.openlibrary.org/b/id/15242046-M.jpg', originalLanguage: 'es' }]);
     expect(fetchMock.mock.calls[0]![0]!).toContain('q=la%20paciente%20silenciosa*');
     expect(fetchMock.mock.calls[0]![0]!).toContain('_spellcheck_count=0');
     expect(fetchMock.mock.calls[0]![0]!).toContain('editions');
@@ -42,7 +42,7 @@ describe('BooksService', () => {
   it('falls back to the work metadata when no matching edition is returned', async () => {
     fetchMock.mockResolvedValueOnce(ok({ docs: [{ key: '/works/OL278437W', title: 'La sombra del viento', author_name: ['Carlos Ruiz Zafón'], first_publish_year: 2001, cover_i: 10107644, language: ['spa'] }] }));
     const results = await service.search('sombra viento', 8);
-    expect(results).toEqual([{ openLibraryId: 'OL278437W', openLibraryEditionId: null, title: 'La sombra del viento', authors: ['Carlos Ruiz Zafón'], firstPublishYear: 2001, coverUrl: 'https://covers.openlibrary.org/b/id/10107644-M.jpg', originalLanguage: 'es' }]);
+    expect(results).toEqual([{ openLibraryId: 'OL278437W', openLibraryEditionId: null, coverId: 10107644, title: 'La sombra del viento', authors: ['Carlos Ruiz Zafón'], firstPublishYear: 2001, coverUrl: 'https://covers.openlibrary.org/b/id/10107644-M.jpg', originalLanguage: 'es' }]);
   });
 
   it('maps a non-Spanish language code to BCP-47 and defaults to es when unknown', async () => {

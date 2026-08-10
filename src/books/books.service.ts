@@ -3,6 +3,7 @@ import { Injectable, GatewayTimeoutException } from '@nestjs/common';
 export type BookResult = {
   openLibraryId: string;
   openLibraryEditionId: string | null;
+  coverId: number | null;
   title: string;
   authors: string[];
   firstPublishYear: number | null;
@@ -91,6 +92,7 @@ export class BooksService {
       return {
         openLibraryId: doc.key.replace(/^\/works\//, ''),
         openLibraryEditionId: edition?.key.replace(/^\/books\//, '') ?? null,
+        coverId: coverId ?? null,
         title: edition?.title ?? doc.title,
         authors: doc.author_name ?? [],
         firstPublishYear: doc.first_publish_year ?? null,

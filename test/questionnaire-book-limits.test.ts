@@ -47,6 +47,27 @@ describe('book search limits', () => {
     expect(() => normalize(service, question, lovedBooks(20))).not.toThrow();
   });
 
+  it('keeps a valid Open Library cover ID with questionnaire books', () => {
+    const { service, question } = serviceWith({ minItems: 3, maxItems: 20, likedAspectsRequired: true });
+    const response = lovedBooks(3) as { books: Array<Record<string, unknown>> };
+    response.books[0]!.cover_id = 15242046;
+
+    expect(normalize(service, question, response)).toEqual({
+      books: [
+        { work_id: 'OL0W', edition_id: null, cover_id: 15242046, liked_aspects: ['prose'], free_text: null },
+        { work_id: 'OL1W', edition_id: null, cover_id: null, liked_aspects: ['prose'], free_text: null },
+        { work_id: 'OL2W', edition_id: null, cover_id: null, liked_aspects: ['prose'], free_text: null },
+      ],
+    });
+  });
+
+  it('rejects an invalid Open Library cover ID', () => {
+    const { service, question } = serviceWith({ minItems: 3, maxItems: 20, likedAspectsRequired: true });
+    const response = lovedBooks(3) as { books: Array<Record<string, unknown>> };
+    response.books[0]!.cover_id = -1;
+    expect(() => normalize(service, question, response)).toThrow(/invalid cover_id/);
+  });
+
   it('applies the same limits to disliked books', () => {
     const { service } = serviceWith({ minItems: 3, maxItems: 20, reasonCodesRequired: true });
     const disliked = { ...serviceWith({ minItems: 3, maxItems: 20, reasonCodesRequired: true }).question, questionKey: 'Q02_DISLIKED_BOOK' };

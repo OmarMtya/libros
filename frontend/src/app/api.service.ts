@@ -20,6 +20,7 @@ export type Question = {
 export type BookResult = {
   openLibraryId: string;
   openLibraryEditionId: string | null;
+  coverId: number | null;
   title: string;
   authors: string[];
   firstPublishYear: number | null;
