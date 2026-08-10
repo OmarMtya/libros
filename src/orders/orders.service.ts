@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { FulfillmentStatus, OrderStatus, PaymentProvider, PaymentStatus, Prisma, ProductPackageKey } from '@prisma/client';
 import Stripe from 'stripe';
@@ -7,6 +8,10 @@ import { PrismaService } from '../prisma/prisma.service';
 const PAYMENT_LINK_PREFIXES: Array<{ prefix: string; packageKey: ProductPackageKey }> = [
   { prefix: 'libro_sorpresa_fisico-', packageKey: 'libro_sorpresa_fisico' },
 ];
+
+type StripeProcessingOptions = {
+  allowFreeOrder?: boolean;
+};
 
 @Injectable()
 export class OrdersService {
@@ -125,8 +130,41 @@ export class OrdersService {
     }));
   }
 
-  async processStripeEvent(event: Stripe.Event) {
+  async createAdminOrder(userId: string, packageKey: ProductPackageKey = 'libro_sorpresa_fisico') {
+    const [product, user] = await Promise.all([
+      this.prisma.productPackage.findUnique({ where: { key: packageKey } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } }),
+    ]);
+    if (!product?.isActive) throw new BadRequestException('El paquete de la compra no está disponible.');
+    if (!user) throw new BadRequestException('El cliente de la compra no existe.');
+
+    const event = {
+      id: `admin-order:${randomUUID()}`,
+      object: 'event',
+      api_version: null,
+      created: Math.floor(Date.now() / 1000),
+      data: {
+        object: {
+          id: `admin-checkout:${randomUUID()}`,
+          object: 'checkout.session',
+          client_reference_id: `${product.key}-${userId}`,
+          payment_status: 'paid',
+          amount_total: 0,
+          currency: product.currency.toLowerCase(),
+        },
+      },
+      livemode: false,
+      pending_webhooks: 0,
+      request: { id: null, idempotency_key: null },
+      type: 'checkout.session.completed',
+    } as unknown as Stripe.Event;
+
+    return this.processStripeEvent(event, { allowFreeOrder: true });
+  }
+
+  async processStripeEvent(event: Stripe.Event, options: StripeProcessingOptions = {}) {
     const session = event.data.object as Stripe.Checkout.Session;
+    const isFreeOrder = options.allowFreeOrder === true;
     try {
       const result = await this.prisma.$transaction(async (tx) => {
         await tx.paymentEvent.create({
@@ -137,7 +175,8 @@ export class OrdersService {
           },
         });
         if (event.type !== 'checkout.session.completed') return { received: true, processed: false };
-        if (session.payment_status !== 'paid' || !session.amount_total) return { received: true, processed: false };
+        if (session.payment_status !== 'paid' || (!session.amount_total && !isFreeOrder)) return { received: true, processed: false };
+        if (isFreeOrder && session.amount_total !== 0) throw new BadRequestException('La orden administrativa debe ser sin cobro.');
 
         const { packageKey, userId } = this.parseClientReference(session.client_reference_id);
         const [product, user] = await Promise.all([
@@ -148,6 +187,9 @@ export class OrdersService {
         if (!user) throw new BadRequestException('El cliente de la compra no existe.');
 
         const currency = (session.currency ?? product.currency).toUpperCase();
+        const subtotalCents = isFreeOrder ? 0 : product.priceCents;
+        const shippingCents = isFreeOrder ? 0 : product.shippingCents;
+        const totalCents = isFreeOrder ? 0 : session.amount_total!;
         const shipping = this.extractShippingDetails(session);
         const order = await tx.order.create({
           data: {
@@ -155,28 +197,35 @@ export class OrdersService {
             packageId: product.id,
             packageKey: product.key,
             packageName: product.name,
-            subtotalCents: product.priceCents,
-            shippingCents: product.shippingCents,
-            totalCents: session.amount_total,
+            subtotalCents,
+            shippingCents,
+            totalCents,
             currency,
             status: OrderStatus.curation_pending,
-            paidAt: new Date(),
+            paidAt: isFreeOrder ? null : new Date(),
             shippingAddress: shipping ? { create: shipping } : undefined,
           },
         });
-        const payment = await tx.payment.create({
+        if (!isFreeOrder) {
+          const payment = await tx.payment.create({
+            data: {
+              orderId: order.id,
+              provider: PaymentProvider.stripe,
+              externalSessionId: session.id,
+              amountCents: totalCents,
+              currency,
+              status: PaymentStatus.paid,
+              providerPayload: session as unknown as Prisma.InputJsonValue,
+            },
+          });
+          await tx.paymentEvent.update({ where: { providerEventId: event.id }, data: { paymentId: payment.id } });
+        }
+        await tx.fulfillment.create({
           data: {
             orderId: order.id,
-            provider: PaymentProvider.stripe,
-            externalSessionId: session.id,
-            amountCents: session.amount_total,
-            currency,
-            status: PaymentStatus.paid,
-            providerPayload: session as unknown as Prisma.InputJsonValue,
+            internalNotes: isFreeOrder ? 'Orden administrativa sin cobro.' : undefined,
           },
         });
-        await tx.paymentEvent.update({ where: { providerEventId: event.id }, data: { paymentId: payment.id } });
-        await tx.fulfillment.create({ data: { orderId: order.id } });
         const orderInfo = {
           orderId: order.id,
           orderRef: `LS-${order.id.slice(0, 8).toUpperCase()}`,
