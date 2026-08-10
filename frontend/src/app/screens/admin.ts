@@ -2,7 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe, CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AdminAssignment, AdminBook, AdminCandidate, AdminEdition, AdminFulfillment, AdminOrder, AdminScoreResult, ApiService, BookResult } from '../api.service';
+import { AdminAssignment, AdminBook, AdminCandidate, AdminEdition, AdminFulfillment, AdminOrder, AdminScoreResult, AdminUser, ApiService, BookResult } from '../api.service';
 import { DialogService } from '../dialog.service';
 import { ToastService } from '../toast.service';
 import { FULFILLMENT_LABELS } from '../components/order-timeline';
