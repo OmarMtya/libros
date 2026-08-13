@@ -84,6 +84,9 @@ const BOX_CONTENTS = [
                   {{ (pkg.priceCents + pkg.shippingCents) / 100 | currency:'MXN':'$':'1.0-0' }} MXN
                   <span class="ml-1 text-sm font-normal text-[#567088]">incluye envío</span>
                 </p>
+                <p class="rounded-sm bg-[#fff0e6] px-3 py-1.5 font-mono text-xs font-bold uppercase tracking-[0.1em] text-coral-deep">
+                  Oferta de lanzamiento
+                </p>
                 <p class="text-xs leading-relaxed text-[#536875]">
                   Envíos de 5 a 10 días hábiles. Nos comunicaremos contigo en cada paso de tu pedido.
                 </p>

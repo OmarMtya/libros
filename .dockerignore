@@ -11,4 +11,5 @@ test
 .github
 .env*
 *.md
+!book-classification-prompt.md
 .git

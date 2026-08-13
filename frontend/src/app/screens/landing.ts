@@ -284,7 +284,14 @@ export class Reveal {
                   <h2 class="mb-5 font-display text-3xl font-bold tracking-[-0.04em] text-ink sm:text-4xl">
                     Tu próximo libro sorpresa
                   </h2>
+                  <span
+                    class="mb-4 inline-block bg-coral px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-[0.14em] text-white shadow-[0_2px_6px_rgba(19,42,58,0.25)]">
+                    Precio fundador
+                  </span>
                   <p class="font-display text-6xl font-extrabold tracking-[-0.05em] text-ink sm:text-7xl">$499 MXN</p>
+                  <p class="mx-auto mt-3 inline-block rounded-sm bg-[#fff0e6] px-3 py-1.5 font-mono text-xs font-bold uppercase tracking-[0.1em] text-coral-deep">
+                    Oferta de lanzamiento
+                  </p>
                   <p class="mx-auto mt-4 max-w-sm text-[#536875]">
                      Un libro elegido a partir de tu perfil y enviado a tu puerta.
                   </p>

@@ -14,6 +14,7 @@ on:
       - 'package-lock.json'
       - 'Dockerfile.prod'
       - '.dockerignore'
+      - 'book-classification-prompt.md'
       - '.github/workflows/deploy-api.yml'
 
 permissions:
