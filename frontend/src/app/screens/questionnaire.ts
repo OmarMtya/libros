@@ -1,4 +1,5 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService, BookResult, Question, Session, Tag } from '../api.service';
@@ -553,6 +554,9 @@ export class Questionnaire {
   private bootstrapped = false;
 
   constructor() {
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
+      this.redirectFrom.set(params.get('from'));
+    });
     effect(() => {
       if (!this.auth.session()) {
         this.bootstrapped = false;
