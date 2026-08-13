@@ -32,6 +32,12 @@ asigna un libro físico.
   configuración antes. Tras editar el `.env` de producción hay que **recrear** el contenedor
   `libros-api` (`docker stop` + `docker rm` + `docker run` con `--env-file`; no basta
   `docker restart`, porque el `.env` se lee al crear el contenedor).
+- **PROHIBIDO regenerar/editar los `package-lock.json` (raíz o `frontend/`) en Windows**: npm en
+  Windows omite dependencias opcionales de plataforma (`@emnapi/core`, `@emnapi/runtime`) que
+  Linux exige, y `npm ci` falla en CI con "Missing: @emnapi/core from lock file". Para agregar o
+  actualizar dependencias, regenerar SIEMPRE los lockfiles en Linux (el entorno de CI) con:
+  `powershell -ExecutionPolicy Bypass -File scripts/update-lockfiles.ps1` (requiere Docker).
+  El job `lockfiles` de CI valida esto automáticamente y falla con instrucciones si falta.
 
 ## Stack y estructura
 

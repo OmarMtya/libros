@@ -18,6 +18,24 @@ on:
       - '.github/workflows/ci.yml'
 
 jobs:
+  lockfiles:
+    name: Lockfiles (compatibles con Linux/CI)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verificar dependencias opcionales en lockfiles
+        run: |
+          for f in package-lock.json frontend/package-lock.json; do
+            for p in node_modules/@emnapi/core node_modules/@emnapi/runtime; do
+              if ! grep -q "\"$p\"" "$f"; then
+                echo "::error file=$f::$p falta en el lockfile (probablemente se regeneró en Windows)."
+                echo "::error file=$f::Regenera los lockfiles en Linux con: powershell -ExecutionPolicy Bypass -File scripts/update-lockfiles.ps1 (requiere Docker)."
+                exit 1
+              fi
+            done
+          done
+          echo "Lockfiles OK"
+
   api:
     name: API (lint, test, build)
     runs-on: ubuntu-latest
