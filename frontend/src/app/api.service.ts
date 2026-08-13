@@ -99,10 +99,10 @@ export type Profile = {
 
 export type PublicProfileCategory = { key: string; label: string };
 export type PublicProfileBookReview = {
-  readingStatus: string;
+  readingStatus: string | null;
   selectionFitRating: number | null;
-  started: boolean;
-  completionPercentage: number;
+  started: boolean | null;
+  completionPercentage: number | null;
   notStartedReason: string | null;
   outcomeAttribution: string | null;
   positiveAspects: string[];
@@ -113,6 +113,7 @@ export type PublicProfileBook = {
   title: string;
   authors: string[];
   coverUrl: string | null;
+  source: ('questionnaire' | 'surprise')[];
   review: PublicProfileBookReview | null;
 };
 export type PublicProfile = {
@@ -387,8 +388,8 @@ export class ApiService {
     return firstValueFrom(this.http.get<Question & { response: unknown }>(`${this.baseUrl}/questionnaire-sessions/${sessionId}/questions/${questionKey}`, this.options()));
   }
 
-  submitAnswer(sessionId: string, questionKey: string, response: unknown): Promise<unknown> {
-    return firstValueFrom(this.http.post(`${this.baseUrl}/questionnaire-sessions/${sessionId}/answers/${questionKey}`, { response, idempotencyKey: crypto.randomUUID() }, this.options()));
+  submitAnswer(sessionId: string, questionKey: string, response: unknown): Promise<{ answer: unknown; nextQuestion: Question | null }> {
+    return firstValueFrom(this.http.post<{ answer: unknown; nextQuestion: Question | null }>(`${this.baseUrl}/questionnaire-sessions/${sessionId}/answers/${questionKey}`, { response, idempotencyKey: crypto.randomUUID() }, this.options()));
   }
 
   completeSession(sessionId: string): Promise<unknown> {

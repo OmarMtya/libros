@@ -115,7 +115,7 @@ export class QuestionnaireService {
     if (session.status !== 'started') throw new ConflictException('Questionnaire session is not active.');
     if (body.idempotencyKey) {
       const previous = await this.prisma.questionAnswer.findUnique({ where: { sessionId_idempotencyKey: { sessionId, idempotencyKey: body.idempotencyKey } } });
-      if (previous) return previous;
+      if (previous) return { answer: previous, nextQuestion: await this.nextQuestion(sessionId, userId) };
     }
     const question = await this.prisma.questionDefinition.findUnique({
       where: { questionKey_questionnaireVersion: { questionKey, questionnaireVersion: session.questionnaireVersion } },
@@ -165,8 +165,7 @@ export class QuestionnaireService {
       await tx.readerPositiveTrigger.deleteMany({ where: { evidence: { none: {} } } });
       return created;
     });
-    await this.profiles.recompute(session.userId, 'questionnaire_answer', answer.id);
-    return answer;
+    return { answer, nextQuestion: await this.nextQuestion(sessionId, userId) };
   }
 
   async completeSession(sessionId: string, userId: string) {
@@ -383,16 +382,17 @@ export class QuestionnaireService {
           const coverId = typeof rawCoverId === 'number' ? rawCoverId : null;
           const freeText = book['free_text'];
           if (freeText !== undefined && freeText !== null && typeof freeText !== 'string') throw new BadRequestException(`Book at index ${index} has invalid free_text.`);
+          const rating = this.readBookRating(book, index);
           if (question.questionKey === 'Q01_LOVED_BOOKS') {
             const likedAspects = this.readStrings(book, 'liked_aspects');
             if (!likedAspects.length || !likedAspects.every((aspect) => ['characters', 'prose', 'originality', 'ending', 'emotions', 'universe'].includes(aspect))) throw new BadRequestException(`Book at index ${index} requires at least one valid liked_aspect.`);
-            return { work_id: openLibraryId.trim(), edition_id: typeof editionId === 'string' ? editionId : null, cover_id: coverId, liked_aspects: [...new Set(likedAspects)], free_text: freeText?.trim() || null };
+            return { work_id: openLibraryId.trim(), edition_id: typeof editionId === 'string' ? editionId : null, cover_id: coverId, rating, liked_aspects: [...new Set(likedAspects)], free_text: freeText?.trim() || null };
           }
           const reasonCodes = this.readStrings(book, 'reason_codes').length ? this.readStrings(book, 'reason_codes') : this.readStrings(response, 'reason_codes');
           if (!reasonCodes.length || !reasonCodes.every((code) => ['too_conceptually_dense', 'too_slow', 'too_confusing', 'too_long', 'not_engaging', 'other'].includes(code))) throw new BadRequestException(`Book at index ${index} requires at least one valid reason_code.`);
           const responseFreeText = typeof response['free_text'] === 'string' ? response['free_text'] : response['reason'];
           if (responseFreeText !== undefined && responseFreeText !== null && typeof responseFreeText !== 'string') throw new BadRequestException('Book-search free_text must be a string or null.');
-          return { work_id: openLibraryId.trim(), edition_id: typeof editionId === 'string' ? editionId : null, cover_id: coverId, reason_codes: [...new Set(reasonCodes)], free_text: (typeof freeText === 'string' ? freeText : responseFreeText)?.trim() || null };
+          return { work_id: openLibraryId.trim(), edition_id: typeof editionId === 'string' ? editionId : null, cover_id: coverId, rating, reason_codes: [...new Set(reasonCodes)], free_text: (typeof freeText === 'string' ? freeText : responseFreeText)?.trim() || null };
         }
         const title = book['title'];
         if (typeof title !== 'string' || !title.trim()) throw new BadRequestException(`Book at index ${index} is missing title.`);
@@ -424,6 +424,12 @@ export class QuestionnaireService {
   private readNumber(value: Record<string, unknown>, property: string): number {
     const candidate = value[property];
     if (typeof candidate !== 'number') throw new BadRequestException(`Expected numeric ${property}.`);
+    return candidate;
+  }
+
+  private readBookRating(book: Record<string, unknown>, index: number): number {
+    const candidate = book['rating'];
+    if (typeof candidate !== 'number' || !Number.isInteger(candidate) || candidate < 1 || candidate > 5) throw new BadRequestException(`Book at index ${index} requires a rating from 1 to 5.`);
     return candidate;
   }
 

@@ -1,11 +1,11 @@
 import { Component, ElementRef, Input, OnDestroy, signal, viewChild } from '@angular/core';
-import { FEEDBACK_NEGATIVE_ASPECTS, FEEDBACK_POSITIVE_ASPECTS } from '../labels';
+import { DISLIKED_BOOK_REASONS, FEEDBACK_NEGATIVE_ASPECTS, FEEDBACK_POSITIVE_ASPECTS, LOVED_BOOK_ASPECTS } from '../labels';
 
 export type BookReview = {
-  readingStatus: string;
+  readingStatus: string | null;
   selectionFitRating: number | null;
-  started: boolean;
-  completionPercentage: number;
+  started: boolean | null;
+  completionPercentage: number | null;
   notStartedReason: string | null;
   outcomeAttribution: string | null;
   positiveAspects: string[];
@@ -19,7 +19,18 @@ export type BookCarouselItem = {
   openLibraryId?: string;
   authors?: string[];
   coverUrl?: string | null;
+  source?: ('questionnaire' | 'surprise')[];
   review?: BookReview | null;
+};
+
+const POSITIVE_LABELS: Record<string, string> = {
+  ...Object.fromEntries(LOVED_BOOK_ASPECTS.map((aspect) => [aspect.key, aspect.label])),
+  ...FEEDBACK_POSITIVE_ASPECTS,
+};
+
+const NEGATIVE_LABELS: Record<string, string> = {
+  ...Object.fromEntries(DISLIKED_BOOK_REASONS.map((reason) => [reason.key, reason.label])),
+  ...FEEDBACK_NEGATIVE_ASPECTS,
 };
 
 @Component({
@@ -156,7 +167,12 @@ export type BookCarouselItem = {
                     </div>
 
                     <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                      <span class="rounded-full bg-ink px-2.5 py-1 font-semibold text-white">{{ readingStatusLabel(review.readingStatus) }}</span>
+                      @if (book.source?.includes('surprise')) {
+                        <span class="rounded-full bg-coral px-2.5 py-1 font-semibold text-white">Leído por Mi Libro Sorpresa</span>
+                      }
+                      @if (review.readingStatus != null) {
+                        <span class="rounded-full bg-ink px-2.5 py-1 font-semibold text-white">{{ readingStatusLabel(review.readingStatus) }}</span>
+                      }
                       @if (review.selectionFitRating !== null) {
                         <span class="inline-flex items-center gap-1" [attr.aria-label]="'Me gustó ' + review.selectionFitRating + ' de 5'">
                           @for (filled of stars(review.selectionFitRating); track $index) {
@@ -282,11 +298,11 @@ export class BookCarousel implements OnDestroy {
   }
 
   negativeLabel(key: string): string {
-    return FEEDBACK_NEGATIVE_ASPECTS[key] ?? key;
+    return NEGATIVE_LABELS[key] ?? key;
   }
 
   positiveLabel(key: string): string {
-    return FEEDBACK_POSITIVE_ASPECTS[key] ?? key;
+    return POSITIVE_LABELS[key] ?? key;
   }
 
   stars(rating: number): boolean[] {

@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { CatalogService } from '../src/books/catalog.service';
+import { BooksService } from '../src/books/books.service';
+import { BOOK_FEATURE_SCHEMA_VERSION } from '../src/catalog/book-feature-definitions';
+import { CONTENT_TYPE_SCHEMA_VERSION } from '../src/catalog/content-type-definitions';
+import { TAG_TAXONOMY_VERSION } from '../src/profile/catalog';
 import { ProfileService } from '../src/profile/profile.service';
 import { PublicProfileService } from '../src/profile/public-profile.service';
 import { assertTestDatabase } from './helpers/test-database';
@@ -12,6 +17,18 @@ assertTestDatabase(url);
 const prisma = url ? new PrismaClient({ datasources: { db: { url } } }) : null;
 const profileService = prisma ? new ProfileService(prisma as never) : null;
 const publicService = prisma ? new PublicProfileService(prisma as never) : null;
+const catalogService = prisma ? new CatalogService(prisma as never, new BooksService()) : null;
+
+const REQUIRED_FICTION_FEATURES = [
+  'hook_speed', 'narrative_pace', 'slow_burn_level', 'narrative_payoff', 'style_clarity',
+  'ornate_prose', 'linguistic_complexity', 'structural_complexity', 'conceptual_density',
+  'character_depth', 'character_agency', 'character_likability', 'relationship_focus',
+  'cast_size_load', 'multi_pov_load', 'introspection_density', 'repetition_level',
+  'tension_level', 'descriptive_density', 'worldbuilding_load', 'ending_openness',
+];
+
+let isbnSequence = 0;
+const nextIsbn = () => `9780${String(++isbnSequence).padStart(9, '0')}`;
 
 async function cleanDatabase() {
   if (!prisma) return;
@@ -35,6 +52,14 @@ async function cleanDatabase() {
   await prisma.readingFeedback.deleteMany();
   await prisma.feedbackInvitation.deleteMany();
   await prisma.curationAssignment.deleteMany();
+  await prisma.bookTag.deleteMany();
+  await prisma.bookFeature.deleteMany();
+  await prisma.bookClassificationVersion.deleteMany();
+  await prisma.editionContributor.deleteMany();
+  await prisma.bookEdition.deleteMany();
+  await prisma.bookAuthor.deleteMany();
+  await prisma.author.deleteMany();
+  await prisma.book.deleteMany();
   await prisma.user.deleteMany();
 }
 
@@ -51,6 +76,29 @@ async function createReader(completed: boolean) {
     });
   }
   return { userId, profile };
+}
+
+async function makeApprovedEdition() {
+  const catalog = catalogService!;
+  const actor = '00000000-0000-0000-0000-0000000000aa';
+  const book = await catalog.createBook(actor, { canonicalTitle: `Eligh ${randomUUID().slice(0, 6)}`, originalLanguage: 'es' });
+  const edition = await catalog.addEdition(book.id, {
+    title: 'Eligh (ed. es)',
+    isbn: nextIsbn(),
+    languageCode: 'es',
+    pages: 248,
+    publisher: 'Editorial',
+    publicationYear: 2023,
+  });
+  await catalog.createClassification(actor, edition.id, {
+    contentTypeKey: 'fiction',
+    contentTypeSchemaVersion: CONTENT_TYPE_SCHEMA_VERSION,
+    featureSchemaVersion: BOOK_FEATURE_SCHEMA_VERSION,
+    tagTaxonomyVersion: TAG_TAXONOMY_VERSION,
+    features: REQUIRED_FICTION_FEATURES.map((featureKey) => ({ featureKey, value: 0.7, confidence: 0.6 })),
+    tags: [{ tagKey: 'science_fiction', strength: 0.9, confidence: 0.7 }],
+  });
+  return { book, edition };
 }
 
 run('public-profile (integration)', () => {
@@ -107,5 +155,90 @@ run('public-profile (integration)', () => {
     expect(view.notReady).toBe(true);
     expect(view.isOwner).toBe(true);
     expect(view.slug).toBe(profile.publicSlug);
+  });
+
+  it('builds questionnaire book covers from cover_id when present', async () => {
+    const { userId, profile } = await createReader(true);
+    const session = await prisma!.questionnaireSession.findFirstOrThrow({ where: { userId, status: 'completed' } });
+    const raw = {
+      books: [
+        { work_id: 'OL1673205W', edition_id: 'OL9134091M', cover_id: 8455754, title: 'El padrino', rating: 5, liked_aspects: ['universe'], free_text: 'Me atrapó su mundo.' },
+        { work_id: 'OL82563W', edition_id: 'OL38565767M', title: 'Harry Potter y la piedra filosofal', rating: 4, liked_aspects: ['characters'], free_text: null },
+      ],
+    };
+    await prisma!.questionAnswer.create({
+      data: { sessionId: session.id, userId, questionKey: 'Q01_LOVED_BOOKS', questionVersion: 1, questionnaireVersion: 'onboarding/1.1', rawResponse: raw as never, normalizedResponse: raw as never },
+    });
+    const view = await publicService!.get(profile.publicSlug!);
+    expect(view.books.enjoyed).toHaveLength(2);
+    expect(view.books.enjoyed[0]!.coverUrl).toBe('https://covers.openlibrary.org/b/id/8455754-L.jpg');
+    expect(view.books.enjoyed[1]!.coverUrl).toBeNull();
+    expect(view.books.enjoyed[0]!.source).toEqual(['questionnaire']);
+    expect(view.books.enjoyed[0]!.review).toMatchObject({
+      selectionFitRating: 5,
+      positiveAspects: ['universe'],
+      freeText: 'Me atrapó su mundo.',
+      readingStatus: null,
+    });
+    expect(view.books.enjoyed[1]!.review?.selectionFitRating).toBe(4);
+  });
+
+  it('marks books read via Mi Libro Sorpresa with the surprise source', async () => {
+    const { userId, profile } = await createReader(true);
+    const { book, edition } = await makeApprovedEdition();
+    await prisma!.readingFeedback.create({
+      data: {
+        userId,
+        bookId: book.id,
+        bookEditionId: edition.id,
+        bookClassificationVersionId: null,
+        feedbackVersion: 'feedback/1.0',
+        started: true,
+        readingStatus: 'completed',
+        completionPercentage: 100,
+        selectionFitRating: 4,
+        isFinal: true,
+        learningStatus: 'processed',
+      },
+    });
+    const view = await publicService!.get(profile.publicSlug!);
+    const entry = view.books.enjoyed.find((item) => item.title === book.canonicalTitle);
+    expect(entry).toBeTruthy();
+    expect(entry!.source).toEqual(['surprise']);
+    expect(entry!.review?.readingStatus).toBe('completed');
+    expect(entry!.review?.selectionFitRating).toBe(4);
+  });
+
+  it('merges sources when a declared book was later read via Mi Libro Sorpresa', async () => {
+    const { userId, profile } = await createReader(true);
+    const { book, edition } = await makeApprovedEdition();
+    const session = await prisma!.questionnaireSession.findFirstOrThrow({ where: { userId, status: 'completed' } });
+    await prisma!.questionAnswer.create({
+      data: {
+        sessionId: session.id, userId, questionKey: 'Q01_LOVED_BOOKS', questionVersion: 1, questionnaireVersion: 'onboarding/1.1',
+        rawResponse: { books: [{ work_id: 'OL1W', edition_id: null, cover_id: null, title: book.canonicalTitle, rating: 4, liked_aspects: ['characters'], free_text: null }] } as never,
+        normalizedResponse: { books: [] } as never,
+      },
+    });
+    await prisma!.readingFeedback.create({
+      data: {
+        userId,
+        bookId: book.id,
+        bookEditionId: edition.id,
+        bookClassificationVersionId: null,
+        feedbackVersion: 'feedback/1.0',
+        started: true,
+        readingStatus: 'completed',
+        completionPercentage: 100,
+        selectionFitRating: 5,
+        isFinal: true,
+        learningStatus: 'processed',
+      },
+    });
+    const view = await publicService!.get(profile.publicSlug!);
+    const entry = view.books.enjoyed.find((item) => item.title === book.canonicalTitle);
+    expect(entry).toBeTruthy();
+    expect(entry!.source).toEqual(['surprise', 'questionnaire']);
+    expect(entry!.review?.selectionFitRating).toBe(5);
   });
 });

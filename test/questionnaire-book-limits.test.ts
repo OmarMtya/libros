@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import { BadRequestException } from '@nestjs/common';
 import { QuestionnaireService } from '../src/questionnaire/questionnaire.service';
 import { ProfileService } from '../src/profile/profile.service';
 import { EvidenceFactory } from '../src/profile/evidence.factory';
@@ -18,62 +17,80 @@ function serviceWith(validation: Record<string, unknown>) {
   return { service, question };
 }
 
+const LIMITS = { minItems: 1, maxItems: 20, likedAspectsRequired: true };
+
 function lovedBooks(count: number) {
-  return { books: Array.from({ length: count }, (_, index) => ({ work_id: `OL${index}W`, edition_id: null, title: `Libro ${index}`, liked_aspects: ['prose'] })) };
+  return { books: Array.from({ length: count }, (_, index) => ({ work_id: `OL${index}W`, edition_id: null, title: `Libro ${index}`, rating: 4, liked_aspects: ['prose'] })) };
 }
 
 function dislikedBooks(count: number) {
-  return { books: Array.from({ length: count }, (_, index) => ({ work_id: `OL${index}W`, edition_id: null, title: `Libro ${index}`, reason_codes: ['too_slow'], free_text: null })) };
+  return { books: Array.from({ length: count }, (_, index) => ({ work_id: `OL${index}W`, edition_id: null, title: `Libro ${index}`, rating: 2, reason_codes: ['too_slow'], free_text: null })) };
 }
 
 describe('book search limits', () => {
   const normalize = (service: QuestionnaireService, question: Record<string, unknown>, response: Record<string, unknown>) =>
     (service as unknown as { normalizeBookSearch(question: unknown, response: Record<string, unknown>): unknown }).normalizeBookSearch(question, response);
 
-  it('rejects fewer than minItems books', () => {
-    const { service, question } = serviceWith({ minItems: 3, maxItems: 20, likedAspectsRequired: true });
-    expect(() => normalize(service, question, lovedBooks(2))).toThrow(BadRequestException);
-    expect(() => normalize(service, question, lovedBooks(2))).toThrow(/minimum of 3 books/);
+  it('rejects an empty book list', () => {
+    const { service, question } = serviceWith(LIMITS);
+    expect(() => normalize(service, question, { books: [] })).toThrow(/non-empty "books"/);
+  });
+
+  it('accepts a single book', () => {
+    const { service, question } = serviceWith(LIMITS);
+    expect(() => normalize(service, question, lovedBooks(1))).not.toThrow();
   });
 
   it('rejects more than maxItems books', () => {
-    const { service, question } = serviceWith({ minItems: 3, maxItems: 20, likedAspectsRequired: true });
+    const { service, question } = serviceWith(LIMITS);
     expect(() => normalize(service, question, lovedBooks(21))).toThrow(/maximum of 20 books/);
   });
 
-  it('accepts between minItems and maxItems for loved books', () => {
-    const { service, question } = serviceWith({ minItems: 3, maxItems: 20, likedAspectsRequired: true });
-    expect(() => normalize(service, question, lovedBooks(3))).not.toThrow();
+  it('accepts up to maxItems books', () => {
+    const { service, question } = serviceWith(LIMITS);
     expect(() => normalize(service, question, lovedBooks(20))).not.toThrow();
   });
 
   it('keeps a valid Open Library cover ID with questionnaire books', () => {
-    const { service, question } = serviceWith({ minItems: 3, maxItems: 20, likedAspectsRequired: true });
-    const response = lovedBooks(3) as { books: Array<Record<string, unknown>> };
+    const { service, question } = serviceWith(LIMITS);
+    const response = lovedBooks(2) as { books: Array<Record<string, unknown>> };
     response.books[0]!.cover_id = 15242046;
 
     expect(normalize(service, question, response)).toEqual({
       books: [
-        { work_id: 'OL0W', edition_id: null, cover_id: 15242046, liked_aspects: ['prose'], free_text: null },
-        { work_id: 'OL1W', edition_id: null, cover_id: null, liked_aspects: ['prose'], free_text: null },
-        { work_id: 'OL2W', edition_id: null, cover_id: null, liked_aspects: ['prose'], free_text: null },
+        { work_id: 'OL0W', edition_id: null, cover_id: 15242046, rating: 4, liked_aspects: ['prose'], free_text: null },
+        { work_id: 'OL1W', edition_id: null, cover_id: null, rating: 4, liked_aspects: ['prose'], free_text: null },
       ],
     });
   });
 
+  it('rejects books without a rating', () => {
+    const { service, question } = serviceWith(LIMITS);
+    const response = lovedBooks(2) as { books: Array<Record<string, unknown>> };
+    delete response.books[0]!.rating;
+    expect(() => normalize(service, question, response)).toThrow(/rating from 1 to 5/);
+  });
+
+  it('rejects books with an out-of-range rating', () => {
+    const { service, question } = serviceWith(LIMITS);
+    const response = lovedBooks(2) as { books: Array<Record<string, unknown>> };
+    response.books[1]!.rating = 7;
+    expect(() => normalize(service, question, response)).toThrow(/rating from 1 to 5/);
+  });
+
   it('rejects an invalid Open Library cover ID', () => {
-    const { service, question } = serviceWith({ minItems: 3, maxItems: 20, likedAspectsRequired: true });
-    const response = lovedBooks(3) as { books: Array<Record<string, unknown>> };
+    const { service, question } = serviceWith(LIMITS);
+    const response = lovedBooks(2) as { books: Array<Record<string, unknown>> };
     response.books[0]!.cover_id = -1;
     expect(() => normalize(service, question, response)).toThrow(/invalid cover_id/);
   });
 
   it('applies the same limits to disliked books', () => {
-    const { service } = serviceWith({ minItems: 3, maxItems: 20, reasonCodesRequired: true });
-    const disliked = { ...serviceWith({ minItems: 3, maxItems: 20, reasonCodesRequired: true }).question, questionKey: 'Q02_DISLIKED_BOOK' };
-    expect(() => normalize(service, disliked, dislikedBooks(2))).toThrow(/minimum of 3 books/);
+    const { service } = serviceWith({ minItems: 1, maxItems: 20, reasonCodesRequired: true });
+    const disliked = { ...serviceWith({ minItems: 1, maxItems: 20, reasonCodesRequired: true }).question, questionKey: 'Q02_DISLIKED_BOOK' };
+    expect(() => normalize(service, disliked, { books: [] })).toThrow(/non-empty "books"/);
     expect(() => normalize(service, disliked, dislikedBooks(21))).toThrow(/maximum of 20 books/);
-    expect(() => normalize(service, disliked, dislikedBooks(3))).not.toThrow();
+    expect(() => normalize(service, disliked, dislikedBooks(1))).not.toThrow();
     expect(() => normalize(service, disliked, dislikedBooks(20))).not.toThrow();
   });
 });

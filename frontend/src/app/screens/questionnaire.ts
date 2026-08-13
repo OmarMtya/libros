@@ -84,6 +84,9 @@ const TOTAL_QUESTIONS = 16;
                   </ul>
                 }
               </div>
+              @if (lovedBookQuery && lovedSearch().searched && !lovedSearch().loading && !lovedSearch().error && lovedBookResults().length === 0) {
+                <p class="mt-2 text-sm text-[#536875]">No encontramos libros para «{{ lovedBookQuery }}». Prueba con otro título o autor.</p>
+              }
               @if (lovedBookQuery && lovedSearch().loading) {
                 <p class="mt-2 flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-[#7d9ab0]">
                   <svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -128,10 +131,21 @@ const TOTAL_QUESTIONS = 16;
                           (click)="toggleLovedBookAspect(book.openLibraryId, aspect.key)">{{ aspect.label }}</button>
                       }
                     </div>
+                    <p class="mt-4 text-sm font-semibold text-ink">¿Cuánto te gustó?</p>
+                    <div class="mt-2 flex items-center gap-2">
+                      @for (value of [1, 2, 3, 4, 5]; track value) {
+                        <button type="button" class="h-10 w-10 rounded-full border text-sm font-bold transition" [class.bg-coral]="lovedBookRatings[book.openLibraryId] === value" [class.text-white]="lovedBookRatings[book.openLibraryId] === value" [class.border-coral]="lovedBookRatings[book.openLibraryId] === value" [class.bg-white]="lovedBookRatings[book.openLibraryId] !== value" [class.text-ink]="lovedBookRatings[book.openLibraryId] !== value" [class.border-[#7d9ab0]]="lovedBookRatings[book.openLibraryId] !== value" (click)="setLovedBookRating(book.openLibraryId, value)">{{ value }}</button>
+                      }
+                    </div>
+                    <p class="mt-1 text-xs text-[#567088]">1 = Me gustó poco · 5 = Me encantó</p>
+                    <label class="mt-3 block">
+                      <span class="text-sm font-semibold text-ink">Comentario opcional</span>
+                      <input [(ngModel)]="lovedBookComments[book.openLibraryId]" placeholder="Cuéntanos cualquier detalle…" class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
+                    </label>
                   </div>
                 }
               </div>
-              <p class="text-sm text-[#7d9ab0]">{{ lovedBooks.length }} / {{ current.validation?.maxItems ?? 20 }} libros (mínimo {{ current.validation?.minItems ?? 3 }})</p>
+              <p class="text-sm text-[#7d9ab0]">{{ lovedBooks.length }} / {{ current.validation?.maxItems ?? 20 }} libros (mínimo {{ current.validation?.minItems ?? 1 }})</p>
             </div>
           } @else if (current.questionKey === 'Q02_DISLIKED_BOOK') {
             <div class="space-y-5">
@@ -161,6 +175,9 @@ const TOTAL_QUESTIONS = 16;
                   </ul>
                 }
               </div>
+              @if (dislikedBookQuery && dislikedSearch().searched && !dislikedSearch().loading && !dislikedSearch().error && dislikedBookResults().length === 0) {
+                <p class="mt-2 text-sm text-[#536875]">No encontramos libros para «{{ dislikedBookQuery }}». Prueba con otro título o autor.</p>
+              }
               @if (dislikedBookQuery && dislikedSearch().loading) {
                 <p class="mt-2 flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-[#7d9ab0]">
                   <svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -205,14 +222,21 @@ const TOTAL_QUESTIONS = 16;
                           (click)="toggleDislikedBookReason(book.openLibraryId, reason.key)">{{ reason.label }}</button>
                       }
                     </div>
+                    <p class="mt-4 text-sm font-semibold text-ink">¿Cuánto te gustó?</p>
+                    <div class="mt-2 flex items-center gap-2">
+                      @for (value of [1, 2, 3, 4, 5]; track value) {
+                        <button type="button" class="h-10 w-10 rounded-full border text-sm font-bold transition" [class.bg-coral]="dislikedBookRatings[book.openLibraryId] === value" [class.text-white]="dislikedBookRatings[book.openLibraryId] === value" [class.border-coral]="dislikedBookRatings[book.openLibraryId] === value" [class.bg-white]="dislikedBookRatings[book.openLibraryId] !== value" [class.text-ink]="dislikedBookRatings[book.openLibraryId] !== value" [class.border-[#7d9ab0]]="dislikedBookRatings[book.openLibraryId] !== value" (click)="setDislikedBookRating(book.openLibraryId, value)">{{ value }}</button>
+                      }
+                    </div>
+                    <p class="mt-1 text-xs text-[#567088]">1 = No era para mí · 5 = Me encantó</p>
                     <label class="mt-3 block">
-                      <span class="text-sm font-semibold text-ink">Detalle opcional</span>
-                      <input [(ngModel)]="dislikedBookReasonTexts[book.openLibraryId]" placeholder="Explica brevemente si quieres" class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
+                      <span class="text-sm font-semibold text-ink">Comentario opcional</span>
+                      <input [(ngModel)]="dislikedBookReasonTexts[book.openLibraryId]" placeholder="Cuéntanos cualquier detalle…" class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
                     </label>
                   </div>
                 }
               </div>
-              <p class="text-sm text-[#7d9ab0]">{{ dislikedBooks.length }} / {{ current.validation?.maxItems ?? 20 }} libros (mínimo {{ current.validation?.minItems ?? 3 }})</p>
+              <p class="text-sm text-[#7d9ab0]">{{ dislikedBooks.length }} / {{ current.validation?.maxItems ?? 20 }} libros (mínimo {{ current.validation?.minItems ?? 1 }})</p>
             </div>
           } @else if (current.responseType === 'scale') {
             <div class="flex gap-2 sm:gap-3">
@@ -508,15 +532,18 @@ export class Questionnaire {
   activeTagGroup: TagGroup | null = null;
   lovedBookQuery = '';
   readonly lovedBookResults = signal<BookResult[]>([]);
-  readonly lovedSearch = signal<{ loading: boolean; error: string | null }>({ loading: false, error: null });
+  readonly lovedSearch = signal<{ loading: boolean; error: string | null; searched: boolean }>({ loading: false, error: null, searched: false });
   lovedBooks: BookResult[] = [];
   lovedBookAspects: Record<string, string[]> = {};
+  lovedBookRatings: Record<string, number> = {};
+  lovedBookComments: Record<string, string> = {};
   dislikedBookQuery = '';
   readonly dislikedBookResults = signal<BookResult[]>([]);
-  readonly dislikedSearch = signal<{ loading: boolean; error: string | null }>({ loading: false, error: null });
+  readonly dislikedSearch = signal<{ loading: boolean; error: string | null; searched: boolean }>({ loading: false, error: null, searched: false });
   dislikedBooks: BookResult[] = [];
   dislikedBookReasons: Record<string, string[]> = {};
   dislikedBookReasonTexts: Record<string, string> = {};
+  dislikedBookRatings: Record<string, number> = {};
   complexity: { linguistic: number | null; structural: number | null } = { linguistic: null, structural: null };
   lengthSeries = { minPages: 100, maxPages: 400, seriesPreference: 'standalone_preferred' };
   languagePreferences = { spanish: true, english: false };
@@ -583,10 +610,10 @@ export class Questionnaire {
       return;
     }
     await this.run(async () => {
-      await this.api.submitAnswer(session.id, question.questionKey, this.responseFor(question));
+      const { nextQuestion } = await this.api.submitAnswer(session.id, question.questionKey, this.responseFor(question));
       this.history.update((items) => [...items, question.questionKey]);
       this.resetAnswer();
-      await this.loadNextQuestion();
+      await this.applyNextQuestion(nextQuestion);
     });
   }
 
@@ -595,10 +622,10 @@ export class Questionnaire {
     const question = this.question();
     if (!session || !question || question.isRequired) return;
     await this.run(async () => {
-      await this.api.submitAnswer(session.id, question.questionKey, { skipped: true });
+      const { nextQuestion } = await this.api.submitAnswer(session.id, question.questionKey, { skipped: true });
       this.history.update((items) => [...items, question.questionKey]);
       this.resetAnswer();
-      await this.loadNextQuestion();
+      await this.applyNextQuestion(nextQuestion);
     });
   }
 
@@ -608,10 +635,10 @@ export class Questionnaire {
     if (!session || !question || question.questionKey !== 'Q01_LOVED_BOOKS') return;
     await this.run(async () => {
       await this.api.submitAnswer(session.id, 'Q01_LOVED_BOOKS', { skipped: true });
-      await this.api.submitAnswer(session.id, 'Q02_DISLIKED_BOOK', { skipped: true });
+      const { nextQuestion } = await this.api.submitAnswer(session.id, 'Q02_DISLIKED_BOOK', { skipped: true });
       this.history.update((items) => [...items, 'Q01_LOVED_BOOKS', 'Q02_DISLIKED_BOOK']);
       this.resetAnswer();
-      await this.loadNextQuestion();
+      await this.applyNextQuestion(nextQuestion);
     });
   }
 
@@ -698,7 +725,7 @@ export class Questionnaire {
       this.searchSeq[kind]++;
       if (kind === 'loved') this.lovedBookResults.set([]);
       else this.dislikedBookResults.set([]);
-      state.set({ loading: false, error: null });
+      state.set({ loading: false, error: null, searched: false });
       return;
     }
     this.searchTimer = setTimeout(() => this.runBookSearch(kind, query), 300);
@@ -707,17 +734,17 @@ export class Questionnaire {
   private runBookSearch(kind: 'loved' | 'disliked', query: string): void {
     const state = kind === 'loved' ? this.lovedSearch : this.dislikedSearch;
     const seq = ++this.searchSeq[kind];
-    state.set({ loading: true, error: null });
+    state.set({ loading: true, error: null, searched: false });
     this.api.searchBooks(query).then((results) => {
       if (seq !== this.searchSeq[kind]) return;
       if (kind === 'loved') this.lovedBookResults.set(results);
       else this.dislikedBookResults.set(results);
-      state.set({ loading: false, error: null });
+      state.set({ loading: false, error: null, searched: true });
     }).catch(() => {
       if (seq !== this.searchSeq[kind]) return;
       if (kind === 'loved') this.lovedBookResults.set([]);
       else this.dislikedBookResults.set([]);
-      state.set({ loading: false, error: 'No pudimos buscar libros. Revisa tu conexión.' });
+      state.set({ loading: false, error: 'No pudimos buscar libros. Revisa tu conexión.', searched: true });
     });
   }
 
@@ -732,9 +759,11 @@ export class Questionnaire {
     if (this.lovedBooks.length >= max || this.lovedBooks.some((item) => item.openLibraryId === book.openLibraryId)) return;
     this.lovedBooks = [...this.lovedBooks, book];
     this.lovedBookAspects[book.openLibraryId] = [];
+    this.lovedBookRatings[book.openLibraryId] = 0;
+    this.lovedBookComments[book.openLibraryId] = '';
     this.lovedBookQuery = '';
     this.lovedBookResults.set([]);
-    this.lovedSearch.set({ loading: false, error: null });
+    this.lovedSearch.set({ loading: false, error: null, searched: false });
     this.searchSeq.loved++;
     setTimeout(() => document.getElementById(`loved-book-${book.openLibraryId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 0);
   }
@@ -742,6 +771,8 @@ export class Questionnaire {
   removeLovedBook(openLibraryId: string): void {
     this.lovedBooks = this.lovedBooks.filter((book) => book.openLibraryId !== openLibraryId);
     delete this.lovedBookAspects[openLibraryId];
+    delete this.lovedBookRatings[openLibraryId];
+    delete this.lovedBookComments[openLibraryId];
   }
 
   toggleLovedBookAspect(bookId: string, aspect: string): void {
@@ -753,15 +784,20 @@ export class Questionnaire {
     return (this.lovedBookAspects[bookId] ?? []).includes(aspect);
   }
 
+  setLovedBookRating(bookId: string, value: number): void {
+    this.lovedBookRatings[bookId] = value;
+  }
+
   addDislikedBook(book: BookResult): void {
     const max = this.question()?.validation?.maxItems ?? 20;
     if (this.dislikedBooks.length >= max || this.dislikedBooks.some((item) => item.openLibraryId === book.openLibraryId)) return;
     this.dislikedBooks = [...this.dislikedBooks, book];
     this.dislikedBookReasons[book.openLibraryId] = [];
     this.dislikedBookReasonTexts[book.openLibraryId] = '';
+    this.dislikedBookRatings[book.openLibraryId] = 0;
     this.dislikedBookQuery = '';
     this.dislikedBookResults.set([]);
-    this.dislikedSearch.set({ loading: false, error: null });
+    this.dislikedSearch.set({ loading: false, error: null, searched: false });
     this.searchSeq.disliked++;
     setTimeout(() => document.getElementById(`disliked-book-${book.openLibraryId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 0);
   }
@@ -770,6 +806,11 @@ export class Questionnaire {
     this.dislikedBooks = this.dislikedBooks.filter((book) => book.openLibraryId !== openLibraryId);
     delete this.dislikedBookReasons[openLibraryId];
     delete this.dislikedBookReasonTexts[openLibraryId];
+    delete this.dislikedBookRatings[openLibraryId];
+  }
+
+  setDislikedBookRating(bookId: string, value: number): void {
+    this.dislikedBookRatings[bookId] = value;
   }
 
   toggleDislikedBookReason(bookId: string, code: string): void {
@@ -812,14 +853,18 @@ export class Questionnaire {
 
   private validate(question: Question): string | null {
     if (question.questionKey === 'Q01_LOVED_BOOKS') {
-      if (this.lovedBooks.length < (question.validation?.minItems ?? 3)) return `Agrega al menos ${question.validation?.minItems ?? 3} libros que te hayan gustado.`;
+      if (this.lovedBooks.length < (question.validation?.minItems ?? 1)) return `Agrega al menos ${question.validation?.minItems ?? 1} libros que te hayan gustado.`;
       const missingAspects = this.lovedBooks.find((book) => (this.lovedBookAspects[book.openLibraryId] ?? []).length === 0);
-      return missingAspects ? `Selecciona qué te gustó de «${missingAspects.title}».` : null;
+      if (missingAspects) return `Selecciona qué te gustó de «${missingAspects.title}».`;
+      const missingRatings = this.lovedBooks.find((book) => (this.lovedBookRatings[book.openLibraryId] ?? 0) === 0);
+      return missingRatings ? `Califica «${missingRatings.title}» de 1 a 5.` : null;
     }
     if (question.questionKey === 'Q02_DISLIKED_BOOK') {
-      if (this.dislikedBooks.length < (question.validation?.minItems ?? 3)) return `Agrega al menos ${question.validation?.minItems ?? 3} libros que no te hayan gustado.`;
+      if (this.dislikedBooks.length < (question.validation?.minItems ?? 1)) return `Agrega al menos ${question.validation?.minItems ?? 1} libros que no te hayan gustado.`;
       const missingReasons = this.dislikedBooks.find((book) => (this.dislikedBookReasons[book.openLibraryId] ?? []).length === 0);
-      return missingReasons ? `Selecciona el motivo de «${missingReasons.title}».` : null;
+      if (missingReasons) return `Selecciona el motivo de «${missingReasons.title}».`;
+      const missingRatings = this.dislikedBooks.find((book) => (this.dislikedBookRatings[book.openLibraryId] ?? 0) === 0);
+      return missingRatings ? `Califica «${missingRatings.title}» de 1 a 5.` : null;
     }
     if (question.questionKey === 'Q11_GENRES_THEMES') {
       const total = this.tagSelections.liked.length + this.tagSelections.curious.length + this.tagSelections.notInterested.length;
@@ -849,7 +894,7 @@ export class Questionnaire {
     if (question.responseType === 'multi_select') return this.selectedKeys;
     if (question.responseType === 'ranking') return { ranking: this.selectedKeys };
     if (question.questionKey === 'Q01_LOVED_BOOKS') return {
-      books: this.lovedBooks.map((book) => ({ work_id: book.openLibraryId, edition_id: book.openLibraryEditionId, cover_id: book.coverId, title: book.title, liked_aspects: this.lovedBookAspects[book.openLibraryId] ?? [], free_text: null })),
+      books: this.lovedBooks.map((book) => ({ work_id: book.openLibraryId, edition_id: book.openLibraryEditionId, cover_id: book.coverId, title: book.title, rating: this.lovedBookRatings[book.openLibraryId], liked_aspects: this.lovedBookAspects[book.openLibraryId] ?? [], free_text: (this.lovedBookComments[book.openLibraryId] ?? '').trim() || null })),
     };
     if (question.questionKey === 'Q02_DISLIKED_BOOK') return {
       books: this.dislikedBooks.map((book) => ({
@@ -857,6 +902,7 @@ export class Questionnaire {
         edition_id: book.openLibraryEditionId,
         cover_id: book.coverId,
         title: book.title,
+        rating: this.dislikedBookRatings[book.openLibraryId],
         reason_codes: this.dislikedBookReasons[book.openLibraryId] ?? [],
         free_text: (this.dislikedBookReasonTexts[book.openLibraryId] ?? '').trim() || null,
       })),
@@ -882,15 +928,18 @@ export class Questionnaire {
     this.structuredResponse = {};
     this.lovedBookQuery = '';
     this.lovedBookResults.set([]);
-    this.lovedSearch.set({ loading: false, error: null });
+    this.lovedSearch.set({ loading: false, error: null, searched: false });
     this.lovedBooks = [];
     this.lovedBookAspects = {};
+    this.lovedBookRatings = {};
+    this.lovedBookComments = {};
     this.dislikedBookQuery = '';
     this.dislikedBookResults.set([]);
-    this.dislikedSearch.set({ loading: false, error: null });
+    this.dislikedSearch.set({ loading: false, error: null, searched: false });
     this.dislikedBooks = [];
     this.dislikedBookReasons = {};
     this.dislikedBookReasonTexts = {};
+    this.dislikedBookRatings = {};
     this.tagQueries = { liked: '', curious: '', notInterested: '' };
     this.tagSelections = { liked: [], curious: [], notInterested: [] };
     this.activeTagGroup = null;
@@ -927,7 +976,11 @@ export class Questionnaire {
     if (question.questionKey === 'Q01_LOVED_BOOKS') {
       const books = Array.isArray(value('books')) ? value('books') as Array<Record<string, unknown>> : [];
       this.lovedBooks = books.map((book) => this.savedBook(book));
-      for (const book of books) this.lovedBookAspects[String(book['work_id'])] = Array.isArray(book['liked_aspects']) ? (book['liked_aspects'] as string[]) : [];
+      for (const book of books) {
+        this.lovedBookAspects[String(book['work_id'])] = Array.isArray(book['liked_aspects']) ? (book['liked_aspects'] as string[]) : [];
+        this.lovedBookRatings[String(book['work_id'])] = typeof book['rating'] === 'number' && book['rating'] >= 1 && book['rating'] <= 5 ? book['rating'] : 0;
+        this.lovedBookComments[String(book['work_id'])] = typeof book['free_text'] === 'string' ? book['free_text'] : '';
+      }
       return;
     }
     if (question.questionKey === 'Q02_DISLIKED_BOOK') {
@@ -936,6 +989,7 @@ export class Questionnaire {
       for (const book of books) {
         this.dislikedBookReasons[String(book['work_id'])] = Array.isArray(book['reason_codes']) ? (book['reason_codes'] as string[]) : [];
         this.dislikedBookReasonTexts[String(book['work_id'])] = typeof book['free_text'] === 'string' ? book['free_text'] : '';
+        this.dislikedBookRatings[String(book['work_id'])] = typeof book['rating'] === 'number' && book['rating'] >= 1 && book['rating'] <= 5 ? book['rating'] : 0;
       }
       return;
     }
@@ -980,8 +1034,12 @@ export class Questionnaire {
     const session = this.session();
     if (!session) return;
     const question = await this.api.nextQuestion(session.id);
-    this.question.set(question);
-    if (!question) await this.completeQuestionnaire();
+    await this.applyNextQuestion(question);
+  }
+
+  private async applyNextQuestion(nextQuestion: Question | null): Promise<void> {
+    this.question.set(nextQuestion);
+    if (!nextQuestion) await this.completeQuestionnaire();
   }
 
   private async run(operation: () => Promise<void>): Promise<void> {

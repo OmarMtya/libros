@@ -6,11 +6,12 @@ type PublicBook = {
   title: string;
   authors: string[];
   coverUrl: string | null;
+  source: ('questionnaire' | 'surprise')[];
   review?: {
-    readingStatus: string;
+    readingStatus: string | null;
     selectionFitRating: number | null;
-    started: boolean;
-    completionPercentage: number;
+    started: boolean | null;
+    completionPercentage: number | null;
     notStartedReason: string | null;
     outcomeAttribution: string | null;
     positiveAspects: string[];
@@ -204,18 +205,43 @@ export class PublicProfileService {
 
     const pushQuestionnaireBooks = (questionKey: string, destination: PublicBook[]) => {
       for (const answer of questionnaireAnswers.filter((item) => item.questionKey === questionKey)) {
-        const raw = answer.rawResponse as { books?: Array<{ title?: unknown; authors?: unknown }> } | null;
+        const raw = answer.rawResponse as { books?: Array<{ title?: unknown; authors?: unknown; cover_id?: unknown; coverId?: unknown; rating?: unknown; liked_aspects?: unknown; reason_codes?: unknown; free_text?: unknown }> } | null;
         for (const book of raw?.books ?? []) {
           if (typeof book?.title !== 'string' || !book.title.trim()) continue;
           const title = book.title.trim();
           const key = title.toLowerCase();
-          if (seen.has(key)) continue;
+          if (seen.has(key)) {
+            const existing = [...enjoyed, ...notEnjoyed].find((item) => item.title.toLowerCase() === key);
+            if (existing && !existing.source.includes('questionnaire')) existing.source = [...existing.source, 'questionnaire'];
+            continue;
+          }
           seen.add(key);
+          const rawCoverId = book.cover_id ?? book.coverId;
+          const coverId = typeof rawCoverId === 'number' && Number.isInteger(rawCoverId) && rawCoverId > 0 ? rawCoverId : null;
+          const rating = typeof book.rating === 'number' && Number.isInteger(book.rating) && book.rating >= 1 && book.rating <= 5 ? book.rating : null;
+          const strings = (value: unknown): string[] => Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+          const likedAspects = questionKey === 'Q01_LOVED_BOOKS' ? strings(book.liked_aspects) : [];
+          const reasonCodes = questionKey === 'Q02_DISLIKED_BOOK' ? strings(book.reason_codes) : [];
+          const freeText = typeof book.free_text === 'string' && book.free_text.trim() ? book.free_text.trim() : null;
+          const hasDetails = rating !== null || likedAspects.length > 0 || reasonCodes.length > 0 || freeText !== null;
           destination.push({
             title,
             authors: Array.isArray(book.authors) ? book.authors.filter((item): item is string => typeof item === 'string') : [],
-            coverUrl: null,
-            review: null,
+            coverUrl: coverId !== null ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg` : null,
+            source: ['questionnaire'],
+            review: hasDetails
+              ? {
+                  readingStatus: null,
+                  selectionFitRating: rating,
+                  started: null,
+                  completionPercentage: null,
+                  notStartedReason: null,
+                  outcomeAttribution: null,
+                  positiveAspects: likedAspects,
+                  negativeAspects: reasonCodes,
+                  freeText,
+                }
+              : null,
           });
         }
       }
@@ -238,14 +264,17 @@ export class PublicProfileService {
         negativeAspects: feedback.aspects.filter((aspect) => aspect.polarity === 'negative').map((aspect) => aspect.optionKey),
         freeText: feedback.freeText,
       };
-      const entry: PublicBook = { title, authors: book.authors.map((item) => item.author.canonicalName), coverUrl, review };
+      const entry: PublicBook = { title, authors: book.authors.map((item) => item.author.canonicalName), coverUrl, source: ['surprise'], review };
       const liked = feedback.selectionFitRating != null ? feedback.selectionFitRating >= 4 : feedback.readingStatus === 'completed';
       const notLiked = feedback.selectionFitRating != null ? feedback.selectionFitRating <= 2 : feedback.readingStatus === 'abandoned' || feedback.readingStatus === 'not_started';
       const destination = liked ? enjoyed : notLiked ? notEnjoyed : null;
       if (!destination) continue;
       if (seen.has(key)) {
         const existing = [...enjoyed, ...notEnjoyed].find((item) => item.title.toLowerCase() === key);
-        if (existing && !existing.review && review) existing.review = review;
+        if (existing) {
+          if (!existing.source.includes('surprise')) existing.source = [...existing.source, 'surprise'];
+          if (!existing.review && review) existing.review = review;
+        }
         continue;
       }
       seen.add(key);

@@ -24,6 +24,7 @@ const SESSION = {
   userId: 'u1',
   status: 'started',
   questionnaireVersion: 'onboarding/1.1',
+  answers: [],
 };
 
 function txMock() {
@@ -73,7 +74,7 @@ describe('questionnaire re-answer', () => {
       { where: { sourceId: { in: ['old-answer'] } }, data: { status: 'rejected', deactivatedAt: expect.any(Date) } },
     );
     expect(tx.questionAnswer.create).toHaveBeenCalledOnce();
-    expect(profiles.recompute).toHaveBeenCalledWith('u1', 'questionnaire_answer', 'new-answer');
+    expect(profiles.recompute).not.toHaveBeenCalled();
   });
 
   it('keeps working when no previous answer exists', async () => {

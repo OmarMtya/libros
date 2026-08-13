@@ -32,7 +32,7 @@ describe('BooksService', () => {
     }));
     const results = await service.search('la paciente silenciosa', 8);
     expect(results).toEqual([{ openLibraryId: 'OL19096402W', openLibraryEditionId: 'OL47457228M', coverId: 15242046, title: 'La pacient silenciosa', authors: ['Alex Michaelides'], firstPublishYear: 2018, coverUrl: 'https://covers.openlibrary.org/b/id/15242046-M.jpg', originalLanguage: 'es' }]);
-    expect(fetchMock.mock.calls[0]![0]!).toContain('q=la%20paciente%20silenciosa*');
+    expect(fetchMock.mock.calls[0]![0]!).toContain('q=la%20paciente%20silenciosa');
     expect(fetchMock.mock.calls[0]![0]!).toContain('_spellcheck_count=0');
     expect(fetchMock.mock.calls[0]![0]!).toContain('editions');
     expect(fetchMock.mock.calls[0]![0]!).not.toContain('title=');
@@ -85,10 +85,11 @@ describe('BooksService', () => {
     expect(detail).toBeNull();
   });
 
-  it('adds a prefix wildcard to the final partial term', async () => {
+  it('sends the raw query without prefix wildcard, like the Open Library site', async () => {
     fetchMock.mockResolvedValueOnce(ok({ docs: [] }));
     await service.search('la pacien', 8);
-    expect(fetchMock.mock.calls[0]![0]!).toContain('q=la%20pacien*');
+    expect(fetchMock.mock.calls[0]![0]!).toContain('q=la%20pacien');
+    expect(fetchMock.mock.calls[0]![0]!).not.toContain('*');
   });
 
   it('returns cached results on a second identical call without fetching', async () => {

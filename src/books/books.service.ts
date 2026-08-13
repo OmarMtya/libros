@@ -76,8 +76,7 @@ export class BooksService {
     const cacheKey = `${normalized.toLowerCase()}|${cappedLimit}`;
     const cached = this.cache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) return cached.results;
-    const searchQuery = this.prefixSearchQuery(normalized);
-    const url = `${this.base}/search.json?q=${encodeURIComponent(searchQuery)}&_spellcheck_count=0&limit=${cappedLimit}&fields=key,cover_i,ia,title,subtitle,author_name,author_key,first_publish_year,ebook_access,language,editions`;
+    const url = `${this.base}/search.json?q=${encodeURIComponent(normalized)}&_spellcheck_count=0&limit=${cappedLimit}&fields=key,cover_i,ia,title,subtitle,author_name,author_key,first_publish_year,ebook_access,language,editions`;
     let response: Response;
     try {
       response = await fetch(url, { headers: { Accept: 'application/json' } });
@@ -145,11 +144,5 @@ export class BooksService {
       if (oldest) this.cache.delete(oldest[0]);
     }
     this.cache.set(key, { results, expiresAt: Date.now() + CACHE_TTL_MS });
-  }
-
-  private prefixSearchQuery(query: string): string {
-    const terms = query.split(/\s+/);
-    const last = terms.at(-1)!;
-    return last.length >= 3 && !last.endsWith('*') ? `${terms.slice(0, -1).join(' ')}${terms.length > 1 ? ' ' : ''}${last}*` : query;
   }
 }

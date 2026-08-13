@@ -30,6 +30,7 @@ const SESSION = {
   userId: 'u1',
   status: 'started',
   questionnaireVersion: 'onboarding/1.1',
+  answers: [],
 };
 
 function txMock(captured: { normalized?: unknown } = {}) {
@@ -94,10 +95,10 @@ describe('Q03 priority ranking', () => {
     expect(evidenceFactory.createMany).not.toHaveBeenCalled();
   });
 
-  it('still triggers a profile recompute', async () => {
+  it('does not trigger a per-answer profile recompute', async () => {
     const { service, profiles } = serviceWith();
     await service.submitAnswer('s1', 'Q03_PRIORITY_RANKING', { response: { ranking: ['characters', 'atmosphere', 'plot'] }, idempotencyKey: 'idem-1' }, 'u1');
-    expect(profiles.recompute).toHaveBeenCalledWith('u1', 'questionnaire_answer', 'new-answer');
+    expect(profiles.recompute).not.toHaveBeenCalled();
   });
 
   it('changes priority_vector when the same options change order', async () => {
