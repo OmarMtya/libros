@@ -143,7 +143,7 @@ run('ai-description (integration)', () => {
     await descriptionService!.generate(userId);
     await prisma!.readingFeedback.create({ data: { userId, feedbackVersion: '1.0', started: true, readingStatus: 'in_progress', completionPercentage: 50 } });
 
-    const questionnaire = new QuestionnaireService(prisma as never, profileService!, new EvidenceFactory(), { notifyNewReader: vi.fn() } as never, descriptionService!);
+    const questionnaire = new QuestionnaireService(prisma as never, profileService!, new EvidenceFactory(), { notifyNewReader: vi.fn() } as never, descriptionService!, { sendEvent: vi.fn().mockResolvedValue(undefined) } as never);
     await questionnaire.reset(userId);
 
     const updated = await prisma!.readerProfile.findUnique({ where: { userId } });

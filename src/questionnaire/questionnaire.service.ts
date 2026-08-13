@@ -7,6 +7,7 @@ import { aggregateDimension, evidenceFingerprint, round } from '../profile/profi
 import { buildPriorityVector, PRIORITY_VECTOR_MAPPING_VERSION, PRIORITY_VECTOR_NORMALIZATION_METHOD, PriorityFactor, PriorityVector } from '../scoring/priority-vector';
 import { deriveTagPreferences, tagEvidenceFingerprint } from '../feedback/feedback-tag-preferences';
 import { AdminNotificationsService } from '../email/admin-notifications.service';
+import { MetaCapiService } from '../meta/meta-capi.service';
 import { ProfileDescriptionService } from '../profile/profile-description.service';
 import { ProfileService } from '../profile/profile.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -22,6 +23,7 @@ export class QuestionnaireService {
     private readonly evidenceFactory: EvidenceFactory,
     private readonly adminNotifications: AdminNotificationsService,
     private readonly descriptions: ProfileDescriptionService,
+    private readonly meta: MetaCapiService,
   ) {}
 
   async reset(userId: string) {
@@ -187,8 +189,23 @@ export class QuestionnaireService {
     } else {
       await this.descriptions.triggerGeneration(session.userId);
     }
-    if (!priorCompletion) await this.adminNotifications.notifyNewReader(session.userId);
+    if (!priorCompletion) {
+      await this.adminNotifications.notifyNewReader(session.userId);
+      this.sendRegistrationEvent(session.userId, completed.id);
+    }
     return completed;
+  }
+
+  private sendRegistrationEvent(userId: string, sessionId: string): void {
+    void this.prisma.user
+      .findUnique({ where: { id: userId }, select: { email: true } })
+      .then((user) => this.meta.sendEvent({
+        eventName: 'CompleteRegistration',
+        eventId: `questionnaire:${sessionId}`,
+        userData: { email: user?.email ?? null, externalId: userId },
+        customData: { status: true },
+      }))
+      .catch(() => undefined);
   }
 
   private normalize(question: QuestionWithOptions, response: unknown): Record<string, unknown> {

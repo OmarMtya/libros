@@ -3,6 +3,7 @@ import { CurrencyPipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { ApiService, orderFeedbackDone, orderIsActive, ProductPackage, UserOrder } from '../api.service';
 import { AuthService } from '../auth.service';
+import { trackMetaEvent } from '../meta-pixel';
 import { OrderTimeline } from '../components/order-timeline';
 import { environment } from '../../environments/environment';
 
@@ -152,6 +153,16 @@ export class Experience {
       const [packages, orders] = await Promise.all([this.api.listPackages(), this.api.listOrders()]);
       this.packages.set(packages);
       this.orders.set(orders);
+      const pkg = packages.find((p) => p.key === 'libro_sorpresa_fisico') ?? null;
+      if (pkg) {
+        trackMetaEvent('ViewContent', {
+          content_name: pkg.name,
+          content_type: 'product',
+          content_ids: [pkg.key],
+          value: (pkg.priceCents + pkg.shippingCents) / 100,
+          currency: pkg.currency,
+        });
+      }
     } finally {
       this.loading.set(false);
     }
@@ -164,6 +175,14 @@ export class Experience {
   checkout(): void {
     const pkg = this.package();
     if (!pkg) return;
+    trackMetaEvent('InitiateCheckout', {
+      content_name: pkg.name,
+      content_type: 'product',
+      content_ids: [pkg.key],
+      value: (pkg.priceCents + pkg.shippingCents) / 100,
+      currency: pkg.currency,
+      num_items: 1,
+    });
     const session = this.auth.session();
     const params = new URLSearchParams();
     if (session?.user.email) params.set('prefilled_email', session.user.email);

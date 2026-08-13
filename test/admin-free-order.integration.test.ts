@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { BadRequestException } from '@nestjs/common';
 import { PrismaClient, ProductPackageKey } from '@prisma/client';
 import Stripe from 'stripe';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EmailService } from '../src/email/email.service';
 import { OrdersService } from '../src/orders/orders.service';
 import { assertTestDatabase } from './helpers/test-database';
@@ -12,7 +12,7 @@ const run = describe.runIf(Boolean(url));
 assertTestDatabase(url);
 
 const prisma = url ? new PrismaClient({ datasources: { db: { url } } }) : null;
-const orders = prisma ? new OrdersService(prisma as never, new EmailService()) : null;
+const orders = prisma ? new OrdersService(prisma as never, new EmailService(), { sendEvent: vi.fn().mockResolvedValue(undefined) } as never) : null;
 
 function paidEvent(userId: string, amountTotal: number, currency = 'mxn', packageKey = ProductPackageKey.libro_sorpresa_fisico): Stripe.Event {
   return {

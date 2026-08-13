@@ -41,7 +41,7 @@ function mockService() {
     hasActiveFeedbackCycles: vi.fn().mockResolvedValue(false),
     triggerGeneration: vi.fn().mockResolvedValue(undefined),
   };
-  const service = new QuestionnaireService(prisma, profiles, evidenceFactory, {} as never, descriptions as never);
+  const service = new QuestionnaireService(prisma, profiles, evidenceFactory, {} as never, descriptions as never, {} as never);
   return { service, tx, profiles, descriptions };
 }
 

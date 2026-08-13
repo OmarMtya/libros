@@ -3,11 +3,12 @@ import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { AppShell } from './components/app-shell';
 import { ToastHost } from './components/toast';
 import { ConfirmDialog } from './components/confirm-dialog';
+import { CookieConsentBanner } from './components/cookie-consent-banner';
 import { AuthService } from './auth.service';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, AppShell, ToastHost, ConfirmDialog],
+  imports: [RouterOutlet, AppShell, ToastHost, ConfirmDialog, CookieConsentBanner],
   template: `
     <a class="fixed -top-16 left-4 z-10 bg-marker px-4 py-2.5 font-semibold text-ink focus:top-4" href="#contenido">Saltar al contenido</a>
     @if (showShell()) {
@@ -17,6 +18,7 @@ import { AuthService } from './auth.service';
     }
     <app-toast-host></app-toast-host>
     <app-confirm-dialog></app-confirm-dialog>
+    <app-cookie-consent-banner></app-cookie-consent-banner>
   `,
 })
 export class App {

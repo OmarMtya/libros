@@ -23,6 +23,15 @@ asigna un libro físico.
   mediante scripts definidos ahí).
 - Aspire lee el `.env` de la raíz **al arrancar el AppHost**; un cambio en `.env` requiere
   reiniciar el AppHost completo para que se aplique.
+- **Sincronización con producción**: al agregar o cambiar una key del `.env` local, **SIEMPRE
+  actualizar también el `.env` de producción** (`/opt/libros-api/.env` en `root@omarmtya.com`,
+  vía SSH) con el mismo valor. **Cuidado con las comillas dobles (`" "`)**: el `.env` local (lo
+  lee el AppHost, que sí las quita) puede llevar comillas, pero el `.env` de producción lo lee
+  Docker (`--env-file`), que **no quita las comillas** → en producción los valores deben ir
+  **SIN comillas**, como el resto del archivo. Cambios de comillas han causado problemas de
+  configuración antes. Tras editar el `.env` de producción hay que **recrear** el contenedor
+  `libros-api` (`docker stop` + `docker rm` + `docker run` con `--env-file`; no basta
+  `docker restart`, porque el `.env` se lee al crear el contenedor).
 
 ## Stack y estructura
 

@@ -3,6 +3,7 @@ import { FulfillmentStatus, OrderStatus, PaymentProvider, PaymentStatus, Prisma,
 import { randomUUID } from 'crypto';
 import Stripe from 'stripe';
 import { EmailService } from '../email/email.service';
+import { MetaCapiService } from '../meta/meta-capi.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAdminOrderDto } from './admin-order.dto';
 
@@ -15,6 +16,7 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
+    private readonly meta: MetaCapiService,
   ) {}
 
   async listPackages() {
@@ -216,6 +218,8 @@ export class OrdersService {
           orderRef: `LS-${order.id.slice(0, 8).toUpperCase()}`,
           customerName: user.displayName ?? user.email ?? 'Cliente',
           customerEmail: user.email ?? '',
+          customerUserId: userId,
+          packageKey: product.key,
           packageName: product.name,
           subtotalCents: order.subtotalCents,
           shippingCents: order.shippingCents,
@@ -243,12 +247,34 @@ export class OrdersService {
 
       if (result.processed && result.confirmation) await this.sendOrderConfirmation(result.confirmation);
       if (result.processed && result.orderInfo) await this.notifyAdminsOfNewOrder(result.orderInfo);
+      if (result.processed && result.orderInfo && !allowFreeOrder) void this.sendPurchase(result.orderInfo, session);
       const { confirmation: _confirmation, orderInfo: _orderInfo, ...response } = result;
       return response;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return { received: true, duplicate: true };
       throw error;
     }
+  }
+
+  private async sendPurchase(info: {
+    customerEmail: string;
+    customerUserId: string;
+    packageKey: string;
+    totalCents: number;
+    currency: string;
+  }, session: Stripe.Checkout.Session): Promise<void> {
+    await this.meta.sendEvent({
+      eventName: 'Purchase',
+      eventId: session.id,
+      userData: { email: info.customerEmail, externalId: info.customerUserId },
+      customData: {
+        value: info.totalCents / 100,
+        currency: info.currency,
+        content_ids: [info.packageKey],
+        content_type: 'product',
+        num_items: 1,
+      },
+    });
   }
 
   private async sendOrderConfirmation(info: {
