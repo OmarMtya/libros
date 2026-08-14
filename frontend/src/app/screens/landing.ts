@@ -39,11 +39,15 @@ const STEPS = [
 const PRICE_INCLUDES = [
   'Un libro físico.',
   'Carta personalizada y separador.',
-  'Envío incluido.',
+  'Envío incluido dentro de México.',
   'Pago único, sin suscripción y a tu ritmo.',
 ];
 
 const FAQS = [
+  {
+    q: '¿Qué es Mi Libro Sorpresa?',
+    a: 'Es un servicio de recomendación personalizada de libros. Construimos tu perfil lector a partir de un cuestionario sobre tus gustos y preferencias, y usamos esa información para seleccionar un libro físico especialmente para ti.',
+  },
   {
     q: '¿El libro lo elige una inteligencia artificial?',
     a: 'No. Tus respuestas ayudan a construir un perfil y a comparar distintos candidatos, pero una persona investiga las opciones y toma la decisión final.',
@@ -67,6 +71,10 @@ const FAQS = [
   {
     q: '¿Necesito contratar una suscripción?',
     a: 'No. Es una compra única de $499 MXN. Tú decides si quieres repetir la experiencia y cuándo hacerlo. Cada lectura nos ayuda a entender mejor tu perfil y a dar más valor a tus próximas selecciones.',
+  },
+  {
+    q: '¿Hacen envíos fuera de México?',
+    a: 'No. Solo enviamos dentro de México; por el momento no realizamos envíos internacionales.',
   },
   {
     q: '¿Qué sucede después de recibir el libro?',
@@ -294,6 +302,9 @@ export class Reveal {
                   </p>
                   <p class="mx-auto mt-4 max-w-sm text-[#536875]">
                      Un libro elegido a partir de tu perfil y enviado a tu puerta.
+                  </p>
+                  <p class="mx-auto mt-3 max-w-sm rounded-sm bg-[#eef4f7] px-3 py-2 font-mono text-xs uppercase tracking-[0.08em] text-[#3e5a73]">
+                     Solo envíos dentro de México
                   </p>
                   <p class="mx-auto mt-6 max-w-md font-display text-lg font-bold leading-snug tracking-[-0.02em] text-ink">
                     El valor de esta experiencia está en entender tu perfil, investigar alternativas y elegir con cuidado.
