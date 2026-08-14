@@ -3,7 +3,7 @@ import { AdminGuard } from '../auth/admin.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
-import { AssignDto, ReplaceDto, ReopenLearningDto } from './curation.dto';
+import { AssignDto, ReplaceDto, ReopenLearningDto, ShipDto } from './curation.dto';
 import { CurationService } from './curation.service';
 
 @Controller('v1/admin')
@@ -32,8 +32,13 @@ export class CurationController {
   }
 
   @Post('assignments/:id/ship')
-  ship(@Param('id', ParseUUIDPipe) assignmentId: string) {
-    return this.curation.ship(assignmentId);
+  ship(@Param('id', ParseUUIDPipe) assignmentId: string, @Body() dto: ShipDto) {
+    return this.curation.ship(assignmentId, dto);
+  }
+
+  @Post('assignments/:id/tracking')
+  updateTracking(@Param('id', ParseUUIDPipe) assignmentId: string, @Body() dto: ShipDto) {
+    return this.curation.updateTracking(assignmentId, dto);
   }
 
   @Post('assignments/:id/in-delivery')

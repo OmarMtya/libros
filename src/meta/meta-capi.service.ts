@@ -28,11 +28,12 @@ export class MetaCapiService {
   private readonly logger = new Logger(MetaCapiService.name);
 
   get configured(): boolean {
-    return Boolean(process.env.META_PIXEL_ID && process.env.META_CAPI_ACCESS_TOKEN);
+    return process.env.NODE_ENV === 'production' && Boolean(process.env.META_PIXEL_ID && process.env.META_CAPI_ACCESS_TOKEN);
   }
 
   async sendEvents(events: MetaCapiEvent[]): Promise<void> {
     if (events.length === 0) return;
+    if (process.env.NODE_ENV !== 'production') return;
     const pixelId = process.env.META_PIXEL_ID;
     const accessToken = process.env.META_CAPI_ACCESS_TOKEN;
     if (!pixelId || !accessToken) return;

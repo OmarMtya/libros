@@ -90,6 +90,9 @@ const BOX_CONTENTS = [
                 <p class="text-xs leading-relaxed text-[#536875]">
                   Envíos de 5 a 10 días hábiles. Nos comunicaremos contigo en cada paso de tu pedido.
                 </p>
+                <p class="rounded-sm bg-[#eef4f7] px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[#3e5a73]">
+                  Solo envíos dentro de México
+                </p>
 
                 <button
                     class="w-full rounded-sm bg-coral px-6 py-3 text-sm font-bold text-white transition hover:bg-coral-deep"

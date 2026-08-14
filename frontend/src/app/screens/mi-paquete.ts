@@ -64,6 +64,12 @@ import { FULFILLMENT_LABELS, OrderTimeline } from '../components/order-timeline'
                 <dd class="mt-0.5 text-ink">{{ order.fulfillment!.trackingNumber }}</dd>
               </div>
             }
+            @if (order.fulfillment?.trackingCarrier) {
+              <div>
+                <dt class="font-mono text-xs uppercase tracking-wide text-[#567088]">Paquetería</dt>
+                <dd class="mt-0.5 text-ink">{{ order.fulfillment!.trackingCarrier }}</dd>
+              </div>
+            }
             @if (order.shippingAddress; as address) {
               <div class="sm:col-span-2">
                 <dt class="font-mono text-xs uppercase tracking-wide text-[#567088]">Envío a</dt>

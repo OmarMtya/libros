@@ -3,7 +3,7 @@ import { FulfillmentStatus, Prisma } from '@prisma/client';
 import { EmailService } from '../email/email.service';
 import { FeedbackInvitationService } from '../feedback/feedback-invitation.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { AssignDto, ReplaceDto } from './curation.dto';
+import { AssignDto, ReplaceDto, ShipDto } from './curation.dto';
 import { CuratorAuditService } from './curator-audit.service';
 
 const LOGISTIC_FROZEN = new Set(['shipped', 'in_delivery', 'delivered', 'canceled']);
@@ -117,7 +117,7 @@ export class CurationService {
     return this.advanceLogistic(assignmentId, 'packed', ['assigned', 'packed'], 'pack_book');
   }
 
-  async ship(assignmentId: string) {
+  async ship(assignmentId: string, dto?: ShipDto) {
     const created = await this.prisma.$transaction(async (tx) => {
       const assignment = await tx.curationAssignment.findUnique({
         where: { id: assignmentId },
@@ -129,7 +129,13 @@ export class CurationService {
         throw new BadRequestException(`No se puede enviar desde el estado ${assignment.fulfillment.status}.`);
       }
       const now = new Date();
-      await tx.fulfillment.update({ where: { id: assignment.fulfillmentId }, data: { status: 'shipped', shippedAt: now } });
+      const trackingData: Prisma.FulfillmentUpdateInput = {};
+      if (dto?.trackingNumber?.trim()) trackingData.trackingNumber = dto.trackingNumber.trim();
+      if (dto?.trackingCarrier?.trim()) trackingData.trackingCarrier = dto.trackingCarrier.trim();
+      await tx.fulfillment.update({
+        where: { id: assignment.fulfillmentId },
+        data: { status: 'shipped', shippedAt: now, ...trackingData },
+      });
       await tx.curationAssignment.update({ where: { id: assignmentId }, data: { feedbackCycleStatus: 'invited', optimisticLockVersion: { increment: 1 } } });
       const created = await this.invitations.createPending(tx, assignmentId, now);
       await this.audit.record(tx, {
@@ -138,12 +144,39 @@ export class CurationService {
         targetType: 'curation_assignment',
         targetId: assignmentId,
         reason: null,
-        payloadDiffJson: { invitationId: created.invitation.id },
+        payloadDiffJson: { invitationId: created.invitation.id, ...trackingData },
       });
       return created;
     });
     await this.sendShippedEmail(assignmentId);
     return created;
+  }
+
+  async updateTracking(assignmentId: string, dto: ShipDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const assignment = await tx.curationAssignment.findUnique({
+        where: { id: assignmentId },
+        include: { fulfillment: { select: { id: true, status: true } } },
+      });
+      if (!assignment || assignment.status !== 'active') throw new ConflictException('No existe una asignación activa.');
+      if (assignment.fulfillment.status !== 'shipped' && assignment.fulfillment.status !== 'in_delivery' && assignment.fulfillment.status !== 'delivered') {
+        throw new BadRequestException('Solo se puede editar la guía de un pedido ya enviado.');
+      }
+      const data: Prisma.FulfillmentUpdateInput = {};
+      if (dto.trackingNumber !== undefined) data.trackingNumber = dto.trackingNumber.trim() || null;
+      if (dto.trackingCarrier !== undefined) data.trackingCarrier = dto.trackingCarrier.trim() || null;
+      if (Object.keys(data).length === 0) throw new BadRequestException('No hay datos de rastreo que actualizar.');
+      const updated = await tx.fulfillment.update({ where: { id: assignment.fulfillmentId }, data });
+      await this.audit.record(tx, {
+        actorId: assignment.assignedBy,
+        actionKind: 'update_tracking',
+        targetType: 'curation_assignment',
+        targetId: assignmentId,
+        reason: null,
+        payloadDiffJson: data,
+      });
+      return updated;
+    });
   }
 
   async startDelivery(assignmentId: string) {
@@ -203,6 +236,7 @@ export class CurationService {
           fulfillment: {
             select: {
               trackingNumber: true,
+              trackingCarrier: true,
               order: {
                 select: {
                   packageName: true,
@@ -223,6 +257,7 @@ export class CurationService {
           firstName,
           packageName: assignment.fulfillment.order.packageName,
           trackingNumber: assignment.fulfillment.trackingNumber,
+          trackingCarrier: assignment.fulfillment.trackingCarrier,
           trackUrl: this.trackUrl(),
         },
         `libros/order-shipped/${assignmentId}`,

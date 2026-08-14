@@ -6,6 +6,7 @@ import { BooksService } from '../src/books/books.service';
 import { CurationService } from '../src/curation/curation.service';
 import { CuratorAuditService } from '../src/curation/curator-audit.service';
 import { EmailService } from '../src/email/email.service';
+import { OrdersService } from '../src/orders/orders.service';
 import { FeedbackContextResolver } from '../src/feedback/feedback-context.resolver';
 import { FeedbackInvitationService } from '../src/feedback/feedback-invitation.service';
 import { FeedbackLearningService } from '../src/feedback/feedback-learning.service';
@@ -215,6 +216,32 @@ run('cadena envío -> invitación -> feedback', () => {
     const resolved = await tokenService!.resolveInvitation(shipped.plainToken);
     expect(resolved.received).toBe(false);
     expect(resolved.book.title).toBe('Eligh');
+  });
+
+  it('ship guarda guía y paquetería; listOrders las expone y updateTracking las edita', async () => {
+    const { edition, classification } = await makeApprovedEdition();
+    const userId = '33333333-3333-3333-3333-333333333333';
+    await prisma!.user.create({ data: { id: userId, email: 'ana.track@example.com', displayName: 'Ana Track' } });
+    const { fulfillment } = await makeOrderFulfillment(userId);
+    const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
+    await curationService!.pack(assignment.id);
+    await curationService!.ship(assignment.id, { trackingNumber: 'GTRACK123', trackingCarrier: 'Estafeta' });
+
+    const stored = await prisma!.fulfillment.findUnique({ where: { id: fulfillment.id } });
+    expect(stored?.trackingNumber).toBe('GTRACK123');
+    expect(stored?.trackingCarrier).toBe('Estafeta');
+
+    const orders = new OrdersService(prisma as never, new EmailService(), { sendEvent: async () => undefined } as never);
+    const listed = await orders.listOrders(userId);
+    expect(listed[0]!.fulfillment?.trackingNumber).toBe('GTRACK123');
+    expect(listed[0]!.fulfillment?.trackingCarrier).toBe('Estafeta');
+
+    await curationService!.updateTracking(assignment.id, { trackingNumber: 'GTRACK999', trackingCarrier: 'DHL' });
+    const edited = await prisma!.fulfillment.findUnique({ where: { id: fulfillment.id } });
+    expect(edited?.trackingNumber).toBe('GTRACK999');
+    expect(edited?.trackingCarrier).toBe('DHL');
+
+    await expect(curationService!.updateTracking(assignment.id, {})).rejects.toThrow();
   });
 
   it('invitación válida también en in_delivery', async () => {

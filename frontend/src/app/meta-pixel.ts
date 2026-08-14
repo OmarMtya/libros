@@ -1,3 +1,5 @@
+import { environment } from '../environments/environment';
+
 declare global {
   interface Window {
     fbq?: Fbq;
@@ -19,7 +21,7 @@ const PIXEL_SCRIPT = 'https://connect.facebook.net/en_US/fbevents.js';
 let loaded = false;
 
 export function loadMetaPixel(): void {
-  if (loaded || typeof window === 'undefined') return;
+  if (!environment.production || loaded || typeof window === 'undefined') return;
   loaded = true;
 
   const existing = window._fbq as Fbq | undefined;
@@ -55,7 +57,7 @@ export function loadMetaPixel(): void {
 }
 
 export function trackMetaEvent(eventName: string, params?: Record<string, unknown>): void {
-  if (typeof window === 'undefined' || !window.fbq) return;
+  if (!environment.production || typeof window === 'undefined' || !window.fbq) return;
   if (params) window.fbq('track', eventName, params);
   else window.fbq('track', eventName);
 }

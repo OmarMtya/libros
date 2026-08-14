@@ -565,6 +565,16 @@ const aspectLabels: Partial<Record<string, string>> = {
                   <span>Feedback: {{ order._count.feedbacks }}</span>
                   <span>Pedido: {{ order.id.slice(0, 8) }}</span>
                 </div>
+                @if (order.fulfillment?.trackingNumber || order.fulfillment?.trackingCarrier) {
+                  <div class="mt-1 text-xs text-[#536875]">
+                    @if (order.fulfillment?.trackingNumber) {
+                      <span>Guía: <strong class="text-ink">{{ order.fulfillment!.trackingNumber }}</strong></span>
+                    }
+                    @if (order.fulfillment?.trackingCarrier) {
+                      <span class="ml-3">Paquetería: <strong class="text-ink">{{ order.fulfillment!.trackingCarrier }}</strong></span>
+                    }
+                  </div>
+                }
                 @if (order.shippingAddress; as address) {
                   <div class="mt-3 rounded-sm border border-[#d6e1e8] bg-[#f7fafc] px-3 py-2 text-xs text-[#536875]">
                     <p class="font-semibold text-ink">Envío a: {{ address.recipientName }}</p>
@@ -592,6 +602,9 @@ const aspectLabels: Partial<Record<string, string>> = {
                     }
                     @if (order.fulfillment.status === 'in_delivery' && order.activeAssignment) {
                       <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3] disabled:opacity-60" [disabled]="loading()" (click)="fulfillAction('delivered', order)">Marcar entregado</button>
+                    }
+                    @if ((order.fulfillment.status === 'shipped' || order.fulfillment.status === 'in_delivery' || order.fulfillment.status === 'delivered') && order.activeAssignment) {
+                      <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3] disabled:opacity-60" [disabled]="loading()" (click)="editTracking(order)">Editar guía</button>
                     }
                     <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="openReader(order.user.id)">Ver lector</button>
                   </div>
@@ -643,7 +656,6 @@ export class AdminScreen {
   readonly invitationFor = signal<string | null>(null);
   private readonly confirmations: Record<string, { title: string; message: string; confirmLabel: string; danger?: boolean }> = {
     pack: { title: 'Empaquetar pedido', message: '¿Marcar el pedido como empaquetado?', confirmLabel: 'Empaquetar' },
-    ship: { title: 'Enviar pedido', message: 'Al enviar se genera la invitación de feedback (QR). ¿Continuar?', confirmLabel: 'Enviar' },
     'in-delivery': { title: 'Marcar en proceso de entrega', message: '¿Marcar el pedido como en proceso de entrega?', confirmLabel: 'Marcar' },
     delivered: { title: 'Marcar entregado', message: '¿Confirmar que el libro fue entregado?', confirmLabel: 'Marcar entregado' },
     'close-without-feedback': { title: 'Cerrar sin feedback', message: 'Se cierra el ciclo de aprendizaje y se revocan las invitaciones pendientes. Puedes reabrirlo después. ¿Continuar?', confirmLabel: 'Cerrar ciclo', danger: true },
@@ -775,6 +787,10 @@ export class AdminScreen {
   async fulfillAction(action: 'pack' | 'ship' | 'in-delivery' | 'delivered', order: AdminOrder): Promise<void> {
     if (!order.activeAssignment) return;
     const assignmentId = order.activeAssignment.id;
+    if (action === 'ship') {
+      await this.runShip(assignmentId, () => this.loadOrders());
+      return;
+    }
     const confirm = this.confirmations[action];
     if (confirm) {
       const confirmed = await this.dialog.confirm({ title: confirm.title, message: confirm.message, confirmLabel: confirm.confirmLabel, cancelLabel: 'Cancelar', danger: confirm.danger });
@@ -782,7 +798,53 @@ export class AdminScreen {
     }
     await this.run(async () => {
       await this.api.adminAction(action, assignmentId);
-      this.toast.success(action === 'pack' ? 'Pedido empacado.' : action === 'ship' ? 'Pedido enviado.' : 'Pedido marcado como entregado.');
+      this.toast.success(action === 'pack' ? 'Pedido empacado.' : 'Pedido marcado como entregado.');
+      await this.loadOrders();
+    });
+  }
+
+  private async runShip(assignmentId: string, reload: () => Promise<void>): Promise<void> {
+    const values = await this.dialog.promptMany({
+      title: 'Enviar pedido',
+      message: 'Captura los datos del envío. Al enviar se genera la invitación de feedback (QR). Puedes dejarlos vacíos y completarlos después.',
+      confirmLabel: 'Enviar',
+      cancelLabel: 'Cancelar',
+      inputs: [
+        { label: 'Número de guía', placeholder: 'Ej. 4470 1234 5678 9012', initialValue: '' },
+        { label: 'Paquetería', placeholder: 'Ej. Estafeta, DHL, Correos de México…', initialValue: '' },
+      ],
+    });
+    if (values === null) return;
+    await this.run(async () => {
+      await this.api.adminAction('ship', assignmentId, {
+        trackingNumber: values['Número de guía']?.trim() ?? '',
+        trackingCarrier: values['Paquetería']?.trim() ?? '',
+      });
+      this.toast.success('Pedido enviado.');
+      await reload();
+    });
+  }
+
+  async editTracking(order: AdminOrder): Promise<void> {
+    if (!order.activeAssignment) return;
+    const values = await this.dialog.promptMany({
+      title: 'Editar datos de envío',
+      message: 'Actualiza el número de guía o la paquetería. Déjalos vacíos para limpiarlos.',
+      confirmLabel: 'Guardar',
+      cancelLabel: 'Cancelar',
+      inputs: [
+        { label: 'Número de guía', placeholder: 'Ej. 4470 1234 5678 9012', initialValue: order.fulfillment?.trackingNumber ?? '' },
+        { label: 'Paquetería', placeholder: 'Ej. Estafeta, DHL, Correos de México…', initialValue: order.fulfillment?.trackingCarrier ?? '' },
+      ],
+    });
+    if (values === null) return;
+    const assignmentId = order.activeAssignment.id;
+    await this.run(async () => {
+      await this.api.adminUpdateTracking(assignmentId, {
+        trackingNumber: values['Número de guía']?.trim() ?? '',
+        trackingCarrier: values['Paquetería']?.trim() ?? '',
+      });
+      this.toast.success('Guía y paquetería actualizadas.');
       await this.loadOrders();
     });
   }
@@ -1154,6 +1216,10 @@ export class AdminScreen {
   }
 
   async action(action: 'pack' | 'ship' | 'in-delivery' | 'delivered' | 'close-without-feedback' | 'reissue-invitation' | 'unpack' | 'unship' | 'undo-in-delivery' | 'undo-delivered', assignmentId: string): Promise<void> {
+    if (action === 'ship') {
+      await this.runShip(assignmentId, () => this.loadAssignments());
+      return;
+    }
     const confirm = this.confirmations[action];
     if (confirm) {
       const confirmed = await this.dialog.confirm({ title: confirm.title, message: confirm.message, confirmLabel: confirm.confirmLabel, cancelLabel: 'Cancelar', danger: confirm.danger });

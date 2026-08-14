@@ -35,7 +35,7 @@ export class OrdersService {
         shippingAddress: true,
         fulfillment: {
           select: {
-            status: true, bookTitle: true, bookAuthor: true, coverUrl: true, trackingNumber: true, shippedAt: true, deliveredAt: true,
+            status: true, bookTitle: true, bookAuthor: true, coverUrl: true, trackingNumber: true, trackingCarrier: true, shippedAt: true, deliveredAt: true,
             assignments: {
               where: { status: 'active' },
               select: {
@@ -78,6 +78,7 @@ export class OrdersService {
           bookAuthor: delivered ? (fulfillment.bookAuthor ?? (authors.length > 0 ? authors.join(', ') : null)) : null,
           coverUrl: delivered ? (fulfillment.coverUrl ?? (book?.openLibraryCoverId != null ? `https://covers.openlibrary.org/b/id/${book.openLibraryCoverId}-L.jpg` : null)) : null,
           trackingNumber: fulfillment.trackingNumber,
+          trackingCarrier: fulfillment.trackingCarrier,
           shippedAt: fulfillment.shippedAt,
           deliveredAt: fulfillment.deliveredAt,
           assignments: fulfillment.assignments.map(({ id, feedbackCycleStatus }) => ({ id, feedbackCycleStatus })),
@@ -107,7 +108,7 @@ export class OrdersService {
         user: { select: { id: true, email: true, displayName: true } },
         shippingAddress: true,
         payments: { select: { status: true, amountCents: true, externalSessionId: true }, orderBy: { createdAt: 'desc' }, take: 1 },
-        fulfillment: { select: { id: true, status: true, trackingNumber: true, shippedAt: true, deliveredAt: true } },
+        fulfillment: { select: { id: true, status: true, trackingNumber: true, trackingCarrier: true, shippedAt: true, deliveredAt: true } },
         _count: { select: { feedbacks: true } },
       },
       orderBy: { createdAt: 'desc' },

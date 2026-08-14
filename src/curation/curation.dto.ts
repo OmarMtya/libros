@@ -19,3 +19,8 @@ export class ReplaceDto {
 export class ReopenLearningDto {
   @IsOptional() @IsString() @MaxLength(500) reason?: string;
 }
+
+export class ShipDto {
+  @IsOptional() @IsString() @MaxLength(120) trackingNumber?: string;
+  @IsOptional() @IsString() @MaxLength(60) trackingCarrier?: string;
+}

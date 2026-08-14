@@ -164,6 +164,7 @@ export type UserOrder = {
     bookAuthor: string | null;
     coverUrl: string | null;
     trackingNumber: string | null;
+    trackingCarrier: string | null;
     shippedAt: string | null;
     deliveredAt: string | null;
     assignments: Array<{ id: string; feedbackCycleStatus: string }>;
@@ -185,7 +186,7 @@ export type AdminOrder = {
   user: { id: string; email: string | null; displayName: string | null };
   shippingAddress: OrderAddress | null;
   payment: { status: string; amountCents: number; externalSessionId: string } | null;
-  fulfillment: { id: string; status: string; trackingNumber: string | null; shippedAt: string | null; deliveredAt: string | null } | null;
+  fulfillment: { id: string; status: string; trackingNumber: string | null; trackingCarrier: string | null; shippedAt: string | null; deliveredAt: string | null } | null;
   activeAssignment: { id: string; feedbackCycleStatus: string } | null;
   _count: { feedbacks: number };
 };
@@ -548,8 +549,12 @@ export class ApiService {
     return firstValueFrom(this.http.post(`${this.baseUrl}/admin/assignments/${assignmentId}/replace`, body, this.options()));
   }
 
-  adminAction(action: 'pack' | 'ship' | 'in-delivery' | 'delivered' | 'close-without-feedback' | 'reissue-invitation' | 'unpack' | 'unship' | 'undo-in-delivery' | 'undo-delivered', assignmentId: string): Promise<{ plainToken?: string; url?: string }> {
-    return firstValueFrom(this.http.post<{ plainToken?: string; url?: string }>(`${this.baseUrl}/admin/assignments/${assignmentId}/${action}`, {}, this.options()));
+  adminAction(action: 'pack' | 'ship' | 'in-delivery' | 'delivered' | 'close-without-feedback' | 'reissue-invitation' | 'unpack' | 'unship' | 'undo-in-delivery' | 'undo-delivered', assignmentId: string, body: Record<string, unknown> = {}): Promise<{ plainToken?: string; url?: string }> {
+    return firstValueFrom(this.http.post<{ plainToken?: string; url?: string }>(`${this.baseUrl}/admin/assignments/${assignmentId}/${action}`, body, this.options()));
+  }
+
+  adminUpdateTracking(assignmentId: string, body: { trackingNumber?: string; trackingCarrier?: string }): Promise<unknown> {
+    return firstValueFrom(this.http.post(`${this.baseUrl}/admin/assignments/${assignmentId}/tracking`, body, this.options()));
   }
 
   adminReopenLearning(assignmentId: string, reason?: string): Promise<{ plainToken: string; url: string }> {

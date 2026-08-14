@@ -49,6 +49,20 @@ describe('email templates', () => {
     expect(html).toContain('Una caja viajando hacia ti.');
     expect(html).toContain('G123456');
     expect(html).toContain(TRACK_URL);
+    expect(html).not.toContain('Paquetería');
+  });
+
+  it('shipped incluye la paquetería cuando existe', () => {
+    const { html } = renderEmail('shipped', {
+      firstName: 'Luis',
+      packageName: 'Mi libro Sorpresa',
+      trackingNumber: 'G123456',
+      trackingCarrier: 'Estafeta',
+      trackUrl: TRACK_URL,
+    });
+    expect(html).toContain('Paquetería');
+    expect(html).toContain('Estafeta');
+    expect(html).toContain('G123456');
   });
 
   it('shipped muestra "Disponible próximamente" sin guía', () => {
@@ -59,6 +73,7 @@ describe('email templates', () => {
       trackUrl: TRACK_URL,
     });
     expect(html).toContain('Disponible próximamente');
+    expect(html).not.toContain('Paquetería');
   });
 
   it('delivered incluye libro, enlace de feedback y callout', () => {

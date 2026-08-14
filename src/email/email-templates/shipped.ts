@@ -4,6 +4,7 @@ export type ShippedVars = {
   firstName: string;
   packageName: string;
   trackingNumber?: string | null;
+  trackingCarrier?: string | null;
   trackUrl: string;
 };
 
@@ -12,6 +13,10 @@ export function renderShipped(v: ShippedVars): { subject: string; html: string }
     { label: 'Paquete', value: v.packageName },
     { label: 'Guía', value: v.trackingNumber ?? 'Disponible próximamente' },
   ];
+  if (v.trackingCarrier) {
+    facts.push({ label: 'Paquetería', value: v.trackingCarrier });
+  }
+  const trackingSummary = [v.trackingCarrier, v.trackingNumber].filter(Boolean).join(' · ') || 'disponible próximamente';
 
   const children = `
     <div class="email-pad" style="padding:32px 32px 8px;">
@@ -25,7 +30,7 @@ export function renderShipped(v: ShippedVars): { subject: string; html: string }
   return {
     subject: 'Tu libro sorpresa va en camino',
     html: renderLayout({
-      preheader: `Tu libro sorpresa va en camino. Guía ${v.trackingNumber ?? 'disponible próximamente'}.`,
+      preheader: `Tu libro sorpresa va en camino. Guía ${trackingSummary}.`,
       eyebrow: 'Tu sorpresa va en camino',
       children,
     }),

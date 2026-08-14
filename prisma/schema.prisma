@@ -605,6 +605,7 @@ model Fulfillment {
   coverUrl         String?           @map("cover_url")
   internalNotes    String?           @map("internal_notes")
   trackingNumber   String?           @map("tracking_number")
+  trackingCarrier  String?           @map("tracking_carrier")
   ebookStoragePath String?           @map("ebook_storage_path")
   audioStoragePath String?           @map("audio_storage_path")
   shippedAt        DateTime?         @map("shipped_at") @db.Timestamptz(6)
