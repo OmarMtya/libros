@@ -166,11 +166,11 @@ export class Reveal {
                  Un libro elegido a partir de ti
               </p>
               <h1 class="mb-6 max-w-[13ch] font-display text-[2.65rem] font-bold leading-[0.95] tracking-[-0.055em] text-ink sm:text-6xl lg:text-7xl">
-                 Tu próximo libro no se elige al azar.<br><span class="relative isolate whitespace-nowrap">Se elige para ti<span aria-hidden="true" class="absolute inset-x-0 bottom-1 -z-10 h-4 bg-marker/60 sm:h-5"></span></span>.
+                 Tu próximo libro no se elige para todos.<br><span class="relative isolate whitespace-nowrap">Se elige para ti<span aria-hidden="true" class="absolute inset-x-0 bottom-1 -z-10 h-4 bg-marker/60 sm:h-5"></span></span>.
               </h1>
               <p class="mb-8 max-w-[46ch] text-lg leading-relaxed text-[#536875]">
-                 Mi Libro Sorpresa es un servicio de recomendación personalizada de libros.<br><br>
-                 Creas tu perfil lector con tus gustos y preferencias, y con esa información investigamos y seleccionamos un libro físico que pueda encajar contigo.
+                 Tus respuestas se convierten en un perfil lector: qué te atrapa, qué te aburre, qué quieres sentir y qué prefieres evitar.<br><br>
+                 Con ese perfil investigamos y comparamos libros hasta encontrar el candidato con mejores razones para encajar contigo.
               </p>
               <div>
                 <a routerLink="/app" class="{{ btnPrimary }} w-full sm:w-auto">
