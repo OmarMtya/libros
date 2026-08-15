@@ -31,6 +31,12 @@ function mockService() {
   const prisma = {
     $transaction: vi.fn().mockImplementation(async (callback: unknown) => (callback as (tx: TxRecord) => Promise<unknown>)(tx)),
     readerProfile: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    questionnaireSession: {
+      findUnique: vi.fn().mockResolvedValue({ id: 'session-1', userId: 'user-1', questionnaireVersion: 'onboarding/1.1', answers: [] }),
+      update: vi.fn().mockResolvedValue({ id: 'session-1' }),
+    },
+    questionDefinition: { findMany: vi.fn().mockResolvedValue([]) },
+    readerProfileVersion: { findFirst: vi.fn().mockResolvedValue({ id: 'version-1' }) },
   } as unknown as PrismaService;
   const profiles = {
     ensureProfile: vi.fn().mockResolvedValue({ id: 'profile-1', userId: 'user-1' }),
@@ -42,7 +48,7 @@ function mockService() {
     triggerGeneration: vi.fn().mockResolvedValue(undefined),
   };
   const service = new QuestionnaireService(prisma, profiles, evidenceFactory, {} as never, descriptions as never, {} as never);
-  return { service, tx, profiles, descriptions };
+  return { service, tx, profiles, descriptions, prisma };
 }
 
 describe('questionnaire reset', () => {
@@ -85,13 +91,13 @@ describe('questionnaire reset', () => {
     expect(tx.readerEvidence.updateMany).not.toHaveBeenCalled();
   });
 
-  it('invalidates the AI description and triggers regeneration when there are no active feedbacks', async () => {
+  it('invalidates the AI description without generating before the new questionnaire is complete', async () => {
     const { service, descriptions } = mockService();
 
     await service.reset('user-1');
 
     expect(descriptions.hasActiveFeedbackCycles).toHaveBeenCalledWith('user-1');
-    expect(descriptions.triggerGeneration).toHaveBeenCalledWith('user-1');
+    expect(descriptions.triggerGeneration).not.toHaveBeenCalled();
   });
 
   it('defers regeneration (status pending) when there are active feedbacks', async () => {
@@ -101,5 +107,17 @@ describe('questionnaire reset', () => {
     await service.reset('user-1');
 
     expect(descriptions.triggerGeneration).not.toHaveBeenCalled();
+  });
+
+  it('clears the description and starts generation only after completing the new questionnaire', async () => {
+    const { service, descriptions, prisma } = mockService();
+
+    await service.completeSession('session-1', 'user-1');
+
+    expect(prisma.readerProfile.updateMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1' },
+      data: { aiDescription: null, aiDescriptionStatus: 'invalidated' },
+    });
+    expect(descriptions.triggerGeneration).toHaveBeenCalledWith('user-1');
   });
 });

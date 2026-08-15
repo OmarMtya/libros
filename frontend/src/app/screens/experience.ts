@@ -162,11 +162,14 @@ export class Experience {
   private descriptionPollToken = 0;
   private descriptionPollTries = 0;
 
-  readonly showDescription = computed(() => Boolean(this.profile()?.aiDescription?.trim()));
+  readonly showDescription = computed(() => {
+    const profile = this.profile();
+    return profile?.aiDescriptionStatus === 'ready' && Boolean(profile.aiDescription?.trim());
+  });
   readonly showDescriptionLoading = computed(() => {
     const profile = this.profile();
     if (!profile || this.descriptionTimedOut()) return false;
-    if (profile.aiDescription?.trim()) return false;
+    if (this.showDescription()) return false;
     return profile.aiDescriptionStatus !== 'none';
   });
 
