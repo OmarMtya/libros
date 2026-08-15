@@ -35,7 +35,7 @@ export class DeepseekClient {
     if (!this.apiKey) {
       throw new ServiceUnavailableException('DEEPSEEK_API_KEY no está configurada. Agrega la llave al .env y reinicia el AppHost.');
     }
-    return this.complete({ system, user, maxTokens: maxTokens ?? 800, responseFormat: 'text', reasoningEffort: 'low' });
+    return this.complete({ system, user, maxTokens: maxTokens ?? DEFAULT_MAX_TOKENS, responseFormat: 'text', reasoningEffort: 'low' });
   }
 
   private async complete(input: { system: string; user: string; maxTokens: number; responseFormat: 'json' | 'text'; reasoningEffort: 'high' | 'low' }): Promise<string> {

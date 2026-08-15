@@ -203,7 +203,7 @@ export class ProfileDescriptionService {
     if (cleaned.length <= MAX_DESCRIPTION_CHARS) return cleaned;
     const slice = cleaned.slice(0, MAX_DESCRIPTION_CHARS);
     let cut = -1;
-    for (const marker of ['. ', '; ', ', ', '— ', ': ']) {
+    for (const marker of ['. ', '! ', '? ']) {
       const idx = slice.lastIndexOf(marker);
       if (idx >= MAX_DESCRIPTION_CHARS * 0.5 && idx > cut) cut = idx + 1;
     }
