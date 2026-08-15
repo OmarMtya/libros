@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, QuestionDefinition, QuestionOptionMapping, ResponseType } from '@prisma/client';
-import { QUESTIONNAIRE_VERSION } from '../profile/catalog';
+import { isQuestionVisible, QUESTIONNAIRE_VERSION } from '../profile/catalog';
 import { slowBurnCompensatorsRuleFor } from '../profile/conditional-rules';
 import { EvidenceFactory, EvidenceInput } from '../profile/evidence.factory';
 import { aggregateDimension, evidenceFingerprint, round } from '../profile/profile-calculation';
@@ -88,6 +88,19 @@ export class QuestionnaireService {
     return { ...this.publicQuestion(next), position: index + 1, totalQuestions: visible.length };
   }
 
+  private async nextQuestionAfter(sessionId: string, questionKey: string, userId: string) {
+    const session = await this.prisma.questionnaireSession.findUnique({ where: { id: sessionId }, include: { answers: true } });
+    if (!session) throw new NotFoundException('Questionnaire session not found.');
+    this.assertSessionOwner(session.userId, userId);
+    if (session.status !== 'started') return null;
+    const answered = new Map(session.answers.map((answer) => [answer.questionKey, answer.normalizedResponse]));
+    const visible = await this.visibleDefinitions(session, answered);
+    const index = visible.findIndex((question) => question.questionKey === questionKey);
+    const next = index === -1 ? null : visible[index + 1];
+    if (!next) return null;
+    return { ...this.publicQuestion(next), position: index + 2, totalQuestions: visible.length };
+  }
+
   async getQuestionWithResponse(sessionId: string, questionKey: string, userId: string) {
     const session = await this.prisma.questionnaireSession.findUnique({ where: { id: sessionId }, include: { answers: true } });
     if (!session) throw new NotFoundException('Questionnaire session not found.');
@@ -117,7 +130,7 @@ export class QuestionnaireService {
     if (session.status !== 'started') throw new ConflictException('Questionnaire session is not active.');
     if (body.idempotencyKey) {
       const previous = await this.prisma.questionAnswer.findUnique({ where: { sessionId_idempotencyKey: { sessionId, idempotencyKey: body.idempotencyKey } } });
-      if (previous) return { answer: previous, nextQuestion: await this.nextQuestion(sessionId, userId) };
+      if (previous) return { answer: previous, nextQuestion: await this.nextQuestionAfter(sessionId, questionKey, userId) };
     }
     const question = await this.prisma.questionDefinition.findUnique({
       where: { questionKey_questionnaireVersion: { questionKey, questionnaireVersion: session.questionnaireVersion } },
@@ -165,9 +178,21 @@ export class QuestionnaireService {
       await this.createConditionalRules(tx, profile.id, created.id, question.questionKey, normalized);
       await this.createPositiveTriggers(tx, profile.id, created.id, question, normalized);
       await tx.readerPositiveTrigger.deleteMany({ where: { evidence: { none: {} } } });
+      if (question.questionKey === 'Q01_LOVED_BOOKS' && normalized.skipped !== true) {
+        const q02Answers = await tx.questionAnswer.findMany({ where: { sessionId, questionKey: 'Q02_DISLIKED_BOOK' }, select: { id: true, normalizedResponse: true } });
+        const skippedQ02Ids = q02Answers
+          .filter((q02) => {
+            const response = q02.normalizedResponse as { skipped?: boolean } | null;
+            return response !== null && typeof response === 'object' && response.skipped === true;
+          })
+          .map((q02) => q02.id);
+        if (skippedQ02Ids.length > 0) {
+          await tx.questionAnswer.deleteMany({ where: { id: { in: skippedQ02Ids } } });
+        }
+      }
       return created;
     });
-    return { answer, nextQuestion: await this.nextQuestion(sessionId, userId) };
+    return { answer, nextQuestion: await this.nextQuestionAfter(sessionId, questionKey, userId) };
   }
 
   async completeSession(sessionId: string, userId: string) {
@@ -176,7 +201,8 @@ export class QuestionnaireService {
     this.assertSessionOwner(session.userId, userId);
     const required = await this.prisma.questionDefinition.findMany({ where: { questionnaireVersion: session.questionnaireVersion, isActive: true, isRequired: true }, select: { questionKey: true } });
     const answered = new Set(session.answers.map((answer) => answer.questionKey));
-    const missing = required.filter((question) => !answered.has(question.questionKey)).map((question) => question.questionKey);
+    const answeredMap = new Map(session.answers.map((answer) => [answer.questionKey, answer.normalizedResponse]));
+    const missing = required.filter((question) => isQuestionVisible(question.questionKey, answeredMap) && !answered.has(question.questionKey)).map((question) => question.questionKey);
     if (missing.length > 0) throw new BadRequestException({ message: 'Required questions are missing.', missing });
     const priorCompletion = await this.prisma.readerProfileVersion.findFirst({
       where: { profile: { userId: session.userId }, changeReason: 'questionnaire_completed' },
@@ -209,7 +235,10 @@ export class QuestionnaireService {
   }
 
   private normalize(question: QuestionWithOptions, response: unknown): Record<string, unknown> {
-    if (response !== null && typeof response === 'object' && !Array.isArray(response) && (response as Record<string, unknown>).skipped === true) return { skipped: true };
+    if (response !== null && typeof response === 'object' && !Array.isArray(response) && (response as Record<string, unknown>).skipped === true) {
+      if (question.isRequired) throw new BadRequestException('Esta pregunta es obligatoria y no se puede omitir.');
+      return { skipped: true };
+    }
     if (question.responseType === ResponseType.scale) {
       if (typeof response !== 'number' || !Number.isInteger(response) || response < 1 || response > 5) throw new BadRequestException('A scale response must be an integer from 1 to 5.');
       return { value: (response - 1) / 4 };
@@ -371,9 +400,7 @@ export class QuestionnaireService {
   }
 
   private isVisible(question: QuestionDefinition, answered: Map<string, Prisma.JsonValue>): boolean {
-    if (question.questionKey !== 'Q05A_SLOW_BURN_CONDITIONS') return true;
-    const answer = answered.get('Q05_SLOW_BURN_TOLERANCE') as { value?: number } | undefined;
-    return typeof answer?.value === 'number' && answer.value >= 0.25;
+    return isQuestionVisible(question.questionKey, answered);
   }
 
   private publicQuestion(question: QuestionWithOptions) {

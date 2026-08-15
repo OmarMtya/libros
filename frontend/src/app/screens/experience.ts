@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { Router } from '@angular/router';
-import { ApiService, orderFeedbackDone, orderIsActive, ProductPackage, UserOrder } from '../api.service';
+import { ApiService, orderFeedbackDone, orderIsActive, ProductPackage, Profile, UserOrder } from '../api.service';
 import { AuthService } from '../auth.service';
 import { encodeMetaFbcForReference, getMetaFbc, trackMetaEvent } from '../meta-pixel';
 import { OrderTimeline } from '../components/order-timeline';
@@ -26,96 +26,41 @@ const BOX_CONTENTS = [
   imports: [CurrencyPipe, OrderTimeline],
   template: `
     <div class="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-      <p class="mb-2 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Tu siguiente capítulo</p>
-      <h1 class="mb-3 max-w-[12ch] font-display text-5xl font-bold leading-[0.94] tracking-[-0.05em] text-ink sm:text-6xl">
-        Una caja.<br>Un libro.<br>Elegido para ti.
-      </h1>
-      <p class="mb-10 max-w-xl text-[#536875]">
-        Armamos tu sorpresa a partir de lo que aprendemos de ti.
-      </p>
-
       @if (!package()) {
         <section class="rounded-sm border border-[#cad7df] bg-white p-10 text-center">
           <p class="font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Preparando tu sorpresa…</p>
         </section>
       } @else if (package(); as pkg) {
-        <section class="grid gap-6 lg:grid-cols-5">
-          <figure class="relative overflow-hidden rounded-sm lg:col-span-3">
-            <img
-              [src]="PACKAGE_MEDIA.imageUrl"
-              [alt]="PACKAGE_MEDIA.label"
-              class="aspect-[4/3] w-full object-cover">
-            <span
+        <div class="grid gap-6 lg:grid-cols-2">
+        <figure class="relative flex min-h-[340px] items-end overflow-hidden rounded-sm sm:min-h-[480px]">
+          <img
+            [src]="PACKAGE_MEDIA.imageUrl"
+            [alt]="PACKAGE_MEDIA.label"
+            class="absolute inset-0 h-full w-full object-cover">
+          @if (!blocked()) {
+            <div
               aria-hidden="true"
-              class="pointer-events-none absolute left-4 top-4 bg-coral px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-[0.14em] text-white shadow-[0_2px_6px_rgba(19,42,58,0.25)]">
-              Precio fundador
-            </span>
-          </figure>
-
-          <aside class="flex flex-col gap-4 rounded-sm border border-[#cad7df] bg-white p-6 lg:col-span-2">
-            @if (blocked()) {
-              <p class="font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Paquete sorpresa</p>
-              <h2 class="font-display text-3xl font-bold tracking-[-0.03em] text-ink">{{ activeOrder()!.packageName }}</h2>
-              <app-order-timeline [status]="activeOrder()!.fulfillment?.status ?? ''" [compact]="true" />
-              @if (delivered()) {
-                <p class="rounded-sm border-l-[3px] border-[#f0e0b0] bg-[#fff7e6] px-3 py-2 text-sm text-[#6b5310]">
-                  Para volver a pedir y seguir afinando tus recomendaciones, completa el cuestionario que viene en el
-                  <strong>código QR</strong> dentro de tu paquete. También lo encontrarás en tu correo electrónico.
-                </p>
-              } @else {
-                <p class="text-sm leading-relaxed text-[#536875]">
-                  Tu envío está en proceso. Los envíos tardan de 5 a 10 días hábiles y nos comunicaremos
-                  contigo en cada paso de tu pedido.
-                </p>
+              class="pointer-events-none absolute inset-0 bg-[#132a3a]/30"></div>
+            <div
+              aria-hidden="true"
+              class="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#132a3a]/95 via-[#132a3a]/60 to-transparent"></div>
+            <figcaption class="relative z-10 w-full p-5 sm:p-7">
+              @if (showDescription()) {
+                <p class="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-white/70">Lo que sabemos de ti</p>
+                <p class="mt-2 text-sm leading-relaxed text-white">{{ profile()!.aiDescription }}</p>
+                <p class="mt-3 text-xs leading-relaxed text-white/70">Con esto investigamos candidatos y una persona elige tu libro, uno a uno.</p>
+              } @else if (showDescriptionLoading()) {
+                <p class="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-white/70">Preparando lo que sabemos de ti…</p>
+                <div class="mt-3 space-y-2">
+                  <div class="h-3 w-full animate-pulse rounded-sm bg-white/25"></div>
+                  <div class="h-3 w-3/4 animate-pulse rounded-sm bg-white/25"></div>
+                </div>
               }
-              <button
-                class="mt-auto w-full rounded-sm bg-ink px-6 py-3 text-sm font-bold text-white transition hover:bg-ink-soft"
-                type="button"
-                (click)="goToOrder()">
-                Seguir mi pedido
-              </button>
-            } @else {
-              <p class="font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Paquete sorpresa</p>
-              <h2 class="font-display text-3xl font-bold tracking-[-0.03em] text-ink">{{ pkg.name }}</h2>
-              <p class="text-sm leading-relaxed text-[#536875]">{{ pkg.description }}</p>
+            </figcaption>
+          }
+        </figure>
 
-              <div class="mt-auto flex flex-col gap-4">
-                <p class="font-mono text-2xl font-bold text-ink">
-                  {{ (pkg.priceCents + pkg.shippingCents) / 100 | currency:'MXN':'$':'1.0-0' }} MXN
-                  <span class="ml-1 text-sm font-normal text-[#567088]">incluye envío</span>
-                </p>
-                <p class="rounded-sm bg-[#fff0e6] px-3 py-1.5 font-mono text-xs font-bold uppercase tracking-[0.1em] text-coral-deep">
-                  Oferta de lanzamiento
-                </p>
-                <p class="text-xs leading-relaxed text-[#536875]">
-                  Envíos de 5 a 10 días hábiles. Nos comunicaremos contigo en cada paso de tu pedido.
-                </p>
-                <p class="rounded-sm bg-[#eef4f7] px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[#3e5a73]">
-                  Solo envíos dentro de México
-                </p>
-
-                <button
-                    class="w-full rounded-sm bg-coral px-6 py-3 text-sm font-bold text-white transition hover:bg-coral-deep"
-                    type="button"
-                    (click)="checkout()">
-                    Ir al pago seguro
-                  </button>
-
-                <span class="inline-flex items-center justify-center gap-1.5 rounded-sm bg-white px-2 py-1">
-                  <span class="font-display text-[11px] font-black italic leading-none text-[#1A1F71]">VISA</span>
-                  <svg class="h-3 w-[19px]" viewBox="0 0 24 14" aria-hidden="true">
-                    <circle cx="7" cy="7" r="6.5" fill="#EB001B"/>
-                    <circle cx="14" cy="7" r="6.5" fill="#F79E1B"/>
-                    <path d="M10.5 2.2c1.35 1.13 2.1 2.85 2.1 4.8s-.75 3.67-2.1 4.8c-1.35-1.13-2.1-2.85-2.1-4.8s.75-3.67 2.1-4.8z" fill="#FF5F00"/>
-                  </svg>
-                  <span class="rounded-[2px] bg-[#2E77BC] px-1 py-[3px] text-[8px] font-bold leading-none tracking-tight text-white">AMEX</span>
-                </span>
-              </div>
-            }
-          </aside>
-        </section>
-
-        <section class="mt-12 rounded-sm border border-[#cad7df] bg-white p-6 sm:p-8">
+        <section class="rounded-sm border border-[#cad7df] bg-white p-6 sm:p-8">
           <h2 class="mb-6 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Dentro de la caja</h2>
           <ol class="divide-y divide-[#e3eaef]">
             @for (item of BOX_CONTENTS; track item.title; let i = $index) {
@@ -128,6 +73,69 @@ const BOX_CONTENTS = [
               </li>
             }
           </ol>
+        </section>
+        </div>
+
+        <section class="mt-12 rounded-sm border border-[#cad7df] bg-white p-6 sm:p-8">
+          @if (blocked()) {
+            <p class="font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Paquete sorpresa</p>
+            <h2 class="mt-1 font-display text-3xl font-bold tracking-[-0.03em] text-ink">{{ activeOrder()!.packageName }}</h2>
+            <app-order-timeline class="mt-4 block" [status]="activeOrder()!.fulfillment?.status ?? ''" [compact]="true" />
+            @if (delivered()) {
+              <p class="mt-4 rounded-sm border-l-[3px] border-[#f0e0b0] bg-[#fff7e6] px-3 py-2 text-sm text-[#6b5310]">
+                Para volver a pedir y seguir afinando tus recomendaciones, completa el cuestionario que viene en el
+                <strong>código QR</strong> dentro de tu paquete. También lo encontrarás en tu correo electrónico.
+              </p>
+            } @else {
+              <p class="mt-4 text-sm leading-relaxed text-[#536875]">
+                Tu envío está en proceso. Los envíos tardan de 5 a 10 días hábiles y nos comunicaremos
+                contigo en cada paso de tu pedido.
+              </p>
+            }
+            <button
+              class="mt-6 w-full rounded-sm bg-ink px-6 py-3 text-sm font-bold text-white transition hover:bg-ink-soft"
+              type="button"
+              (click)="goToOrder()">
+              Seguir mi pedido
+            </button>
+          } @else {
+            <p class="font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Paquete sorpresa</p>
+            <h2 class="mt-1 font-display text-3xl font-bold tracking-[-0.03em] text-ink">{{ pkg.name }}</h2>
+            <p class="mt-2 text-sm leading-relaxed text-[#536875]">{{ pkg.description }}</p>
+
+            <div class="mt-6 flex flex-col gap-4">
+              <p class="font-mono text-2xl font-bold text-ink">
+                {{ (pkg.priceCents + pkg.shippingCents) / 100 | currency:'MXN':'$':'1.0-0' }} MXN
+                <span class="ml-1 text-sm font-normal text-[#567088]">incluye envío</span>
+              </p>
+              <p class="rounded-sm bg-[#fff0e6] px-3 py-1.5 font-mono text-xs font-bold uppercase tracking-[0.1em] text-coral-deep">
+                Oferta de lanzamiento
+              </p>
+              <p class="text-xs leading-relaxed text-[#536875]">
+                Envíos de 5 a 10 días hábiles. Nos comunicaremos contigo en cada paso de tu pedido.
+              </p>
+              <p class="rounded-sm bg-[#eef4f7] px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[#3e5a73]">
+                Solo envíos dentro de México
+              </p>
+
+              <button
+                class="w-full rounded-sm bg-coral px-6 py-3 text-sm font-bold text-white transition hover:bg-coral-deep"
+                type="button"
+                (click)="checkout()">
+                Ir al pago seguro
+              </button>
+
+              <span class="inline-flex items-center justify-center gap-1.5 rounded-sm bg-white px-2 py-1">
+                <span class="font-display text-[11px] font-black italic leading-none text-[#1A1F71]">VISA</span>
+                <svg class="h-3 w-[19px]" viewBox="0 0 24 14" aria-hidden="true">
+                  <circle cx="7" cy="7" r="6.5" fill="#EB001B"/>
+                  <circle cx="14" cy="7" r="6.5" fill="#F79E1B"/>
+                  <path d="M10.5 2.2c1.35 1.13 2.1 2.85 2.1 4.8s-.75 3.67-2.1 4.8c-1.35-1.13-2.1-2.85-2.1-4.8s.75-3.67 2.1-4.8z" fill="#FF5F00"/>
+                </svg>
+                <span class="rounded-[2px] bg-[#2E77BC] px-1 py-[3px] text-[8px] font-bold leading-none tracking-tight text-white">AMEX</span>
+              </span>
+            </div>
+          }
         </section>
       }
     </div>
@@ -148,6 +156,19 @@ export class Experience {
   readonly activeOrder = computed(() => this.orders().find(orderIsActive) ?? null);
   readonly blocked = computed(() => Boolean(this.activeOrder() && !orderFeedbackDone(this.activeOrder()!)));
   readonly delivered = computed(() => this.activeOrder()?.fulfillment?.status === 'delivered');
+
+  readonly profile = signal<Profile | null>(null);
+  readonly descriptionTimedOut = signal(false);
+  private descriptionPollToken = 0;
+  private descriptionPollTries = 0;
+
+  readonly showDescription = computed(() => Boolean(this.profile()?.aiDescription?.trim()));
+  readonly showDescriptionLoading = computed(() => {
+    const profile = this.profile();
+    if (!profile || this.descriptionTimedOut()) return false;
+    if (profile.aiDescription?.trim()) return false;
+    return profile.aiDescriptionStatus !== 'none';
+  });
 
   constructor() {
     void this.load();
@@ -172,6 +193,44 @@ export class Experience {
     } finally {
       this.loading.set(false);
     }
+    void this.loadProfile();
+  }
+
+  private async loadProfile(): Promise<void> {
+    try {
+      this.profile.set(await this.api.getProfile());
+    } catch {
+      this.descriptionTimedOut.set(true);
+    }
+    this.scheduleDescriptionPoll();
+  }
+
+  private async refreshProfile(): Promise<void> {
+    try {
+      this.profile.set(await this.api.getProfile());
+    } catch {
+      this.descriptionTimedOut.set(true);
+    }
+  }
+
+  private scheduleDescriptionPoll(): void {
+    const token = ++this.descriptionPollToken;
+    if (!this.showDescriptionLoading()) return;
+    const attempt = () => {
+      if (token !== this.descriptionPollToken) return;
+      if (this.showDescription()) return;
+      void this.refreshProfile().then(() => {
+        if (token !== this.descriptionPollToken) return;
+        if (this.showDescription()) return;
+        if (this.descriptionPollTries < 5) {
+          this.descriptionPollTries++;
+          setTimeout(attempt, 3000);
+        } else {
+          this.descriptionTimedOut.set(true);
+        }
+      });
+    };
+    setTimeout(attempt, 3000);
   }
 
   goToOrder(): void {

@@ -30,7 +30,7 @@ async function main() {
         branchingRulesJson: question.branch as Prisma.InputJsonValue | undefined,
         validationJson: question.validation as Prisma.InputJsonValue | undefined,
       },
-      update: { textEsMx: question.text, validationJson: question.validation as Prisma.InputJsonValue | undefined },
+      update: { textEsMx: question.text, isRequired: question.required, validationJson: question.validation as Prisma.InputJsonValue | undefined },
     });
 
     for (const [sortOrder, option] of (question.options ?? []).entries()) {

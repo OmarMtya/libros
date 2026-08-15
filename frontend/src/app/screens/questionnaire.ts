@@ -650,7 +650,7 @@ export class Questionnaire {
     await this.run(async () => {
       await this.api.submitAnswer(session.id, 'Q01_LOVED_BOOKS', { skipped: true });
       const { nextQuestion } = await this.api.submitAnswer(session.id, 'Q02_DISLIKED_BOOK', { skipped: true });
-      this.history.update((items) => [...items, 'Q01_LOVED_BOOKS', 'Q02_DISLIKED_BOOK']);
+      this.history.update((items) => [...items, 'Q01_LOVED_BOOKS']);
       this.resetAnswer();
       await this.applyNextQuestion(nextQuestion);
     });

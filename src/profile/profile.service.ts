@@ -2,7 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { randomBytes } from 'node:crypto';
 import { EvidenceStatus, Prisma } from '@prisma/client';
 import Decimal from 'decimal.js';
-import { CALCULATION_VERSION, DIMENSIONS, ONBOARDING_CORE_DIMENSIONS, PROFILE_SCHEMA_VERSION, TAG_TAXONOMY_VERSION } from './catalog';
+import { CALCULATION_VERSION, DIMENSIONS, isQuestionVisible, ONBOARDING_CORE_DIMENSIONS, PROFILE_SCHEMA_VERSION, TAG_TAXONOMY_VERSION } from './catalog';
 import { aggregateDimension, evidenceSetHash, round } from './profile-calculation';
 import { computeDimensionWeights, computeDomainWeights, NumericDomain, SCORING_CALCULATION_VERSION } from '../scoring/domain-weights';
 import { buildPriorityVector, PriorityFactor, priorityVectorHash, PriorityVector, PRIORITY_VECTOR_MAPPING_VERSION, PRIORITY_VECTOR_NORMALIZATION_METHOD } from '../scoring/priority-vector';
@@ -323,10 +323,13 @@ export class ProfileService {
 
   private async hasCompletedRequiredQuestions(tx: Prisma.TransactionClient, userId: string): Promise<boolean> {
     const required = await tx.questionDefinition.findMany({ where: { isActive: true, isRequired: true }, select: { questionKey: true, questionnaireVersion: true } });
-    const sessions = await tx.questionnaireSession.findMany({ where: { userId, status: 'completed' }, include: { answers: { select: { questionKey: true } } } });
+    const sessions = await tx.questionnaireSession.findMany({ where: { userId, status: 'completed' }, include: { answers: { select: { questionKey: true, normalizedResponse: true } } } });
     return sessions.some((session) => {
       const answered = new Set(session.answers.map((answer) => answer.questionKey));
-      return required.filter((question) => question.questionnaireVersion === session.questionnaireVersion).every((question) => answered.has(question.questionKey));
+      const answeredMap = new Map(session.answers.map((answer) => [answer.questionKey, answer.normalizedResponse]));
+      return required
+        .filter((question) => question.questionnaireVersion === session.questionnaireVersion && isQuestionVisible(question.questionKey, answeredMap))
+        .every((question) => answered.has(question.questionKey));
     });
   }
 
