@@ -330,9 +330,9 @@ Criterios por tipo de tag:
 - `cultural_context`: presencia cultural significativa dentro de la obra; no se asigna solo por la nacionalidad del autor.
 - `narrative_motif`: estructura o motivo importante de la narración; no por semejanza superficial.
 
-### 5.1 `genre` (23)
+### 5.1 `genre` (22)
 
-`literary_fiction`, `mystery`, `thriller`, `horror`, `romance`, `erotica`, `science_fiction`,
+`literary_fiction`, `mystery`, `thriller`, `horror`, `romance`, `science_fiction`,
 `fantasy`, `historical_fiction`, `adventure`, `comedy`, `speculative_fiction`, `realistic_fiction`,
 `narrative_nonfiction`, `essay_memoir`, `short_story_collection`, `history`, `biography_memoir`,
 `journalism`, `science`, `politics_society`, `philosophy`, `economics`.
@@ -384,7 +384,7 @@ Criterios por tipo de tag:
 `parallel_worlds`, `found_family`, `redemption_arc`, `fall_of_hero`, `doppelganger`, `secret_history`,
 `last_survivor`, `epistolary`.
 
-> No uses tags `deprecated` (hoy solo `anglo_american`); sustituye por su `replacement_tag_key`.
+> No uses tags `deprecated` (hoy `anglo_american` y `erotica`); sustituye por su `replacement_tag_key` cuando exista.
 
 ---
 

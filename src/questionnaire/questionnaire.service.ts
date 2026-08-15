@@ -336,7 +336,8 @@ export class QuestionnaireService {
       curious: normalize('curious', 3),
       notInterested: normalize('notInterested'),
     };
-    if (!normalized.liked.length && !normalized.curious.length && !normalized.notInterested.length) throw new BadRequestException('Select at least one tag.');
+    if (!normalized.liked.length) throw new BadRequestException('Select at least one tag you like.');
+    if (!normalized.curious.length) throw new BadRequestException('Select at least one tag you are curious about.');
     return normalized;
   }
 

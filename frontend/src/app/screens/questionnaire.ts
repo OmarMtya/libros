@@ -139,6 +139,11 @@ const TOTAL_QUESTIONS = 16;
                       }
                     </div>
                     <p class="mt-1 text-xs text-[#567088]">1 = Me gustó poco · 5 = Me encantó</p>
+                    @if (lovedBookRatings[book.openLibraryId] >= 1 && lovedBookRatings[book.openLibraryId] <= 2) {
+                      <p class="mt-2 rounded-sm border-l-[3px] border-[#f59e0b] bg-[#fff7e6] px-3 py-2 text-sm leading-relaxed text-[#8a5a12]">
+                        ¿Menos de 3 estrellas? Un favorito con una nota tan baja se vuelve ambiguo y nos cuesta más detectar si de verdad te gustó. Si no te gustó tanto, quizá encaja mejor en la siguiente pregunta.
+                      </p>
+                    }
                     <label class="mt-3 block">
                       <span class="text-sm font-semibold text-ink">Comentario opcional</span>
                       <input [(ngModel)]="lovedBookComments[book.openLibraryId]" placeholder="Cuéntanos cualquier detalle…" class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
@@ -230,6 +235,11 @@ const TOTAL_QUESTIONS = 16;
                       }
                     </div>
                     <p class="mt-1 text-xs text-[#567088]">1 = No era para mí · 5 = Me encantó</p>
+                    @if (dislikedBookRatings[book.openLibraryId] >= 4) {
+                      <p class="mt-2 rounded-sm border-l-[3px] border-[#f59e0b] bg-[#fff7e6] px-3 py-2 text-sm leading-relaxed text-[#8a5a12]">
+                        ¿Te encantó (4–5)? Entonces quizá este libro va mejor en la pregunta anterior, entre los que sí te gustaron.
+                      </p>
+                    }
                     <label class="mt-3 block">
                       <span class="text-sm font-semibold text-ink">Comentario opcional</span>
                       <input [(ngModel)]="dislikedBookReasonTexts[book.openLibraryId]" placeholder="Cuéntanos cualquier detalle…" class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
@@ -871,8 +881,9 @@ export class Questionnaire {
       return missingRatings ? `Califica «${missingRatings.title}» de 1 a 5.` : null;
     }
     if (question.questionKey === 'Q11_GENRES_THEMES') {
-      const total = this.tagSelections.liked.length + this.tagSelections.curious.length + this.tagSelections.notInterested.length;
-      return total === 0 ? 'Elige al menos una etiqueta.' : null;
+      if (this.tagSelections.liked.length === 0) return 'Elige al menos un género o tema que te guste.';
+      if (this.tagSelections.curious.length === 0) return 'Elige al menos uno que te dé curiosidad.';
+      return null;
     }
     if (question.questionKey === 'Q12_LENGTH_SERIES') {
       if (this.lengthSeries.minPages <= 0 || this.lengthSeries.maxPages <= 0 || this.lengthSeries.minPages > this.lengthSeries.maxPages) return 'Revisa los límites de páginas.';

@@ -195,7 +195,7 @@ const subgenreKeys = (pairs: Array<[string, string]>): TagSeed[] =>
   pairs.map(([key, parentTagKey]) => ({ key, tagType: 'subgenre' as TagType, parentTagKey }));
 
 export const TAGS: TagSeed[] = [
-  ...tagKeys('genre', ['literary_fiction', 'mystery', 'thriller', 'horror', 'romance', 'erotica', 'science_fiction', 'fantasy', 'historical_fiction', 'adventure', 'comedy', 'speculative_fiction', 'realistic_fiction', 'narrative_nonfiction', 'essay_memoir', 'short_story_collection', 'history', 'biography_memoir', 'journalism', 'science', 'politics_society', 'philosophy', 'economics']),
+  ...tagKeys('genre', ['literary_fiction', 'mystery', 'thriller', 'horror', 'romance', 'science_fiction', 'fantasy', 'historical_fiction', 'adventure', 'comedy', 'speculative_fiction', 'realistic_fiction', 'narrative_nonfiction', 'essay_memoir', 'short_story_collection', 'history', 'biography_memoir', 'journalism', 'science', 'politics_society', 'philosophy', 'economics']),
   ...subgenreKeys([
     ['cozy_mystery', 'mystery'],
     ['procedural', 'mystery'],
@@ -225,6 +225,18 @@ export const TAGS: TagSeed[] = [
   ...tagKeys('theme', ['love', 'identity', 'grief', 'family', 'friendship', 'betrayal', 'redemption', 'justice', 'power', 'freedom', 'war', 'migration', 'memory', 'loneliness', 'ambition', 'faith_doubt', 'technology_society', 'environment', 'mental_health', 'addiction', 'coming_of_age', 'forgiveness', 'mortality', 'moral_dilemma']),
   ...tagKeys('setting', ['urban', 'rural', 'small_town', 'arctic', 'desert', 'island', 'maritime', 'mountain', 'war_zone', 'dystopian_city', 'village', 'metropolis']),
   ...tagKeys('period', ['pre_1900', 'early_20th_century', 'mid_20th_century', 'late_20th_century', 'contemporary', 'near_future', 'distant_future', 'mythic_past']),
-  ...tagKeys('cultural_context', ['latin_american', 'hispanic_mexico', 'anglo_united_states', 'anglo_united_kingdom', 'anglo_american', 'european', 'east_asian', 'south_asian', 'southeast_asian', 'middle_eastern', 'african', 'indigenous', 'diaspora']),
+  ...tagKeys('cultural_context', ['latin_american', 'hispanic_mexico', 'anglo_united_states', 'anglo_united_kingdom', 'european', 'east_asian', 'south_asian', 'southeast_asian', 'middle_eastern', 'african', 'indigenous', 'diaspora']),
   ...tagKeys('narrative_motif', ['quest', 'forbidden_love', 'chosen_one', 'unreliable_narrator', 'locked_room_mystery', 'time_loop', 'parallel_worlds', 'found_family', 'redemption_arc', 'fall_of_hero', 'doppelganger', 'secret_history', 'last_survivor', 'epistolary']),
+];
+
+export type DeprecatedTagSeed = {
+  key: string;
+  tagType: TagType;
+  replacementTagKey?: string | null;
+  deprecatedReason: string;
+};
+
+export const DEPRECATED_TAGS: DeprecatedTagSeed[] = [
+  { key: 'anglo_american', tagType: 'cultural_context', replacementTagKey: 'anglo_united_states', deprecatedReason: 'Split into anglo_united_states and anglo_united_kingdom.' },
+  { key: 'erotica', tagType: 'genre', replacementTagKey: null, deprecatedReason: 'Categoría retirada del catálogo.' },
 ];
