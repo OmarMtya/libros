@@ -205,10 +205,15 @@ export class PublicProfileScreen {
   private pollTries = 0;
 
   constructor() {
-    this.slug = this.route.snapshot.paramMap.get('slug');
-    const path = this.route.snapshot.routeConfig?.path ?? '';
-    this.inShell.set(path.startsWith('app/'));
-    if (this.slug) void this.load(this.slug);
+    this.route.paramMap.subscribe((params) => {
+      const slug = params.get('slug');
+      const path = this.route.snapshot.routeConfig?.path ?? '';
+      this.inShell.set(path.startsWith('app/'));
+      if (slug) {
+        this.slug = slug;
+        void this.load(slug);
+      }
+    });
   }
 
   initials(name: string | null): string {
