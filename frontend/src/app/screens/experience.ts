@@ -37,27 +37,25 @@ const BOX_CONTENTS = [
             [src]="PACKAGE_MEDIA.imageUrl"
             [alt]="PACKAGE_MEDIA.label"
             class="absolute inset-0 h-full w-full object-cover">
-          @if (!blocked()) {
-            <div
-              aria-hidden="true"
-              class="pointer-events-none absolute inset-0 bg-[#132a3a]/30"></div>
-            <div
-              aria-hidden="true"
-              class="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#132a3a]/95 via-[#132a3a]/60 to-transparent"></div>
-            <figcaption class="relative z-10 w-full p-5 sm:p-7">
-              @if (showDescription()) {
-                <p class="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-white/70">Lo que sabemos de ti</p>
-                <p class="mt-2 text-sm leading-relaxed text-white">{{ profile()!.aiDescription }}</p>
-                <p class="mt-3 text-xs leading-relaxed text-white/70">Con esto investigamos candidatos y una persona elige tu libro, uno a uno.</p>
-              } @else if (showDescriptionLoading()) {
-                <p class="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-white/70">Preparando lo que sabemos de ti…</p>
-                <div class="mt-3 space-y-2">
-                  <div class="h-3 w-full animate-pulse rounded-sm bg-white/25"></div>
-                  <div class="h-3 w-3/4 animate-pulse rounded-sm bg-white/25"></div>
-                </div>
-              }
-            </figcaption>
-          }
+          <div
+            aria-hidden="true"
+            class="pointer-events-none absolute inset-0 bg-[#132a3a]/30"></div>
+          <div
+            aria-hidden="true"
+            class="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#132a3a]/95 via-[#132a3a]/60 to-transparent"></div>
+          <figcaption class="relative z-10 w-full p-5 sm:p-7">
+            @if (showDescription()) {
+              <p class="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-white/70">Lo que sabemos de ti</p>
+              <p class="mt-2 text-sm leading-relaxed text-white">{{ profile()!.aiDescription }}</p>
+              <p class="mt-3 text-xs leading-relaxed text-white/70">Con esto investigamos candidatos y una persona elige tu libro, uno a uno.</p>
+            } @else if (showDescriptionLoading()) {
+              <p class="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-white/70">Preparando lo que sabemos de ti…</p>
+              <div class="mt-3 space-y-2">
+                <div class="h-3 w-full animate-pulse rounded-sm bg-white/25"></div>
+                <div class="h-3 w-3/4 animate-pulse rounded-sm bg-white/25"></div>
+              </div>
+            }
+          </figcaption>
         </figure>
 
         <section class="rounded-sm border border-[#cad7df] bg-white p-6 sm:p-8">
