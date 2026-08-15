@@ -3,6 +3,17 @@ import { createHash } from 'crypto';
 
 const DEFAULT_GRAPH_VERSION = 'v23.0';
 const MEXICO_COUNTRY_CODE = '52';
+const MAX_FBC_LENGTH = 200;
+
+export function decodeFbcFromClientReference(encoded: string): string | null {
+  if (!encoded || !/^[A-Za-z0-9_-]+$/.test(encoded)) return null;
+  try {
+    const fbc = Buffer.from(encoded, 'base64url').toString('utf8');
+    return fbc.startsWith('fb.1.') && fbc.length <= MAX_FBC_LENGTH ? fbc : null;
+  } catch {
+    return null;
+  }
+}
 
 export type MetaUserData = {
   email?: string | null;

@@ -3,7 +3,7 @@ import { CurrencyPipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { ApiService, orderFeedbackDone, orderIsActive, ProductPackage, UserOrder } from '../api.service';
 import { AuthService } from '../auth.service';
-import { trackMetaEvent } from '../meta-pixel';
+import { encodeMetaFbcForReference, getMetaFbc, trackMetaEvent } from '../meta-pixel';
 import { OrderTimeline } from '../components/order-timeline';
 import { environment } from '../../environments/environment';
 
@@ -192,7 +192,15 @@ export class Experience {
     const session = this.auth.session();
     const params = new URLSearchParams();
     if (session?.user.email) params.set('prefilled_email', session.user.email);
-    if (session?.user.id) params.set('client_reference_id', `${pkg.key}-${session.user.id}`);
+    if (session?.user.id) {
+      const baseReference = `${pkg.key}-${session.user.id}`;
+      const fbc = getMetaFbc();
+      const encodedFbc = fbc ? encodeMetaFbcForReference(fbc) : null;
+      const reference = encodedFbc && `${baseReference}${encodedFbc}`.length <= 200
+        ? `${baseReference}${encodedFbc}`
+        : baseReference;
+      params.set('client_reference_id', reference);
+    }
     const query = params.toString();
     window.location.assign(query ? `${PAYMENT_LINK}?${query}` : PAYMENT_LINK);
   }

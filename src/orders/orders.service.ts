@@ -3,7 +3,7 @@ import { FulfillmentStatus, OrderStatus, PaymentProvider, PaymentStatus, Prisma,
 import { randomUUID } from 'crypto';
 import Stripe from 'stripe';
 import { EmailService } from '../email/email.service';
-import { MetaCapiService } from '../meta/meta-capi.service';
+import { decodeFbcFromClientReference, MetaCapiService } from '../meta/meta-capi.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAdminOrderDto } from './admin-order.dto';
 
@@ -152,6 +152,7 @@ export class OrdersService {
   async processStripeEvent(event: Stripe.Event, options?: { allowFreeOrder?: boolean }) {
     const session = event.data.object as Stripe.Checkout.Session;
     const allowFreeOrder = options?.allowFreeOrder ?? false;
+    let purchaseFbc: string | null = null;
     try {
       const result = await this.prisma.$transaction(async (tx) => {
         await tx.paymentEvent.create({
@@ -167,7 +168,8 @@ export class OrdersService {
         }
         if (!allowFreeOrder && (session.payment_status !== 'paid' || !session.amount_total)) return { received: true, processed: false };
 
-        const { packageKey, userId } = this.parseClientReference(session.client_reference_id);
+        const { packageKey, userId, fbc } = this.parseClientReference(session.client_reference_id);
+        purchaseFbc = fbc;
         const [product, user] = await Promise.all([
           tx.productPackage.findUnique({ where: { key: packageKey } }),
           tx.user.findUnique({ where: { id: userId } }),
@@ -248,7 +250,7 @@ export class OrdersService {
 
       if (result.processed && result.confirmation) await this.sendOrderConfirmation(result.confirmation);
       if (result.processed && result.orderInfo) await this.notifyAdminsOfNewOrder(result.orderInfo);
-      if (result.processed && result.orderInfo && !allowFreeOrder) void this.sendPurchase(result.orderInfo, session);
+      if (result.processed && result.orderInfo && !allowFreeOrder) void this.sendPurchase(result.orderInfo, session, purchaseFbc);
       const { confirmation: _confirmation, orderInfo: _orderInfo, ...response } = result;
       return response;
     } catch (error) {
@@ -263,11 +265,11 @@ export class OrdersService {
     packageKey: string;
     totalCents: number;
     currency: string;
-  }, session: Stripe.Checkout.Session): Promise<void> {
+  }, session: Stripe.Checkout.Session, fbc: string | null): Promise<void> {
     await this.meta.sendEvent({
       eventName: 'Purchase',
       eventId: session.id,
-      userData: { email: info.customerEmail, externalId: info.customerUserId },
+      userData: { email: info.customerEmail, externalId: info.customerUserId, fbc },
       customData: {
         value: info.totalCents / 100,
         currency: info.currency,
@@ -360,7 +362,15 @@ export class OrdersService {
   private parseClientReference(reference: string | null) {
     const entry = PAYMENT_LINK_PREFIXES.find((candidate) => reference?.startsWith(candidate.prefix));
     if (!entry || !reference) throw new BadRequestException('La compra no incluye una referencia de cliente válida.');
-    return { packageKey: entry.packageKey, userId: reference.slice(entry.prefix.length) };
+    const value = reference.slice(entry.prefix.length);
+    const marker = '_meta_fbc_';
+    const markerIndex = value.indexOf(marker);
+    if (markerIndex === -1) return { packageKey: entry.packageKey, userId: value, fbc: null };
+    return {
+      packageKey: entry.packageKey,
+      userId: value.slice(0, markerIndex),
+      fbc: decodeFbcFromClientReference(value.slice(markerIndex + marker.length)),
+    };
   }
 
   private extractShippingDetails(session: Stripe.Checkout.Session) {

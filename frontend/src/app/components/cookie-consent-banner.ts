@@ -17,7 +17,7 @@ import { CookieConsentService } from '../cookie-consent.service';
             <p class="mt-1 text-sm leading-relaxed text-[#c6d3de]">
               Usamos almacenamiento en tu navegador para recordar tu sesión, tus preferencias y el
               avance de tu perfil lector (necesario para el servicio). Con tu consentimiento, también
-              cargamos herramientas de medición de terceros. Puedes aceptarlas, rechazarlas o leer nuestro
+              cargamos herramientas de medición de terceros, como Meta Pixel. Puedes aceptarlas, rechazarlas o leer nuestro
               <a [href]="privacyUrl" target="_blank" rel="noopener" class="font-semibold text-white underline decoration-marker decoration-2 underline-offset-2 transition hover:text-marker">
                 Aviso de privacidad
               </a>.

@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { loadMetaPixel } from './meta-pixel';
+import { captureMetaAttribution, loadMetaPixel } from './meta-pixel';
 
 export type CookieConsent = 'undecided' | 'accepted' | 'rejected';
 
@@ -16,7 +16,10 @@ export class CookieConsentService {
   readonly consent = signal<CookieConsent>(this.read());
 
   constructor() {
-    if (this.consent() === 'accepted') loadMetaPixel();
+    if (this.consent() === 'accepted') {
+      captureMetaAttribution();
+      loadMetaPixel();
+    }
   }
 
   accept(): void {
@@ -44,7 +47,10 @@ export class CookieConsentService {
       // almacenamiento no disponible
     }
     this.consent.set(choice);
-    if (choice === 'accepted') loadMetaPixel();
+    if (choice === 'accepted') {
+      captureMetaAttribution();
+      loadMetaPixel();
+    }
   }
 
   private read(): CookieConsent {

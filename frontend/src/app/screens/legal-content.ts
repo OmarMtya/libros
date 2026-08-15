@@ -158,7 +158,7 @@ export const TERMINOS: LegalDocument = {
 
 export const AVISO_PRIVACIDAD: LegalDocument = {
   title: 'Aviso de Privacidad Integral',
-  updatedAt: '2 de agosto de 2026',
+  updatedAt: '14 de agosto de 2026',
   intro:
     'Luis Omar Montoya Jaquez, quien opera la aplicación y los servicios relacionados bajo el nombre comercial "Mi Libro Sorpresa" (en lo sucesivo, "Mi Libro Sorpresa"), con domicilio en Rincones de Barcelona 1512, Col. Rincones de Oriente Sur, C.P. 32563, Ciudad Juárez, Chihuahua, México, y correo electrónico de contacto hola@milibrosorpresa.com, es responsable del tratamiento de los datos personales que recaba de sus usuarios, de conformidad con la Ley Federal de Protección de Datos Personales en Posesión de los Particulares y demás normativa aplicable en México.',
   sections: [
@@ -173,6 +173,7 @@ export const AVISO_PRIVACIDAD: LegalDocument = {
         'Datos de pago: el cobro se procesa a través de Stripe, que puede tratar sus datos de pago bajo sus propios términos; nosotros solo registramos el estado, el monto y la referencia de cada pago, y no almacenamos los datos de su tarjeta.',
         'Datos de feedback, como estado de lectura, valoraciones, motivos y comentarios que comparte sobre el libro recibido.',
         'Datos de soporte y comunicación, cuando nos contacta por correo electrónico, WhatsApp u otros medios.',
+        'Datos técnicos y de atribución publicitaria, como identificadores de navegador, información básica del dispositivo, la URL de procedencia y parámetros de campaña como fbclid y fbc, cuando usted autoriza herramientas de medición.',
       ],
     },
     {
@@ -200,13 +201,16 @@ export const AVISO_PRIVACIDAD: LegalDocument = {
     {
       heading: '4. Finalidades secundarias',
       paragraphs: [
-        'De manera adicional, podemos tratar sus datos para finalidades secundarias compatibles con el servicio, como mejorar la estabilidad, calidad y experiencia de uso, analizar fallas técnicas y documentar funcionalidades. En caso de que alguna finalidad secundaria requiera un consentimiento adicional conforme a la normatividad aplicable, se lo solicitaremos por separado cuando corresponda.',
+        'De manera adicional, podemos tratar sus datos para finalidades secundarias compatibles con el servicio, como mejorar la estabilidad, calidad y experiencia de uso, analizar fallas técnicas y documentar funcionalidades.',
+        'Con su consentimiento cuando corresponda, podemos utilizar herramientas de medición y publicidad, como Meta Pixel y Meta Conversions API, para medir campañas, relacionar visitas y compras con campañas publicitarias y mejorar la eficacia de nuestros anuncios. Estas herramientas pueden recibir identificadores técnicos y de atribución, así como eventos como páginas visitadas, inicio del proceso de pago y compra; no reciben los datos de su tarjeta.',
+        'En caso de que alguna finalidad secundaria requiera un consentimiento adicional conforme a la normatividad aplicable, se lo solicitaremos por separado cuando corresponda.',
       ],
     },
     {
       heading: '5. Cookies y herramientas de análisis',
       paragraphs: [
-        'Podremos utilizar cookies propias y de terceros, así como herramientas de medición de audiencia y análisis de uso (por ejemplo, Google Analytics), para entender cómo se utiliza el servicio y mejorarlo. Estas herramientas pueden recabar información de uso como páginas visitadas, duración de la sesión, tipo de dispositivo y región aproximada, de forma anónima o agregada.',
+        'Podremos utilizar cookies propias y de terceros, así como herramientas de medición de audiencia y análisis de uso, incluyendo Meta Pixel y Meta Conversions API, para entender cómo se utiliza el servicio, medir campañas y atribuir conversiones. Estas herramientas pueden recabar información de uso como páginas visitadas, duración de la sesión, tipo de dispositivo, región aproximada y parámetros de campaña como fbclid, fbc y otros identificadores técnicos.',
+        'Meta puede tratar esta información conforme a sus propios términos y políticas. Las herramientas de medición publicitaria se cargan o utilizan de acuerdo con la elección de consentimiento disponible en el sitio.',
         'Usted puede configurar su navegador para rechazar o eliminar las cookies, y podrá rechazar estas herramientas cuando se le ofrezca esa opción. Este aviso se actualizará cuando se habiliten o cambien dichas herramientas.',
       ],
     },
@@ -219,6 +223,7 @@ export const AVISO_PRIVACIDAD: LegalDocument = {
         'Supabase: autenticación y base de datos.',
         'Stripe: procesamiento de pagos y reembolsos.',
         'Resend: envío de correos electrónicos transaccionales.',
+        'Meta Platforms: medición de campañas y atribución de conversiones mediante Meta Pixel y Meta Conversions API, cuando corresponda.',
         'Proveedores de mensajería y envío: para entregar el paquete, a quienes se les comparte el nombre, teléfono y dirección del destinatario.',
         'Proveedores de hosting e infraestructura, y, en su caso, herramientas de análisis.',
       ],
@@ -238,6 +243,7 @@ export const AVISO_PRIVACIDAD: LegalDocument = {
       heading: '8. Conservación de datos',
       paragraphs: [
         'Conservaremos sus datos personales durante el tiempo necesario para cumplir las finalidades descritas en este aviso, mientras su cuenta permanezca activa o mientras exista una relación válida con usted, así como por el tiempo exigido por las obligaciones legales y fiscales aplicables.',
+        'Los identificadores técnicos y de atribución publicitaria que se conservan en el navegador podrán mantenerse hasta por 90 días, salvo que usted los elimine antes o revoque el consentimiento correspondiente.',
         'Al finalizar la relación, sus datos podrán entrar en procesos de bloqueo, supresión o depuración técnica conforme a nuestras capacidades operativas y obligaciones legales. Los registros de pedidos y pagos pueden conservarse durante los plazos legales, incluso después de la baja de la cuenta, en su caso de forma anonimizada.',
       ],
     },
