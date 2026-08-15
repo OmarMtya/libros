@@ -133,7 +133,7 @@ export type PublicProfile = {
 
 export type ProductPackage = { key: 'libro_sorpresa_fisico'; name: string; description: string; priceCents: number; shippingCents: number; currency: string; includedFormats: string[] };
 export type CurrentUser = { id: string; email: string | null; displayName: string | null; role: 'customer' | 'admin' };
-export type AdminUser = { id: string; email: string | null; displayName: string | null; role: string; createdAt: string; readerProfile: { readyToRecommend: boolean; currentVersion: number; updatedAt: string } | null; _count: { orders: number; readingFeedback: number } };
+export type AdminUser = { id: string; email: string | null; displayName: string | null; role: string; createdAt: string; readerProfile: { publicSlug: string | null; readyToRecommend: boolean; currentVersion: number; updatedAt: string } | null; _count: { orders: number; readingFeedback: number } };
 
 export type OrderAddress = {
   recipientName: string;

@@ -1,12 +1,12 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService, AdminUser } from '../api.service';
 import { ToastService } from '../toast.service';
 
 @Component({
   selector: 'app-readers',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   template: `
     <div class="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <p class="mb-2 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Administración</p>
@@ -31,16 +31,25 @@ import { ToastService } from '../toast.service';
       @if (users().length > 0) {
         <div class="overflow-hidden rounded-sm border border-[#b9cad5] bg-white">
           @for (user of users(); track user.id) {
-            <button
-              class="flex w-full items-center justify-between gap-4 border-b border-[#c9d7df] px-4 py-3 text-left transition hover:text-coral"
-              type="button"
-              (click)="showUser(user)">
-              <span>
+            <div class="flex items-center justify-between gap-4 border-b border-[#c9d7df] px-4 py-3">
+              <button
+                class="min-w-0 flex-1 text-left transition hover:text-coral"
+                type="button"
+                (click)="showUser(user)">
                 <strong class="block text-ink">{{ user.displayName || user.email || 'Sin nombre' }}</strong>
                 <small class="text-[#566e80]">{{ user.email }}</small>
-              </span>
-              <span class="font-mono text-xs text-[#566e80]">{{ user._count.orders }} pedidos · {{ user._count.readingFeedback }} opiniones</span>
-            </button>
+              </button>
+              <div class="flex shrink-0 flex-col items-end gap-1">
+                <span class="font-mono text-xs text-[#566e80]">{{ user._count.orders }} pedidos · {{ user._count.readingFeedback }} opiniones</span>
+                @if (user.readerProfile?.publicSlug; as slug) {
+                  <a
+                    class="text-sm font-semibold text-coral underline decoration-[#f2be45] underline-offset-2 transition hover:text-ink"
+                    [routerLink]="['/app/perfil', slug]">
+                    Ver perfil
+                  </a>
+                }
+              </div>
+            </div>
           }
         </div>
       } @else if (!loading()) {
