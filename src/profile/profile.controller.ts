@@ -34,6 +34,11 @@ export class ProfileController {
   @Post('regenerate-description')
   regenerateDescription(@CurrentUser() user: AuthenticatedUser) { return this.descriptions.generateNow(user.id); }
 
+  @Post('books')
+  addBooks(@CurrentUser() user: AuthenticatedUser, @Body() body: { books?: unknown[] }) {
+    return this.profiles.addSupplementalBooks(user.id, body?.books);
+  }
+
   @Patch('avatar')
   async updateAvatar(@CurrentUser() user: AuthenticatedUser, @Body() body: { url?: string }) {
     const url = typeof body?.url === 'string' ? body.url.trim().slice(0, 2048) : null;
