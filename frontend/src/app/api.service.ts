@@ -28,6 +28,16 @@ export type BookResult = {
   originalLanguage: string;
 };
 
+export type ProfileBookInput = {
+  category: 'enjoyed' | 'notEnjoyed';
+  openLibraryId: string;
+  openLibraryEditionId: string | null;
+  coverId: number | null;
+  title: string;
+  authors: string[];
+  coverUrl: string | null;
+};
+
 export type Tag = { tagKey: string; name: string; tagType: string };
 
 export type Session = { id: string; userId: string; status: string };
@@ -113,7 +123,7 @@ export type PublicProfileBook = {
   title: string;
   authors: string[];
   coverUrl: string | null;
-  source: ('questionnaire' | 'surprise')[];
+  source: ('questionnaire' | 'surprise' | 'profile')[];
   review: PublicProfileBookReview | null;
 };
 export type PublicProfile = {
@@ -399,6 +409,10 @@ export class ApiService {
 
   getProfile(): Promise<Profile> {
     return firstValueFrom(this.http.get<Profile>(`${this.baseUrl}/me/reader-profile`, this.options()));
+  }
+
+  addProfileBooks(books: ProfileBookInput[]): Promise<{ books: ProfileBookInput[] }> {
+    return firstValueFrom(this.http.post<{ books: ProfileBookInput[] }>(`${this.baseUrl}/me/reader-profile/books`, { books }, this.options()));
   }
 
   getPublicProfile(slug: string): Promise<PublicProfile> {
