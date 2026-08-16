@@ -50,7 +50,15 @@ const FAQS = [
   },
   {
     q: '¿El libro lo elige una inteligencia artificial?',
-    a: 'No. Tus respuestas ayudan a construir un perfil y a comparar distintos candidatos, pero una persona investiga las opciones y toma la decisión final.',
+    a: 'Usamos un modelo de clasificación de lectores que convierte tus respuestas en señales sobre ritmo, personajes, emociones, complejidad, ambientación y otros aspectos de la lectura. El sistema ordena y compara candidatos; una persona revisa las mejores opciones, verifica que encajen contigo y toma la decisión final.',
+  },
+  {
+    q: '¿Cómo se convierte mi cuestionario en una recomendación?',
+    a: 'No nos limitamos a leer tus respuestas una por una. Las normalizamos y las convertimos en un perfil lector estructurado: preferencias, señales de afinidad y cosas que conviene evitar. Después comparamos ese perfil con la clasificación de cada libro disponible para construir una lista de candidatos con razones de compatibilidad.',
+  },
+  {
+    q: '¿Puedo agregar más libros que ya leí?',
+    a: 'Sí. Después de completar el cuestionario puedes ampliar tu estantería desde tu perfil e indicar si disfrutaste o no esos títulos. Usamos esa información para evitar repetir libros que ya conoces y para dar más contexto a futuras selecciones.',
   },
   {
     q: '¿Hay un humano leyendo mis respuestas?',
