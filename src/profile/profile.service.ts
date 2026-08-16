@@ -192,7 +192,7 @@ export class ProfileService {
     await this.prisma.readerProfile.update({
       where: { id: current.id },
       data: {
-        snapshotJson: { ...currentMeta, supplemental_books: merged },
+        snapshotJson: { ...currentMeta, supplemental_books: merged } as Prisma.InputJsonValue,
         optimisticLockVersion: { increment: 1 },
       },
     });
