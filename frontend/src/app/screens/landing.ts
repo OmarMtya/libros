@@ -58,7 +58,7 @@ const FAQS = [
   },
   {
     q: '¿Puedo agregar más libros que ya leí?',
-    a: 'Sí. Después de completar el cuestionario puedes ampliar tu estantería desde tu perfil e indicar si disfrutaste o no esos títulos. Usamos esa información para evitar repetir libros que ya conoces y para dar más contexto a futuras selecciones.',
+    a: 'Sí. Después de completar el cuestionario puedes ampliar tu estantería desde tu perfil e indicar si disfrutaste o no esos títulos. Usamos esa información para evitar repetir libros que ya conoces y para tener un registro más completo de tus referencias.',
   },
   {
     q: '¿Hay un humano leyendo mis respuestas?',
