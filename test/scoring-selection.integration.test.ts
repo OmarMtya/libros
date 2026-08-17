@@ -285,4 +285,29 @@ run('scoring de candidatos y selección trazable', () => {
     expect(scored.candidates.some((candidate) => candidate.bookEditionId === read.edition.id)).toBe(false);
     expect(scored.candidates.some((candidate) => candidate.bookEditionId === other.edition.id)).toBe(true);
   });
+
+  it('excluye de la puntuación los títulos guardados en la estantería', async () => {
+    const saved = await makeApprovedEdition();
+    const other = await makeApprovedEdition();
+    const { userId } = await makeReadyReader();
+    const { fulfillment } = await makeOrderFulfillment(userId);
+
+    await profileService!.addSupplementalBooks(userId, [{
+      category: 'enjoyed',
+      openLibraryId: 'OL1W',
+      openLibraryEditionId: null,
+      coverId: null,
+      title: saved.book.canonicalTitle,
+      authors: [],
+      coverUrl: null,
+      rating: 5,
+      likedAspects: ['characters'],
+      reasonCodes: [],
+      freeText: null,
+    }]);
+
+    const scored = await scoringService!.scoreForFulfillment(fulfillment.id);
+    expect(scored.candidates.some((candidate) => candidate.bookEditionId === saved.edition.id)).toBe(false);
+    expect(scored.candidates.some((candidate) => candidate.bookEditionId === other.edition.id)).toBe(true);
+  });
 });

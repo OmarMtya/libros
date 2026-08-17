@@ -117,14 +117,16 @@ run('ai-description (integration)', () => {
     });
   });
 
-  it('ensureGeneration leaves pending untouched while feedbacks are still active', async () => {
+  it('ensureGeneration retries pending descriptions while feedbacks are still active', async () => {
     const { userId } = await createCompletedReader('Ana García');
     await prisma!.readerProfile.update({ where: { userId }, data: { aiDescription: null, aiDescriptionStatus: 'pending' } });
     await prisma!.readingFeedback.create({ data: { userId, feedbackVersion: '1.0', started: true, readingStatus: 'in_progress', completionPercentage: 50 } });
 
     await descriptionService!.ensureGeneration(userId);
-    const updated = await prisma!.readerProfile.findUnique({ where: { userId } });
-    expect(updated?.aiDescriptionStatus).toBe('pending');
+    await vi.waitFor(async () => {
+      const updated = await prisma!.readerProfile.findUnique({ where: { userId } });
+      expect(updated?.aiDescriptionStatus).toBe('ready');
+    });
   });
 
   it('detects active feedback cycles (pending learning feedbacks)', async () => {

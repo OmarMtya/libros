@@ -24,7 +24,14 @@ export type SupplementalBook = {
   title: string;
   authors: string[];
   coverUrl: string | null;
+  rating: number;
+  likedAspects: string[];
+  reasonCodes: string[];
+  freeText: string | null;
 };
+
+const LOVED_BOOK_ASPECT_KEYS = new Set(['characters', 'prose', 'originality', 'ending', 'emotions', 'universe']);
+const DISLIKED_BOOK_REASON_KEYS = new Set(['too_conceptually_dense', 'too_slow', 'too_confusing', 'too_long', 'not_engaging', 'other']);
 
 @Injectable()
 export class ProfileService {
@@ -189,14 +196,36 @@ export class ProfileService {
     }
     if (merged.length > 50) throw new BadRequestException('Puedes guardar hasta 50 libros en tu estantería.');
 
-    await this.prisma.readerProfile.update({
-      where: { id: current.id },
+    const updated = await this.prisma.readerProfile.updateMany({
+      where: { id: current.id, optimisticLockVersion: current.optimisticLockVersion },
       data: {
         snapshotJson: { ...currentMeta, supplemental_books: merged } as Prisma.InputJsonValue,
         optimisticLockVersion: { increment: 1 },
       },
     });
+    if (updated.count !== 1) throw new ConflictException('Profile changed concurrently. Retry the operation.');
     return { books: merged };
+  }
+
+  async removeSupplementalBook(userId: string, rawOpenLibraryId: string): Promise<{ books: SupplementalBook[] }> {
+    const openLibraryId = rawOpenLibraryId.trim().slice(0, 120);
+    if (!openLibraryId) throw new BadRequestException('El identificador del libro es obligatorio.');
+    const profile = await this.ensureProfile(userId);
+    const current = await this.prisma.readerProfile.findUniqueOrThrow({ where: { id: profile.id } });
+    const currentMeta = current.snapshotJson as Record<string, unknown>;
+    const existing = this.readSupplementalBooks(currentMeta.supplemental_books);
+    const books = existing.filter((book) => book.openLibraryId !== openLibraryId);
+    if (books.length === existing.length) return { books: existing };
+
+    const updated = await this.prisma.readerProfile.updateMany({
+      where: { id: current.id, optimisticLockVersion: current.optimisticLockVersion },
+      data: {
+        snapshotJson: { ...currentMeta, supplemental_books: books } as Prisma.InputJsonValue,
+        optimisticLockVersion: { increment: 1 },
+      },
+    });
+    if (updated.count !== 1) throw new ConflictException('Profile changed concurrently. Retry the operation.');
+    return { books };
   }
 
   async getVersions(userId: string) {
@@ -411,6 +440,13 @@ export class ProfileService {
       const authors = Array.isArray(raw.authors) ? raw.authors.filter((author): author is string => typeof author === 'string').map((author) => author.trim().slice(0, 160)).filter(Boolean).slice(0, 10) : [];
       const coverId = raw.coverId === null || raw.coverId === undefined ? null : typeof raw.coverId === 'number' && Number.isInteger(raw.coverId) && raw.coverId > 0 ? raw.coverId : null;
       const coverUrl = typeof raw.coverUrl === 'string' && raw.coverUrl.trim() ? raw.coverUrl.trim().slice(0, 1000) : null;
+      const rating = typeof raw.rating === 'number' && Number.isInteger(raw.rating) && raw.rating >= 1 && raw.rating <= 5 ? raw.rating : null;
+      const likedAspects = Array.isArray(raw.likedAspects) ? raw.likedAspects.filter((item): item is string => typeof item === 'string' && LOVED_BOOK_ASPECT_KEYS.has(item)) : [];
+      const reasonCodes = Array.isArray(raw.reasonCodes) ? raw.reasonCodes.filter((item): item is string => typeof item === 'string' && DISLIKED_BOOK_REASON_KEYS.has(item)) : [];
+      const freeText = raw.freeText === null || raw.freeText === undefined ? null : typeof raw.freeText === 'string' ? raw.freeText.trim().slice(0, 2000) || null : null;
+      if (rating === null) throw new BadRequestException(`El libro ${index + 1} necesita una calificación de 1 a 5.`);
+      if (category === 'enjoyed' && likedAspects.length === 0) throw new BadRequestException(`El libro ${index + 1} necesita al menos un aspecto positivo.`);
+      if (category === 'notEnjoyed' && reasonCodes.length === 0) throw new BadRequestException(`El libro ${index + 1} necesita al menos un motivo.`);
       return {
         category,
         openLibraryId,
@@ -419,6 +455,10 @@ export class ProfileService {
         title,
         authors,
         coverUrl,
+        rating,
+        likedAspects: [...new Set(likedAspects)],
+        reasonCodes: [...new Set(reasonCodes)],
+        freeText,
       };
     });
   }

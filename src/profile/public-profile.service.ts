@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 type PublicBook = {
+  profileBookId?: string;
   title: string;
   authors: string[];
   coverUrl: string | null;
@@ -292,19 +293,36 @@ export class PublicProfileService {
       const title = typeof book.title === 'string' ? book.title.trim() : '';
       if (!title) continue;
       const key = title.toLowerCase();
+      const destination = book.category === 'notEnjoyed' ? notEnjoyed : enjoyed;
+      const rating = typeof book.rating === 'number' && Number.isInteger(book.rating) && book.rating >= 1 && book.rating <= 5 ? book.rating : null;
+      const likedAspects = book.category === 'enjoyed' ? this.stringArray(book.likedAspects) : [];
+      const reasonCodes = book.category === 'notEnjoyed' ? this.stringArray(book.reasonCodes) : [];
+      const freeText = typeof book.freeText === 'string' && book.freeText.trim() ? book.freeText.trim() : null;
+      const review = rating !== null || likedAspects.length > 0 || reasonCodes.length > 0 || freeText !== null
+        ? { readingStatus: null, selectionFitRating: rating, started: null, completionPercentage: null, notStartedReason: null, outcomeAttribution: null, positiveAspects: likedAspects, negativeAspects: reasonCodes, freeText }
+        : null;
       if (seen.has(key)) {
         const existing = [...enjoyed, ...notEnjoyed].find((item) => item.title.toLowerCase() === key);
-        if (existing && !existing.source.includes('profile')) existing.source = [...existing.source, 'profile'];
+        if (existing) {
+          const currentDestination = enjoyed.includes(existing) ? enjoyed : notEnjoyed;
+          if (currentDestination !== destination) {
+            currentDestination.splice(currentDestination.indexOf(existing), 1);
+            destination.push(existing);
+          }
+          if (!existing.source.includes('profile')) existing.source = [...existing.source, 'profile'];
+          existing.profileBookId = typeof book.openLibraryId === 'string' ? book.openLibraryId : existing.profileBookId;
+          if (!existing.review && review) existing.review = review;
+        }
         continue;
       }
       seen.add(key);
-      const destination = book.category === 'notEnjoyed' ? notEnjoyed : enjoyed;
       destination.push({
+        profileBookId: typeof book.openLibraryId === 'string' ? book.openLibraryId : undefined,
         title,
         authors: Array.isArray(book.authors) ? book.authors.filter((item): item is string => typeof item === 'string') : [],
         coverUrl: typeof book.coverUrl === 'string' ? book.coverUrl : null,
         source: ['profile'],
-        review: null,
+        review,
       });
     }
 

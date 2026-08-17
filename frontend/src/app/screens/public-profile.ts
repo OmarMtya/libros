@@ -1,18 +1,46 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService, BookResult, ProfileBookInput, PublicProfile } from '../api.service';
 import { AuthService } from '../auth.service';
 import { BookCarousel } from '../components/book-carousel';
-import { TAG_LABELS } from '../labels';
+import { DISLIKED_BOOK_REASONS, LOVED_BOOK_ASPECTS, TAG_LABELS } from '../labels';
 import { ToastService } from '../toast.service';
 import { DialogService } from '../dialog.service';
 
 const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
+type ShelfCategory = 'enjoyed' | 'notEnjoyed';
 
 @Component({
   selector: 'app-public-profile',
-  imports: [RouterLink, BookCarousel, FormsModule],
+  imports: [RouterLink, BookCarousel, FormsModule, NgTemplateOutlet],
+  styles: `
+    .shelf-editor-enter {
+      animation: shelf-editor-in 220ms var(--ease-out);
+    }
+
+    .shelf-editor-leave {
+      animation: shelf-editor-out 180ms var(--ease-out) forwards;
+    }
+
+    @keyframes shelf-editor-in {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes shelf-editor-out {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(-8px); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .shelf-editor-enter,
+      .shelf-editor-leave {
+        animation: none;
+      }
+    }
+  `,
   template: `
     <div class="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       @if (!inShell()) {
@@ -152,70 +180,119 @@ const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
             }
 
             <h2 class="mb-2 mt-8 text-sm font-bold uppercase tracking-wider text-ink">Libros</h2>
-            <div class="space-y-8">
-              <div><app-book-carousel title="Disfrutados" [books]="current.books.enjoyed" /></div>
-              <div><app-book-carousel title="No disfrutados o abandonados" [books]="current.books.notEnjoyed" /></div>
-            </div>
+             <div class="space-y-8">
+               <div>
+                 <app-book-carousel title="Disfrutados" [actionLabel]="current.isOwner && !current.notReady ? '+ Agregar' : null" [actionAriaLabel]="current.isOwner && !current.notReady ? 'Agregar un libro a Me gustan' : ''" [canRemove]="current.isOwner && !current.notReady" [books]="current.books.enjoyed" (action)="openShelfEditor('enjoyed')" (remove)="removeProfileBook($event)" (edit)="editProfileBook('enjoyed', $event)">
+                   @if (shelfEditor() === 'enjoyed') {
+                     <ng-container book-carousel-action-content [ngTemplateOutlet]="shelfEditorTemplate" [ngTemplateOutletContext]="{ $implicit: 'enjoyed' }" />
+                   }
+                 </app-book-carousel>
+               </div>
+               <div>
+                 <app-book-carousel title="No disfrutados o abandonados" [actionLabel]="current.isOwner && !current.notReady ? '+ Agregar' : null" [actionAriaLabel]="current.isOwner && !current.notReady ? 'Agregar un libro a No me gustaron' : ''" [canRemove]="current.isOwner && !current.notReady" [books]="current.books.notEnjoyed" (action)="openShelfEditor('notEnjoyed')" (remove)="removeProfileBook($event)" (edit)="editProfileBook('notEnjoyed', $event)">
+                   @if (shelfEditor() === 'notEnjoyed') {
+                     <ng-container book-carousel-action-content [ngTemplateOutlet]="shelfEditorTemplate" [ngTemplateOutletContext]="{ $implicit: 'notEnjoyed' }" />
+                   }
+                 </app-book-carousel>
+               </div>
+             </div>
 
-            @if (current.isOwner && !current.notReady) {
-              <section class="mt-8 rounded-sm border border-[#cad7df] bg-[#f7fafc] p-5">
-                <p class="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-[#567088]">Afina tu estantería</p>
-                <h3 class="mt-2 font-display text-xl font-bold tracking-[-0.03em] text-ink">Agrega libros que ya hayas leído</h3>
-                <p class="mt-2 max-w-2xl text-sm leading-relaxed text-[#536875]">Es opcional. Indica cuáles disfrutaste y cuáles no para evitar títulos repetidos y darnos más contexto sobre tus referencias.</p>
+             <ng-template #shelfEditorTemplate let-category>
+                <section class="mt-5 rounded-sm border border-[#cad7df] bg-[#f7fafc]" animate.enter="shelf-editor-enter" animate.leave="shelf-editor-leave" aria-labelledby="shelf-editor-title" aria-describedby="shelf-editor-message">
+                 <header class="flex items-start justify-between gap-4 border-b border-[#e6eef3] px-4 py-4 sm:px-5">
+                   <div>
+                     <p class="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-[#567088]">Tu estantería</p>
+                     <h3 id="shelf-editor-title" class="mt-1 font-display text-xl font-bold tracking-[-0.03em] text-ink">Agregar a {{ shelfCategoryLabel(category) }}</h3>
+                     <p id="shelf-editor-message" class="mt-2 text-sm leading-relaxed text-[#536875]">Busca los libros que ya leíste y completa los detalles de cada uno.</p>
+                   </div>
+                   <button type="button" (click)="closeShelfEditor()" class="-m-1 shrink-0 p-1 text-[#7d9ab0] transition hover:text-coral" aria-label="Cerrar editor de estantería">
+                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                   </button>
+                 </header>
 
-                <div class="mt-4 flex flex-wrap gap-2">
-                  <button type="button" (click)="additionalBookCategory = 'enjoyed'" [class.bg-coral]="additionalBookCategory === 'enjoyed'" [class.text-white]="additionalBookCategory === 'enjoyed'" class="rounded-sm border border-coral px-3 py-2 text-xs font-bold text-coral transition hover:bg-coral hover:text-white">Me gustaron</button>
-                  <button type="button" (click)="additionalBookCategory = 'notEnjoyed'" [class.bg-coral]="additionalBookCategory === 'notEnjoyed'" [class.text-white]="additionalBookCategory === 'notEnjoyed'" class="rounded-sm border border-coral px-3 py-2 text-xs font-bold text-coral transition hover:bg-coral hover:text-white">No me gustaron</button>
-                </div>
+                 <div class="px-4 py-5 sm:px-5">
+                   @if (pendingBooks().length > 0) {
+                     <div class="rounded-sm border border-[#cad7df] bg-white p-3">
+                       <div class="flex items-center justify-between gap-3">
+                         <p class="text-xs font-bold uppercase tracking-wider text-[#567088]">Por guardar</p>
+                         <span class="font-mono text-[10px] text-[#567088]">{{ pendingBooks().length }} {{ pendingBooks().length === 1 ? 'libro' : 'libros' }}</span>
+                       </div>
+                       <div class="mt-2 space-y-3">
+                         @for (book of pendingBooks(); track book.openLibraryId) {
+                           <div class="rounded-sm border border-[#cad7df] bg-white p-4">
+                             <div class="flex items-start justify-between gap-3">
+                               <div class="min-w-0">
+                                 <p class="truncate text-sm font-bold text-ink">{{ book.title }}</p>
+                                 <p class="truncate text-xs text-[#536875]">{{ book.authors.join(', ') || 'Autor desconocido' }}</p>
+                               </div>
+                               <button type="button" (click)="removePendingBook(book.openLibraryId)" class="shrink-0 text-xs font-bold text-[#7a2c1f] hover:underline">Quitar</button>
+                             </div>
 
-                <div class="relative mt-4">
-                  <label for="profile-book-search" class="sr-only">Buscar un libro leído</label>
-                  <input
-                    id="profile-book-search"
-                    type="search"
-                    [ngModel]="bookQuery"
-                    (ngModelChange)="onBookQueryChanged($event)"
-                    placeholder="Busca un título para agregarlo…"
-                    class="w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-3 text-sm text-ink outline-none transition focus:border-coral focus:ring-2 focus:ring-coral/20" />
-                  @if (bookSearchLoading()) {
-                    <p class="mt-2 text-xs text-[#567088]">Buscando…</p>
-                  }
-                  @if (bookResults().length > 0) {
-                    <div class="absolute z-10 mt-2 w-full overflow-hidden rounded-sm border border-[#cad7df] bg-white shadow-lg">
-                      @for (book of bookResults(); track book.openLibraryId) {
-                        <button type="button" (click)="addBookToShelf(book)" class="flex w-full items-center gap-3 border-b border-[#e6eef3] px-3 py-3 text-left transition last:border-b-0 hover:bg-[#f7fafc]">
-                          @if (book.coverUrl) {
-                            <img [src]="book.coverUrl" [alt]="book.title" class="h-12 w-8 shrink-0 rounded-sm object-cover" />
-                          } @else {
-                            <span class="flex h-12 w-8 shrink-0 items-center justify-center rounded-sm bg-[#e6eef3] text-[10px] text-[#567088]">LIBRO</span>
-                          }
-                          <span class="min-w-0">
-                            <span class="block truncate text-sm font-bold text-ink">{{ book.title }}</span>
-                            <span class="block truncate text-xs text-[#536875]">{{ book.authors.join(', ') || 'Autor desconocido' }}</span>
-                          </span>
-                        </button>
-                      }
-                    </div>
-                  }
-                </div>
+                             @if (category === 'enjoyed') {
+                               <p class="mt-3 text-sm font-semibold text-ink">¿Qué te gustó de este libro?</p>
+                               <div class="mt-2 flex flex-wrap gap-2">
+                                 @for (aspect of lovedBookAspects; track aspect.key) {
+                                   <button type="button" class="rounded-full border px-3 py-1 text-sm transition" [attr.aria-pressed]="hasPendingBookAspect(book, aspect.key)" [class.bg-ink]="hasPendingBookAspect(book, aspect.key)" [class.text-white]="hasPendingBookAspect(book, aspect.key)" [class.border-ink]="hasPendingBookAspect(book, aspect.key)" [class.bg-white]="!hasPendingBookAspect(book, aspect.key)" [class.border-[#7d9ab0]]="!hasPendingBookAspect(book, aspect.key)" (click)="togglePendingBookAspect(book, aspect.key)">{{ aspect.label }}</button>
+                                 }
+                               </div>
+                             } @else {
+                               <p class="mt-3 text-sm font-semibold text-ink">¿Qué no funcionó?</p>
+                               <div class="mt-2 flex flex-wrap gap-2">
+                                 @for (reason of dislikedBookReasons; track reason.key) {
+                                   <button type="button" class="rounded-full border px-3 py-1 text-sm transition" [attr.aria-pressed]="hasPendingBookReason(book, reason.key)" [class.bg-coral]="hasPendingBookReason(book, reason.key)" [class.text-white]="hasPendingBookReason(book, reason.key)" [class.border-coral]="hasPendingBookReason(book, reason.key)" [class.bg-white]="!hasPendingBookReason(book, reason.key)" [class.border-[#7d9ab0]]="!hasPendingBookReason(book, reason.key)" (click)="togglePendingBookReason(book, reason.key)">{{ reason.label }}</button>
+                                 }
+                               </div>
+                             }
 
-                @if (pendingBooks().length > 0) {
-                  <div class="mt-4 space-y-2">
-                    <p class="text-xs font-bold uppercase tracking-wider text-[#567088]">Por guardar</p>
-                    @for (book of pendingBooks(); track book.openLibraryId) {
-                      <div class="flex items-center justify-between gap-3 rounded-sm border border-[#cad7df] bg-white px-3 py-2">
-                        <div class="min-w-0">
-                          <p class="truncate text-sm font-bold text-ink">{{ book.title }}</p>
-                          <p class="truncate text-xs text-[#536875]">{{ book.authors.join(', ') || 'Autor desconocido' }}</p>
-                        </div>
-                        <button type="button" (click)="removePendingBook(book.openLibraryId)" class="shrink-0 text-xs font-bold text-[#7a2c1f] hover:underline">Quitar</button>
-                      </div>
-                    }
-                    <button type="button" (click)="savePendingBooks()" [disabled]="loading()" class="mt-2 rounded-sm bg-coral px-4 py-2.5 text-xs font-bold text-white transition hover:bg-coral-deep disabled:cursor-wait disabled:opacity-60">Guardar estantería</button>
-                  </div>
-                }
-              </section>
-            }
+                             <p class="mt-4 text-sm font-semibold text-ink">¿Cuánto te gustó?</p>
+                             <div class="mt-2 flex items-center gap-2">
+                               @for (value of [1, 2, 3, 4, 5]; track value) {
+                                 <button type="button" class="h-10 w-10 rounded-full border text-sm font-bold transition" [attr.aria-pressed]="book.rating === value" [class.bg-coral]="book.rating === value" [class.text-white]="book.rating === value" [class.border-coral]="book.rating === value" [class.bg-white]="book.rating !== value" [class.text-ink]="book.rating !== value" [class.border-[#7d9ab0]]="book.rating !== value" (click)="book.rating = value">{{ value }}</button>
+                               }
+                             </div>
+                             <p class="mt-1 text-xs text-[#567088]">1 = {{ category === 'enjoyed' ? 'Me gustó poco' : 'No era para mí' }} · 5 = Me encantó</p>
+                             @if (category === 'enjoyed' && book.rating >= 1 && book.rating <= 2) {
+                               <p class="mt-2 rounded-sm border-l-[3px] border-[#f59e0b] bg-[#fff7e6] px-3 py-2 text-sm leading-relaxed text-[#8a5a12]">¿Menos de 3 estrellas? Un favorito con una nota tan baja se vuelve ambiguo y nos cuesta más detectar si de verdad te gustó. Si no te gustó tanto, quizá encaja mejor en la otra lista.</p>
+                             }
+                             @if (category === 'notEnjoyed' && book.rating >= 4) {
+                               <p class="mt-2 rounded-sm border-l-[3px] border-[#f59e0b] bg-[#fff7e6] px-3 py-2 text-sm leading-relaxed text-[#8a5a12]">¿Te encantó (4–5)? Entonces quizá este libro va mejor en la lista de los que sí te gustaron.</p>
+                             }
+                             <label class="mt-3 block">
+                               <span class="text-sm font-semibold text-ink">Comentario opcional</span>
+                               <input [(ngModel)]="book.freeText" maxlength="2000" placeholder="Cuéntanos cualquier detalle…" class="mt-1 w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
+                             </label>
+                           </div>
+                         }
+                       </div>
+                       @if (!pendingBooksValid()) {
+                         <p class="mt-3 text-xs text-[#7a2c1f]">Completa los motivos o aspectos y la calificación de cada libro antes de guardar.</p>
+                       }
+                     </div>
+                   }
+
+                   <div class="mt-5">
+                     <label for="profile-book-search" class="sr-only">Buscar un libro leído</label>
+                     <input id="profile-book-search" type="search" autocomplete="off" [ngModel]="bookQuery" (ngModelChange)="onBookQueryChanged($event)" placeholder="Busca un título para agregarlo…" class="w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-3 text-sm text-ink outline-none transition focus:border-coral focus:ring-2 focus:ring-coral/20" />
+                     @if (bookSearchLoading()) { <p class="mt-2 text-xs text-[#567088]">Buscando…</p> }
+                     @if (bookResults().length > 0) {
+                       <div class="mt-2 max-h-72 overflow-y-auto rounded-sm border border-[#cad7df] bg-white">
+                         @for (book of bookResults(); track book.openLibraryId) {
+                           <button type="button" (click)="addBookToShelf(book)" class="flex w-full items-center gap-3 border-b border-[#e6eef3] px-3 py-3 text-left transition last:border-b-0 hover:bg-[#f7fafc]">
+                             @if (book.coverUrl) { <img [src]="book.coverUrl" [alt]="book.title" class="h-12 w-8 shrink-0 rounded-sm object-cover" /> } @else { <span class="flex h-12 w-8 shrink-0 items-center justify-center rounded-sm bg-[#e6eef3] text-[10px] text-[#567088]">LIBRO</span> }
+                             <span class="min-w-0"><span class="block truncate text-sm font-bold text-ink">{{ book.title }}</span><span class="block truncate text-xs text-[#536875]">{{ book.authors.join(', ') || 'Autor desconocido' }}</span></span>
+                           </button>
+                         }
+                       </div>
+                     }
+                   </div>
+                 </div>
+
+                 <footer class="flex items-center justify-between gap-3 border-t border-[#e6eef3] bg-white px-4 py-3 sm:px-5">
+                   <button type="button" (click)="closeShelfEditor()" class="rounded-sm border border-[#7d9ab0] px-4 py-2.5 text-xs font-bold text-ink transition hover:bg-[#e6eef3]">Cerrar</button>
+                   <button type="button" (click)="savePendingBooks()" [disabled]="loading() || pendingBooks().length === 0 || !pendingBooksValid()" class="rounded-sm bg-coral px-4 py-2.5 text-xs font-bold text-white transition hover:bg-coral-deep disabled:cursor-not-allowed disabled:opacity-50">Guardar en {{ shelfCategoryLabel(category) }}</button>
+                 </footer>
+               </section>
+             </ng-template>
 
             @if (current.constraints; as constraints) {
               <h2 class="mb-2 mt-8 text-sm font-bold uppercase tracking-wider text-ink">Preferencias</h2>
@@ -237,6 +314,7 @@ const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
               </div>
             }
           </section>
+
         </div>
       } @else {
         <section class="rounded-sm border border-[#cad7df] bg-white p-10 text-center">
@@ -264,12 +342,16 @@ export class PublicProfileScreen {
   readonly bookResults = signal<BookResult[]>([]);
   readonly bookSearchLoading = signal(false);
   readonly pendingBooks = signal<ProfileBookInput[]>([]);
+  readonly shelfEditor = signal<ShelfCategory | null>(null);
   bookQuery = '';
-  additionalBookCategory: 'enjoyed' | 'notEnjoyed' = 'enjoyed';
   private bookSearchTimer: ReturnType<typeof setTimeout> | null = null;
+  private bookSearchRequest = 0;
   private slug: string | null = null;
   private pollToken = 0;
   private pollTries = 0;
+
+  readonly lovedBookAspects = LOVED_BOOK_ASPECTS;
+  readonly dislikedBookReasons = DISLIKED_BOOK_REASONS;
 
   constructor() {
     this.route.paramMap.subscribe((params) => {
@@ -361,41 +443,97 @@ export class PublicProfileScreen {
 
   onBookQueryChanged(query: string): void {
     this.bookQuery = query;
+    const request = ++this.bookSearchRequest;
     if (this.bookSearchTimer) clearTimeout(this.bookSearchTimer);
     if (query.trim().length < 2) {
       this.bookResults.set([]);
       this.bookSearchLoading.set(false);
       return;
     }
-    this.bookSearchTimer = setTimeout(() => void this.searchAdditionalBooks(query), 300);
+    this.bookSearchTimer = setTimeout(() => {
+      this.bookSearchTimer = null;
+      void this.searchAdditionalBooks(query, request);
+    }, 300);
   }
 
-  private async searchAdditionalBooks(query: string): Promise<void> {
+  shelfCategoryLabel(category: ShelfCategory): string {
+    return category === 'enjoyed' ? 'Me gustan' : 'No me gustaron';
+  }
+
+  openShelfEditor(category: ShelfCategory): void {
+    if (this.shelfEditor() === category) {
+      this.closeShelfEditor();
+      return;
+    }
+    this.shelfEditor.set(category);
+    this.pendingBooks.set([]);
+    this.bookQuery = '';
+    this.bookResults.set([]);
+  }
+
+  editProfileBook(category: ShelfCategory, book: { profileBookId?: string; title?: string; authors?: string[]; coverUrl?: string | null; review?: { selectionFitRating: number | null; positiveAspects: string[]; negativeAspects: string[]; freeText: string | null } | null }): void {
+    if (!book.profileBookId) return;
+    const review = book.review;
+    this.shelfEditor.set(category);
+    this.pendingBooks.set([{
+      category,
+      openLibraryId: book.profileBookId,
+      openLibraryEditionId: null,
+      coverId: null,
+      title: book.title ?? 'Libro sin título',
+      authors: book.authors ?? [],
+      coverUrl: book.coverUrl ?? null,
+      rating: review?.selectionFitRating ?? 0,
+      likedAspects: [...(review?.positiveAspects ?? [])],
+      reasonCodes: [...(review?.negativeAspects ?? [])],
+      freeText: review?.freeText ?? '',
+    }]);
+    this.bookQuery = '';
+    this.bookResults.set([]);
+  }
+
+  closeShelfEditor(): void {
+    this.shelfEditor.set(null);
+    this.pendingBooks.set([]);
+    this.bookQuery = '';
+    this.bookResults.set([]);
+  }
+
+  private async searchAdditionalBooks(query: string, request: number): Promise<void> {
     this.bookSearchLoading.set(true);
     try {
-      this.bookResults.set(await this.api.searchBooks(query.trim(), 6));
+      const results = await this.api.searchBooks(query.trim(), 6);
+      if (request === this.bookSearchRequest && this.bookQuery.trim() === query.trim()) this.bookResults.set(results);
     } catch (error) {
-      this.bookResults.set([]);
-      this.toast.error(error instanceof Error ? error.message : 'No pudimos buscar libros.');
+      if (request === this.bookSearchRequest && this.bookQuery.trim() === query.trim()) {
+        this.bookResults.set([]);
+        this.toast.error(error instanceof Error ? error.message : 'No pudimos buscar libros.');
+      }
     } finally {
-      this.bookSearchLoading.set(false);
+      if (request === this.bookSearchRequest) this.bookSearchLoading.set(false);
     }
   }
 
   addBookToShelf(book: BookResult): void {
+    const category = this.shelfEditor();
+    if (!category) return;
     const key = book.openLibraryId.toLowerCase();
     if (this.pendingBooks().some((item) => item.openLibraryId.toLowerCase() === key)) {
       this.toast.error('Ese libro ya está en tu lista por guardar.');
       return;
     }
     this.pendingBooks.update((books) => [...books, {
-      category: this.additionalBookCategory,
+      category,
       openLibraryId: book.openLibraryId,
       openLibraryEditionId: book.openLibraryEditionId,
       coverId: book.coverId,
       title: book.title,
       authors: book.authors,
       coverUrl: book.coverUrl,
+      rating: 0,
+      likedAspects: [],
+      reasonCodes: [],
+      freeText: '',
     }]);
     this.bookQuery = '';
     this.bookResults.set([]);
@@ -405,15 +543,70 @@ export class PublicProfileScreen {
     this.pendingBooks.update((books) => books.filter((book) => book.openLibraryId !== openLibraryId));
   }
 
+  togglePendingBookAspect(book: ProfileBookInput, aspect: string): void {
+    book.likedAspects = book.likedAspects.includes(aspect)
+      ? book.likedAspects.filter((item) => item !== aspect)
+      : [...book.likedAspects, aspect];
+  }
+
+  hasPendingBookAspect(book: ProfileBookInput, aspect: string): boolean {
+    return book.likedAspects.includes(aspect);
+  }
+
+  togglePendingBookReason(book: ProfileBookInput, reason: string): void {
+    book.reasonCodes = book.reasonCodes.includes(reason)
+      ? book.reasonCodes.filter((item) => item !== reason)
+      : [...book.reasonCodes, reason];
+  }
+
+  hasPendingBookReason(book: ProfileBookInput, reason: string): boolean {
+    return book.reasonCodes.includes(reason);
+  }
+
+  pendingBooksValid(): boolean {
+    return this.pendingBooks().every((book) => book.rating >= 1 && book.rating <= 5
+      && (book.category === 'enjoyed' ? book.likedAspects.length > 0 : book.reasonCodes.length > 0));
+  }
+
+  private pendingBooksValidationMessage(): string | null {
+    const missingDetails = this.pendingBooks().find((book) => book.category === 'enjoyed' ? book.likedAspects.length === 0 : book.reasonCodes.length === 0);
+    if (missingDetails) return missingDetails.category === 'enjoyed'
+      ? `Selecciona qué te gustó de «${missingDetails.title}».`
+      : `Selecciona el motivo de «${missingDetails.title}».`;
+    const missingRating = this.pendingBooks().find((book) => book.rating < 1 || book.rating > 5);
+    return missingRating ? `Califica «${missingRating.title}» de 1 a 5.` : null;
+  }
+
   async savePendingBooks(): Promise<void> {
     const books = this.pendingBooks();
     if (books.length === 0) return;
+    const validation = this.pendingBooksValidationMessage();
+    if (validation) {
+      this.toast.error(validation);
+      return;
+    }
     await this.run(async () => {
       await this.api.addProfileBooks(books);
-      this.pendingBooks.set([]);
-      this.bookQuery = '';
       await this.refresh();
+      this.closeShelfEditor();
       this.toast.success('Estantería actualizada.');
+    });
+  }
+
+  async removeProfileBook(book: { profileBookId?: string; title?: string }): Promise<void> {
+    const openLibraryId = book.profileBookId;
+    if (!openLibraryId) return;
+    const confirmed = await this.dialog.confirm({
+      title: 'Quitar libro',
+      message: `¿Quieres quitar «${book.title ?? 'este libro'}» de tu estantería?`,
+      confirmLabel: 'Quitar',
+      danger: true,
+    });
+    if (!confirmed) return;
+    await this.run(async () => {
+      await this.api.removeProfileBook(openLibraryId);
+      await this.refresh();
+      this.toast.success('Libro quitado de tu estantería.');
     });
   }
 

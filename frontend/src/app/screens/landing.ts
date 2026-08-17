@@ -46,51 +46,43 @@ const PRICE_INCLUDES = [
 const FAQS = [
   {
     q: '¿Qué es Mi Libro Sorpresa?',
-    a: 'Es un servicio de recomendación personalizada de libros. Construimos tu perfil lector a partir de un cuestionario sobre tus gustos y preferencias, y usamos esa información para seleccionar un libro físico especialmente para ti.',
+    a: 'Somos una empresa de recomendación personalizada de libros. Estamos construyendo un sistema parecido al de Netflix o YouTube, pero diseñado para ayudarte a descubrir historias: convertimos tus respuestas en un perfil lector y lo comparamos con las características de distintos libros para encontrar los que mejor podrían encajar contigo. El sistema mejora con el feedback real y verificable de los libros que enviamos, porque cada lectura nos ayuda a entender mejor tus gustos y a afinar tus siguientes recomendaciones.',
   },
   {
     q: '¿El libro lo elige una inteligencia artificial?',
-    a: 'Usamos un modelo de clasificación de lectores que convierte tus respuestas en señales sobre ritmo, personajes, emociones, complejidad, ambientación y otros aspectos de la lectura. El sistema ordena y compara candidatos; una persona revisa las mejores opciones, verifica que encajen contigo y toma la decisión final.',
+    a: 'No. Usamos un modelo de clasificación de lectores que convierte tus respuestas en señales sobre ritmo, personajes, emociones, complejidad, ambientación y otros aspectos de la lectura. El sistema ordena y compara candidatos; una persona revisa las mejores opciones, verifica que encajen contigo y toma la decisión final.',
   },
   {
-    q: '¿Cómo se convierte mi cuestionario en una recomendación?',
-    a: 'No nos limitamos a leer tus respuestas una por una. Las normalizamos y las convertimos en un perfil lector estructurado: preferencias, señales de afinidad y cosas que conviene evitar. Después comparamos ese perfil con la clasificación de cada libro disponible para construir una lista de candidatos con razones de compatibilidad.',
-  },
-  {
-    q: '¿Puedo agregar más libros que ya leí?',
-    a: 'Sí. Después de completar el cuestionario puedes ampliar tu estantería desde tu perfil e indicar si disfrutaste o no esos títulos. Usamos esa información para evitar repetir libros que ya conoces y para tener un registro más completo de tus referencias.',
-  },
-  {
-    q: '¿Hay un humano leyendo mis respuestas?',
-    a: 'Sí. Además de tu cuestionario inicial, nos interesa mucho lo que nos cuentas al terminar cada lectura. Usamos herramientas para ordenar y comparar toda esa información, pero la decisión final siempre la toma una persona: alguien de nuestro equipo revisa los candidatos y elige qué libro enviarte. No es todo automático ni todo manual; tus respuestas orientan la búsqueda y el perfil que construimos contigo es lo más valioso de la experiencia.',
+    q: '¿Cómo mejoramos tus recomendaciones?',
+    a: 'Dentro de tu paquete y también por correo electrónico recibirás una invitación para contarnos cómo te fue con el libro, ya sea que lo termines o decidas dejarlo. Ese feedback se incorpora a tu perfil lector y alimenta nuestro sistema de recomendación. Mientras más información tengamos sobre tus lecturas, mejor podremos entender tus gustos y afinar las siguientes recomendaciones.',
   },
   {
     q: '¿Qué hace diferente esta experiencia de un club o una caja de libros?',
     a: 'No elegimos un solo libro para enviarlo a todos. Cada selección comienza con un perfil lector individual y con la búsqueda de candidatos que puedan encajar con esa persona. Además, acompañamos el envío con una carta que explica por qué elegimos ese título: el proceso es totalmente personal, de principio a fin.',
   },
   {
-    q: '¿Mi perfil cambia con el tiempo?',
-    a: 'Sí. Cuando termines una lectura podrás contarnos qué funcionó y qué no. Esa experiencia nos ayudará a afinar futuras selecciones.',
+    q: '¿Puedo elegir el libro?',
+    a: 'No. Descubrir el título forma parte de la experiencia. En el cuestionario sí podrás contarnos qué buscas, qué prefieres evitar y qué libros ya conoces.',
   },
   {
-    q: '¿Puedo elegir el título?',
-    a: 'No. Descubrir el título forma parte de la experiencia. En el cuestionario sí podrás contarnos qué buscas, qué prefieres evitar y qué libros ya conoces.',
+    q: '¿Y si recibo un libro que ya leí?',
+    a: 'Tu perfil es la base de todo: nos basamos en los libros que ya has leído y en tus preferencias para buscar una recomendación que se adapte lo mejor posible a ti y que no hayas leído. Haremos todo lo posible por evitar repetir un libro, siempre que esa información esté registrada en tu perfil. Si has leído muchos libros y necesitas ayuda para agregar esa información, contáctanos; platicaremos contigo para completar tu estantería virtual y mejorar la selección.',
   },
   {
     q: '¿Necesito contratar una suscripción?',
     a: 'No. Es una compra única de $499 MXN. Tú decides si quieres repetir la experiencia y cuándo hacerlo. Cada lectura nos ayuda a entender mejor tu perfil y a dar más valor a tus próximas selecciones.',
   },
   {
-    q: '¿Hacen envíos fuera de México?',
-    a: 'No. Solo enviamos dentro de México; por el momento no realizamos envíos internacionales.',
+    q: '¿El envío está incluido?',
+    a: 'Sí. Todos los envíos dentro de México están incluidos en el precio. Por el momento no realizamos envíos internacionales.',
   },
   {
     q: '¿Qué sucede después de recibir el libro?',
-    a: 'Léelo a tu ritmo. Cuando termines, podrás contarnos qué disfrutaste y qué no funcionó. Usaremos esa experiencia para conocer mejor tu forma de leer y orientar futuras selecciones.',
+    a: 'Después de recibir el libro, léelo a tu ritmo y comparte con nosotros cómo te fue, tanto si lo terminas como si decides dejarlo. Te enviaremos una invitación dentro del paquete y por correo electrónico para contarnos qué disfrutaste y qué no funcionó. Esa experiencia ayuda a nuestro sistema a mejorar las puntuaciones internas de tu perfil y a afinar tus futuras recomendaciones.',
   },
   {
     q: '¿Pueden garantizar que el libro me encantará?',
-    a: 'No sería honesto prometerlo. La lectura es personal. Lo que sí podemos garantizar es que el título será investigado y elegido a partir de tu perfil, no al azar ni como una recomendación genérica.',
+    a: 'No podemos garantizar que el libro te encantará, porque cada lectura es personal. Lo que sí podemos asegurar es que investigaremos y elegiremos el libro a partir de tu perfil, no al azar ni como una recomendación genérica.',
   },
 ];
 
@@ -225,11 +217,17 @@ export class Reveal {
           </div>
         </section>
 
-        <section id="como-funciona" class="scroll-mt-24">
-          <div class="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
+        <section id="como-funciona" class="relative scroll-mt-24 overflow-hidden bg-ink text-white">
+          <img
+            [src]="MEDIA.spotlightBook"
+            alt=""
+            aria-hidden="true"
+            class="absolute inset-0 h-full w-full object-cover opacity-20">
+          <div aria-hidden="true" class="absolute inset-0 bg-gradient-to-b from-ink via-ink/70 to-ink"></div>
+          <div class="relative mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
             <div reveal class="mb-12 max-w-2xl">
-               <p class="mb-3 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">De tus preferencias a una elección con sentido</p>
-               <h2 class="mb-4 font-display text-3xl font-bold leading-[1.02] tracking-[-0.04em] text-ink sm:text-5xl">
+               <p class="mb-3 font-mono text-xs uppercase tracking-[0.08em] text-mist">De tus preferencias a una elección con sentido</p>
+               <h2 class="mb-4 font-display text-3xl font-bold leading-[1.02] tracking-[-0.04em] text-white sm:text-5xl">
                  No buscamos cualquier buen libro. Buscamos uno que tenga sentido para ti.
                </h2>
             </div>
@@ -245,7 +243,7 @@ export class Reveal {
                       <span aria-hidden="true" class="mt-2 w-0.5 flex-1 bg-[#cad7df]"></span>
                     }
                   </div>
-                  <article class="mb-8 flex-1 rounded-sm border border-[#cad7df] bg-white p-6 sm:p-8">
+                  <article class="mb-8 flex-1 rounded-sm border border-[#cad7df] bg-paper p-6 sm:p-8">
                     <h3 class="mb-2 font-display text-xl font-bold tracking-[-0.02em] text-ink sm:text-2xl">
                       Paso {{ step.number }} — {{ step.title }}
                     </h3>
@@ -255,35 +253,6 @@ export class Reveal {
               }
             </ol>
 
-            <div reveal class="mt-2 text-center">
-              <a routerLink="/app" class="{{ btnDark }}">
-                 Comenzar mi perfil lector
-              </a>
-            </div>
-          </div>
-        </section>
-
-        <section class="relative overflow-hidden bg-ink text-white">
-          <img
-            [src]="MEDIA.spotlightBook"
-            alt=""
-            aria-hidden="true"
-            class="absolute inset-0 h-full w-full object-cover opacity-20">
-          <div aria-hidden="true" class="absolute inset-0 bg-gradient-to-b from-ink via-ink/70 to-ink"></div>
-          <div class="relative mx-auto max-w-4xl px-4 py-16 sm:px-6 sm:py-24">
-            <div reveal class="max-w-3xl">
-              <p class="mb-3 font-mono text-xs uppercase tracking-[0.08em] text-mist">El cuestionario es solo el comienzo</p>
-              <h2 class="mb-5 font-display text-3xl font-bold leading-[1.02] tracking-[-0.04em] text-white sm:text-5xl">
-                Cada lectura puede ayudarnos a conocerte mejor.
-              </h2>
-              <p class="text-lg leading-relaxed text-[#c6d3de]">
-                Las respuestas iniciales nos orientan. Tu experiencia con el libro nos da algo más valioso: saber qué ocurrió en una lectura concreta.<br><br>
-                A veces una historia parece ideal en papel y no logra atraparnos; otras veces, un detalle inesperado se vuelve lo mejor de la lectura. Eso también forma parte de conocerte como lector.
-              </p>
-              <p class="mt-8 border-l-4 border-coral pl-5 font-display text-xl font-bold leading-snug tracking-[-0.02em] text-white sm:text-2xl">
-                Tu primera selección nace de tus respuestas. Las siguientes se afinan con lo que nos cuentes al terminar.
-              </p>
-            </div>
           </div>
         </section>
 

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
@@ -37,6 +37,11 @@ export class ProfileController {
   @Post('books')
   addBooks(@CurrentUser() user: AuthenticatedUser, @Body() body: { books?: unknown[] }) {
     return this.profiles.addSupplementalBooks(user.id, body?.books);
+  }
+
+  @Delete('books/:openLibraryId')
+  removeBook(@CurrentUser() user: AuthenticatedUser, @Param('openLibraryId') openLibraryId: string) {
+    return this.profiles.removeSupplementalBook(user.id, openLibraryId);
   }
 
   @Patch('avatar')

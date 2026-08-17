@@ -209,12 +209,11 @@ export class QuestionnaireService {
     });
     const completed = await this.prisma.questionnaireSession.update({ where: { id: sessionId }, data: { status: 'completed', completedAt: new Date(), optimisticLockVersion: { increment: 1 } } });
     await this.profiles.recompute(session.userId, 'questionnaire_completed', completed.id);
-    const deferred = await this.descriptions.hasActiveFeedbackCycles(session.userId);
     await this.prisma.readerProfile.updateMany({
       where: { userId: session.userId },
-      data: { aiDescription: null, aiDescriptionStatus: deferred ? 'pending' : 'invalidated' },
+      data: { aiDescription: null, aiDescriptionStatus: 'invalidated' },
     });
-    if (!deferred) await this.descriptions.triggerGeneration(session.userId);
+    await this.descriptions.triggerGeneration(session.userId);
     if (!priorCompletion) {
       await this.adminNotifications.notifyNewReader(session.userId);
       this.sendRegistrationEvent(session.userId, completed.id);

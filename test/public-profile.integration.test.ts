@@ -241,4 +241,46 @@ run('public-profile (integration)', () => {
     expect(entry!.source).toEqual(['surprise', 'questionnaire']);
     expect(entry!.review?.selectionFitRating).toBe(5);
   });
+
+  it('shows supplemental books publicly and lets the shelf category override a duplicate declaration', async () => {
+    const { userId, profile } = await createReader(true);
+    const session = await prisma!.questionnaireSession.findFirstOrThrow({ where: { userId, status: 'completed' } });
+    const title = 'El libro repetido';
+    await prisma!.questionAnswer.create({
+      data: {
+        sessionId: session.id,
+        userId,
+        questionKey: 'Q01_LOVED_BOOKS',
+        questionVersion: 1,
+        questionnaireVersion: 'onboarding/1.1',
+        rawResponse: { books: [{ title, authors: [] }] } as never,
+        normalizedResponse: { books: [] } as never,
+      },
+    });
+
+    await profileService!.addSupplementalBooks(userId, [{
+      category: 'notEnjoyed',
+      openLibraryId: 'OL1W',
+      openLibraryEditionId: null,
+      coverId: null,
+      title,
+      authors: ['Autora'],
+      coverUrl: null,
+      rating: 2,
+      likedAspects: [],
+      reasonCodes: ['too_slow'],
+      freeText: 'No logró atraparme.',
+    }]);
+
+    const view = await publicService!.get(profile.publicSlug!);
+    expect(view.books.enjoyed.some((book) => book.title === title)).toBe(false);
+    const entry = view.books.notEnjoyed.find((book) => book.title === title);
+    expect(entry?.source).toContain('profile');
+    expect(entry?.authors).toEqual([]);
+    expect(entry?.review).toMatchObject({ selectionFitRating: 2, negativeAspects: ['too_slow'], freeText: 'No logró atraparme.' });
+
+    await profileService!.removeSupplementalBook(userId, 'OL1W');
+    const afterRemoval = await publicService!.get(profile.publicSlug!);
+    expect(afterRemoval.books.notEnjoyed.some((book) => book.title === title)).toBe(false);
+  });
 });

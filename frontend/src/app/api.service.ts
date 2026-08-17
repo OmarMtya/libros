@@ -36,6 +36,10 @@ export type ProfileBookInput = {
   title: string;
   authors: string[];
   coverUrl: string | null;
+  rating: number;
+  likedAspects: string[];
+  reasonCodes: string[];
+  freeText: string;
 };
 
 export type Tag = { tagKey: string; name: string; tagType: string };
@@ -120,6 +124,7 @@ export type PublicProfileBookReview = {
   freeText: string | null;
 };
 export type PublicProfileBook = {
+  profileBookId?: string;
   title: string;
   authors: string[];
   coverUrl: string | null;
@@ -413,6 +418,10 @@ export class ApiService {
 
   addProfileBooks(books: ProfileBookInput[]): Promise<{ books: ProfileBookInput[] }> {
     return firstValueFrom(this.http.post<{ books: ProfileBookInput[] }>(`${this.baseUrl}/me/reader-profile/books`, { books }, this.options()));
+  }
+
+  removeProfileBook(openLibraryId: string): Promise<unknown> {
+    return firstValueFrom(this.http.delete(`${this.baseUrl}/me/reader-profile/books/${encodeURIComponent(openLibraryId)}`, this.options()));
   }
 
   getPublicProfile(slug: string): Promise<PublicProfile> {
