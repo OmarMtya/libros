@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { EvidenceStatus, Prisma } from '@prisma/client';
 import Decimal from 'decimal.js';
@@ -15,6 +15,23 @@ type PrioritySnapshot = {
   domainWeights: Record<NumericDomain, number>;
   dimensionWeights: Record<string, number>;
 };
+
+export type SupplementalBook = {
+  category: 'enjoyed' | 'notEnjoyed';
+  openLibraryId: string;
+  openLibraryEditionId: string | null;
+  coverId: number | null;
+  title: string;
+  authors: string[];
+  coverUrl: string | null;
+  rating: number;
+  likedAspects: string[];
+  reasonCodes: string[];
+  freeText: string | null;
+};
+
+const LOVED_BOOK_ASPECT_KEYS = new Set(['characters', 'prose', 'originality', 'ending', 'emotions', 'universe']);
+const DISLIKED_BOOK_REASON_KEYS = new Set(['too_conceptually_dense', 'too_slow', 'too_confusing', 'too_long', 'not_engaging', 'other']);
 
 @Injectable()
 export class ProfileService {
@@ -164,6 +181,53 @@ export class ProfileService {
     return { ...readerProfile, displayName: user.displayName, avatarUrl: user.avatarUrl, questionnaireSessions: user.questionnaireSessions, feedbackBooks: feedbackBooksMapped };
   }
 
+  async addSupplementalBooks(userId: string, rawBooks: unknown): Promise<{ books: SupplementalBook[] }> {
+    const books = this.validateSupplementalBooks(rawBooks);
+    const profile = await this.ensureProfile(userId);
+    const current = await this.prisma.readerProfile.findUniqueOrThrow({ where: { id: profile.id } });
+    const currentMeta = current.snapshotJson as Record<string, unknown>;
+    const existing = this.readSupplementalBooks(currentMeta.supplemental_books);
+    const merged = [...existing];
+
+    for (const book of books) {
+      const index = merged.findIndex((item) => item.openLibraryId === book.openLibraryId);
+      if (index >= 0) merged[index] = book;
+      else merged.push(book);
+    }
+    if (merged.length > 50) throw new BadRequestException('Puedes guardar hasta 50 libros en tu estantería.');
+
+    const updated = await this.prisma.readerProfile.updateMany({
+      where: { id: current.id, optimisticLockVersion: current.optimisticLockVersion },
+      data: {
+        snapshotJson: { ...currentMeta, supplemental_books: merged } as Prisma.InputJsonValue,
+        optimisticLockVersion: { increment: 1 },
+      },
+    });
+    if (updated.count !== 1) throw new ConflictException('Profile changed concurrently. Retry the operation.');
+    return { books: merged };
+  }
+
+  async removeSupplementalBook(userId: string, rawOpenLibraryId: string): Promise<{ books: SupplementalBook[] }> {
+    const openLibraryId = rawOpenLibraryId.trim().slice(0, 120);
+    if (!openLibraryId) throw new BadRequestException('El identificador del libro es obligatorio.');
+    const profile = await this.ensureProfile(userId);
+    const current = await this.prisma.readerProfile.findUniqueOrThrow({ where: { id: profile.id } });
+    const currentMeta = current.snapshotJson as Record<string, unknown>;
+    const existing = this.readSupplementalBooks(currentMeta.supplemental_books);
+    const books = existing.filter((book) => book.openLibraryId !== openLibraryId);
+    if (books.length === existing.length) return { books: existing };
+
+    const updated = await this.prisma.readerProfile.updateMany({
+      where: { id: current.id, optimisticLockVersion: current.optimisticLockVersion },
+      data: {
+        snapshotJson: { ...currentMeta, supplemental_books: books } as Prisma.InputJsonValue,
+        optimisticLockVersion: { increment: 1 },
+      },
+    });
+    if (updated.count !== 1) throw new ConflictException('Profile changed concurrently. Retry the operation.');
+    return { books };
+  }
+
   async getVersions(userId: string) {
     const profile = await this.ensureProfile(userId);
     return this.prisma.readerProfileVersion.findMany({ where: { profileId: profile.id }, orderBy: { version: 'desc' } });
@@ -251,6 +315,7 @@ export class ProfileService {
           dimension_weights: priority.dimensionWeights,
           calculation_version: SCORING_CALCULATION_VERSION,
         } : null,
+        supplemental_books: this.readSupplementalBooks(currentMeta.supplemental_books),
         dimensions: Object.fromEntries(computed.map((item) => [item.key, {
           value: item.aggregate.value?.toFixed(4) ?? null,
           confidence: item.aggregate.confidence.toFixed(4),
@@ -361,6 +426,53 @@ export class ProfileService {
       acceptedLanguages: this.stringArray(constraints.acceptedLanguagesJson),
       acceptedFormats: this.stringArray(constraints.acceptedFormatsJson),
     };
+  }
+
+  private validateSupplementalBooks(value: unknown): SupplementalBook[] {
+    if (!Array.isArray(value) || value.length === 0) throw new BadRequestException('Agrega al menos un libro.');
+    return value.map((item, index) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) throw new BadRequestException(`El libro ${index + 1} no es válido.`);
+      const raw = item as Record<string, unknown>;
+      const category = raw.category === 'enjoyed' || raw.category === 'notEnjoyed' ? raw.category : null;
+      const openLibraryId = typeof raw.openLibraryId === 'string' ? raw.openLibraryId.trim().slice(0, 120) : '';
+      const title = typeof raw.title === 'string' ? raw.title.trim().slice(0, 300) : '';
+      if (!category || !openLibraryId || !title) throw new BadRequestException(`El libro ${index + 1} necesita título, identificador y clasificación.`);
+      const authors = Array.isArray(raw.authors) ? raw.authors.filter((author): author is string => typeof author === 'string').map((author) => author.trim().slice(0, 160)).filter(Boolean).slice(0, 10) : [];
+      const coverId = raw.coverId === null || raw.coverId === undefined ? null : typeof raw.coverId === 'number' && Number.isInteger(raw.coverId) && raw.coverId > 0 ? raw.coverId : null;
+      const coverUrl = typeof raw.coverUrl === 'string' && raw.coverUrl.trim() ? raw.coverUrl.trim().slice(0, 1000) : null;
+      const rating = typeof raw.rating === 'number' && Number.isInteger(raw.rating) && raw.rating >= 1 && raw.rating <= 5 ? raw.rating : null;
+      const likedAspects = Array.isArray(raw.likedAspects) ? raw.likedAspects.filter((item): item is string => typeof item === 'string' && LOVED_BOOK_ASPECT_KEYS.has(item)) : [];
+      const reasonCodes = Array.isArray(raw.reasonCodes) ? raw.reasonCodes.filter((item): item is string => typeof item === 'string' && DISLIKED_BOOK_REASON_KEYS.has(item)) : [];
+      const freeText = raw.freeText === null || raw.freeText === undefined ? null : typeof raw.freeText === 'string' ? raw.freeText.trim().slice(0, 2000) || null : null;
+      if (rating === null) throw new BadRequestException(`El libro ${index + 1} necesita una calificación de 1 a 5.`);
+      if (category === 'enjoyed' && likedAspects.length === 0) throw new BadRequestException(`El libro ${index + 1} necesita al menos un aspecto positivo.`);
+      if (category === 'notEnjoyed' && reasonCodes.length === 0) throw new BadRequestException(`El libro ${index + 1} necesita al menos un motivo.`);
+      return {
+        category,
+        openLibraryId,
+        openLibraryEditionId: typeof raw.openLibraryEditionId === 'string' ? raw.openLibraryEditionId.trim().slice(0, 120) : null,
+        coverId,
+        title,
+        authors,
+        coverUrl,
+        rating,
+        likedAspects: [...new Set(likedAspects)],
+        reasonCodes: [...new Set(reasonCodes)],
+        freeText,
+      };
+    });
+  }
+
+  private readSupplementalBooks(value: unknown): SupplementalBook[] {
+    if (!Array.isArray(value)) return [];
+    return value.filter((item): item is SupplementalBook => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+      const raw = item as Record<string, unknown>;
+      return (raw.category === 'enjoyed' || raw.category === 'notEnjoyed')
+        && typeof raw.openLibraryId === 'string'
+        && typeof raw.title === 'string'
+        && raw.title.trim().length > 0;
+    });
   }
 
   private stringArray(value: unknown): string[] {

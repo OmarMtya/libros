@@ -3,10 +3,11 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 type PublicBook = {
+  profileBookId?: string;
   title: string;
   authors: string[];
   coverUrl: string | null;
-  source: ('questionnaire' | 'surprise')[];
+  source: ('questionnaire' | 'surprise' | 'profile')[];
   review?: {
     readingStatus: string | null;
     selectionFitRating: number | null;
@@ -42,7 +43,7 @@ export class PublicProfileService {
     if (!profile) throw new NotFoundException('Perfil no encontrado.');
     const isOwner = viewerUserId != null && viewerUserId === profile.userId;
     const notReady = profile.user.questionnaireSessions.length === 0;
-    const [books, currentlyReading] = await Promise.all([this.books(profile.userId), this.currentlyReading(profile.userId)]);
+    const [books, currentlyReading] = await Promise.all([this.books(profile.userId, profile.snapshotJson), this.currentlyReading(profile.userId)]);
     if (notReady) {
       return {
         notReady: true,
@@ -164,7 +165,7 @@ export class PublicProfileService {
     };
   }
 
-  private async books(userId: string): Promise<{ enjoyed: PublicBook[]; notEnjoyed: PublicBook[] }> {
+  private async books(userId: string, snapshotJson: Prisma.JsonValue): Promise<{ enjoyed: PublicBook[]; notEnjoyed: PublicBook[] }> {
     const [questionnaireAnswers, feedbacks] = await Promise.all([
       this.prisma.questionAnswer.findMany({
         where: { userId, questionKey: { in: ['Q01_LOVED_BOOKS', 'Q02_DISLIKED_BOOK'] } },
@@ -283,6 +284,48 @@ export class PublicProfileService {
 
     pushQuestionnaireBooks('Q01_LOVED_BOOKS', enjoyed);
     pushQuestionnaireBooks('Q02_DISLIKED_BOOK', notEnjoyed);
+
+    const snapshot = snapshotJson && typeof snapshotJson === 'object' && !Array.isArray(snapshotJson) ? snapshotJson as Record<string, unknown> : {};
+    const supplementalBooks = Array.isArray(snapshot.supplemental_books) ? snapshot.supplemental_books : [];
+    for (const rawBook of supplementalBooks) {
+      if (!rawBook || typeof rawBook !== 'object' || Array.isArray(rawBook)) continue;
+      const book = rawBook as Record<string, unknown>;
+      const title = typeof book.title === 'string' ? book.title.trim() : '';
+      if (!title) continue;
+      const key = title.toLowerCase();
+      const destination = book.category === 'notEnjoyed' ? notEnjoyed : enjoyed;
+      const rating = typeof book.rating === 'number' && Number.isInteger(book.rating) && book.rating >= 1 && book.rating <= 5 ? book.rating : null;
+      const likedAspects = book.category === 'enjoyed' ? this.stringArray(book.likedAspects) : [];
+      const reasonCodes = book.category === 'notEnjoyed' ? this.stringArray(book.reasonCodes) : [];
+      const freeText = typeof book.freeText === 'string' && book.freeText.trim() ? book.freeText.trim() : null;
+      const review = rating !== null || likedAspects.length > 0 || reasonCodes.length > 0 || freeText !== null
+        ? { readingStatus: null, selectionFitRating: rating, started: null, completionPercentage: null, notStartedReason: null, outcomeAttribution: null, positiveAspects: likedAspects, negativeAspects: reasonCodes, freeText }
+        : null;
+      if (seen.has(key)) {
+        const existing = [...enjoyed, ...notEnjoyed].find((item) => item.title.toLowerCase() === key);
+        if (existing) {
+          const currentDestination = enjoyed.includes(existing) ? enjoyed : notEnjoyed;
+          if (currentDestination !== destination) {
+            currentDestination.splice(currentDestination.indexOf(existing), 1);
+            destination.push(existing);
+          }
+          if (!existing.source.includes('profile')) existing.source = [...existing.source, 'profile'];
+          existing.profileBookId = typeof book.openLibraryId === 'string' ? book.openLibraryId : existing.profileBookId;
+          if (!existing.review && review) existing.review = review;
+        }
+        continue;
+      }
+      seen.add(key);
+      destination.push({
+        profileBookId: typeof book.openLibraryId === 'string' ? book.openLibraryId : undefined,
+        title,
+        authors: Array.isArray(book.authors) ? book.authors.filter((item): item is string => typeof item === 'string') : [],
+        coverUrl: typeof book.coverUrl === 'string' ? book.coverUrl : null,
+        source: ['profile'],
+        review,
+      });
+    }
+
     return { enjoyed, notEnjoyed };
   }
 

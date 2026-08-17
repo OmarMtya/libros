@@ -120,4 +120,13 @@ describe('questionnaire reset', () => {
     });
     expect(descriptions.triggerGeneration).toHaveBeenCalledWith('user-1');
   });
+
+  it('starts description generation after completion even with active feedbacks', async () => {
+    const { service, descriptions } = mockService();
+    (descriptions.hasActiveFeedbackCycles as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+
+    await service.completeSession('session-1', 'user-1');
+
+    expect(descriptions.triggerGeneration).toHaveBeenCalledWith('user-1');
+  });
 });

@@ -140,6 +140,10 @@ Las fotografías de la tarjeta viven en `frontend/src/app/screens/experience.ts`
 
 - Backend: `npm run lint` (`tsc --noEmit`) y `npm test` (`vitest run`).
 - Frontend: `npx tsc -p tsconfig.app.json --noEmit` dentro de `frontend/`.
+- Si Aspire está levantado, **no ejecutar builds manuales** (`npm run build`, `ng build` ni
+  `dotnet build`) para validar el estado de API/frontend. Usar siempre el MCP de Aspire
+  (`aspire_list_resources`, `aspire_list_console_logs`, `aspire_list_structured_logs` y
+  `aspire_list_traces`); Aspire es la fuente de verdad para saber si los recursos funcionan.
 - **Antes de hacer build o reiniciar recursos, revisar SIEMPRE los logs del contenedor de Aspire**
   (`aspire_list_console_logs`, `aspire_list_structured_logs`, `aspire_list_traces`) para validar que
   el estado actual está bien y detectar errores en caliente en lugar de asumirlos.

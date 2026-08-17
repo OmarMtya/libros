@@ -24,6 +24,13 @@ import {
 
 const DIMENSION_META = new Map(DIMENSIONS.map((dimension) => [dimension.key, dimension]));
 
+const normalizeBookTitle = (value: string): string => value
+  .normalize('NFD')
+  .replace(/[̀-ͯ]/g, '')
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, ' ')
+  .trim();
+
 type RiskResult = {
   total: Decimal;
   breakdown: Record<string, unknown>;
@@ -67,7 +74,7 @@ export class ScoringService {
     if (!productPackage) throw new NotFoundException('No se encontró el paquete del pedido.');
 
     const profile = await this.profiles.ensureProfile(order.userId);
-    const [dimensionRows, constraints, tagPreferences, tagEvidence, readerEvidence, conditionalRules, q03Answer, classifications, readFeedback] = await Promise.all([
+    const [dimensionRows, constraints, tagPreferences, tagEvidence, readerEvidence, conditionalRules, q03Answer, classifications, readFeedback, questionnaireAnswers] = await Promise.all([
       this.prisma.readerProfileDimension.findMany({ where: { profileId: profile.id } }),
       this.prisma.readerOperationalConstraints.findFirst({ where: { profileId: profile.id } }),
       this.prisma.readerTagPreference.findMany({ where: { profileId: profile.id } }),
@@ -91,11 +98,32 @@ export class ScoringService {
         where: { userId: order.userId, readingStatus: 'completed' },
         select: { bookId: true },
       }),
+      this.prisma.questionAnswer.findMany({
+        where: { userId: order.userId, questionKey: { in: ['Q01_LOVED_BOOKS', 'Q02_DISLIKED_BOOK'] } },
+        select: { rawResponse: true },
+      }),
     ]);
 
     const readBookIds = new Set(
       readFeedback.map((entry) => entry.bookId).filter((bookId): bookId is string => bookId !== null),
     );
+    const readBookTitles = new Set<string>();
+    for (const answer of questionnaireAnswers) {
+      const raw = answer.rawResponse as { books?: Array<{ title?: unknown }> } | null;
+      for (const book of raw?.books ?? []) {
+        if (typeof book.title === 'string' && book.title.trim()) readBookTitles.add(normalizeBookTitle(book.title));
+      }
+    }
+    const snapshot = profile.snapshotJson && typeof profile.snapshotJson === 'object' && !Array.isArray(profile.snapshotJson)
+      ? profile.snapshotJson as Record<string, unknown>
+      : {};
+    if (Array.isArray(snapshot.supplemental_books)) {
+      for (const book of snapshot.supplemental_books) {
+        if (!book || typeof book !== 'object' || Array.isArray(book)) continue;
+        const title = (book as Record<string, unknown>).title;
+        if (typeof title === 'string' && title.trim()) readBookTitles.add(normalizeBookTitle(title));
+      }
+    }
 
     const readerDimensions = dimensionRows.map<ReaderDimension>((row) => {
       const meta = DIMENSION_META.get(row.dimensionKey);
@@ -142,7 +170,7 @@ export class ScoringService {
     const slowBurnRule = conditionalRules.find((rule) => rule.ruleKey === 'slow_burn_compensators');
 
     const computed = classifications
-      .filter((classification) => !readBookIds.has(classification.edition.book.id))
+      .filter((classification) => !readBookIds.has(classification.edition.book.id) && !readBookTitles.has(normalizeBookTitle(classification.edition.book.canonicalTitle)))
       .flatMap((classification) => {
       const edition = classification.edition;
       if (acceptedLanguages.length > 0 && !acceptedLanguages.includes(edition.languageCode)) return [];

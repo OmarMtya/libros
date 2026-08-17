@@ -1,4 +1,4 @@
-import { Component, ElementRef, Input, OnDestroy, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnDestroy, Output, signal, viewChild } from '@angular/core';
 import { DISLIKED_BOOK_REASONS, FEEDBACK_NEGATIVE_ASPECTS, FEEDBACK_POSITIVE_ASPECTS, LOVED_BOOK_ASPECTS } from '../labels';
 
 export type BookReview = {
@@ -14,12 +14,13 @@ export type BookReview = {
 };
 
 export type BookCarouselItem = {
+  profileBookId?: string;
   title?: string;
   work_id?: string;
   openLibraryId?: string;
   authors?: string[];
   coverUrl?: string | null;
-  source?: ('questionnaire' | 'surprise')[];
+  source?: ('questionnaire' | 'surprise' | 'profile')[];
   review?: BookReview | null;
 };
 
@@ -75,10 +76,21 @@ const NEGATIVE_LABELS: Record<string, string> = {
     }
   `,
   template: `
-    <div class="mb-3 flex items-center justify-between gap-4">
-      <h3 class="text-sm font-bold uppercase tracking-wider text-ink">{{ title }}</h3>
+    <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div class="flex min-w-0 items-center justify-between gap-3">
+        <h3 class="min-w-0 flex-1 text-sm font-bold uppercase tracking-wider text-ink">{{ title }}</h3>
+        @if (actionLabel) {
+          <button
+            type="button"
+            (click)="action.emit()"
+            [attr.aria-label]="actionAriaLabel || actionLabel"
+            class="shrink-0 rounded-sm border border-coral px-2.5 py-1.5 text-[10px] font-bold text-coral transition hover:bg-coral hover:text-white">
+            {{ actionLabel }}
+          </button>
+        }
+      </div>
       @if (books.length > 0) {
-        <div class="flex items-center gap-1.5">
+        <div class="flex items-center justify-end gap-1.5 sm:shrink-0">
           <button
             type="button"
             (click)="scroll(-1)"
@@ -98,6 +110,7 @@ const NEGATIVE_LABELS: Record<string, string> = {
         </div>
       }
     </div>
+    <ng-content select="[book-carousel-action-content]"></ng-content>
     @if (books.length === 0) {
       <p class="text-sm text-[#7d9ab0]">Sin libros declarados.</p>
     } @else {
@@ -157,14 +170,28 @@ const NEGATIVE_LABELS: Record<string, string> = {
                           <p class="truncate text-xs text-[#536875]">{{ authorsOf(book) }}</p>
                         }
                       </div>
-                      <button
-                        type="button"
-                        (click)="toggleSelected(book)"
-                        aria-label="Cerrar reseña"
-                        class="-m-1 shrink-0 p-1 text-[#7d9ab0] transition hover:text-coral">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                      </button>
+                      <div class="flex shrink-0 items-center gap-2">
+                        @if (canRemove) {
+                          @if (book.source?.includes('profile')) {
+                            <button type="button" (click)="$event.stopPropagation(); edit.emit(book)" class="rounded-sm border border-[#7d9ab0] px-2.5 py-1.5 text-[10px] font-bold text-ink transition hover:bg-[#e6eef3]">Editar</button>
+                            <button type="button" (click)="$event.stopPropagation(); remove.emit(book)" class="rounded-sm border border-[#e2b8b0] px-2.5 py-1.5 text-[10px] font-bold text-[#7a2c1f] transition hover:bg-[#fbe9e6]">Quitar</button>
+                          } @else {
+                            <button type="button" disabled aria-disabled="true" class="cursor-not-allowed rounded-sm border border-[#cad7df] px-2.5 py-1.5 text-[10px] font-bold text-[#9eb2c1]">Quitar</button>
+                          }
+                        }
+                        <button
+                          type="button"
+                          (click)="toggleSelected(book)"
+                          aria-label="Cerrar reseña"
+                          class="-m-1 shrink-0 p-1 text-[#7d9ab0] transition hover:text-coral">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                      </div>
                     </div>
+
+                    @if (canRemove && !book.source?.includes('profile')) {
+                      <p class="mt-2 rounded-sm border-l-[3px] border-[#f0e0b0] bg-[#fff7e6] px-3 py-2 text-xs leading-relaxed text-[#6b5310]">Este libro viene de {{ book.source?.includes('questionnaire') ? 'tu cuestionario inicial' : 'tu historial de Mi Libro Sorpresa' }} y no se puede quitar desde esta estantería.</p>
+                    }
 
                     <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
                       @if (book.source?.includes('surprise')) {
@@ -229,6 +256,12 @@ export class BookCarousel implements OnDestroy {
   private closeTimer: ReturnType<typeof setTimeout> | null = null;
 
   @Input() title = '';
+  @Input() actionLabel: string | null = null;
+  @Input() actionAriaLabel = '';
+  @Input() canRemove = false;
+  @Output() action = new EventEmitter<void>();
+  @Output() remove = new EventEmitter<BookCarouselItem>();
+  @Output() edit = new EventEmitter<BookCarouselItem>();
 
   private _books: BookCarouselItem[] = [];
   @Input() set books(value: BookCarouselItem[]) {
@@ -237,6 +270,10 @@ export class BookCarousel implements OnDestroy {
     if (key) {
       const match = this._books.find((book) => book.review != null && this.bookKey(book) === key);
       if (match) this.rendering.set(match);
+      else {
+        this.selectedKey.set(null);
+        this.rendering.set(null);
+      }
     }
     requestAnimationFrame(() => this.updateScrollState());
   }

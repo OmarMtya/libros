@@ -44,7 +44,6 @@ export class ProfileDescriptionService {
     if (!completed) return;
     const current = await this.prisma.readerProfile.findUnique({ where: { userId }, select: { aiDescription: true, aiDescriptionStatus: true } });
     if (!current || current.aiDescription || current.aiDescriptionStatus === 'generating') return;
-    if (current.aiDescriptionStatus === 'pending' && (await this.hasActiveFeedbackCycles(userId))) return;
     const claimed = await this.prisma.readerProfile.updateMany({
       where: { userId, aiDescription: null, aiDescriptionStatus: { not: 'generating' } },
       data: { aiDescriptionStatus: 'generating' },
