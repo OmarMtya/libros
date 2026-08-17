@@ -369,6 +369,30 @@ export class Reveal {
               <p class="mt-3 max-w-xs text-sm leading-relaxed text-[#c6d3de]">
                  Elegimos historias pensando en quien las va a leer.
               </p>
+              <div class="mt-5 flex items-center gap-3">
+                <a
+                  href="https://www.facebook.com/profile.php?id=61593245069810"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Facebook de Mi Libro Sorpresa"
+                  class="flex h-10 w-10 items-center justify-center rounded-full border border-[#3a5c78] text-[#c6d3de] transition hover:border-coral hover:text-coral">
+                  <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M13.5 21v-7h2.4l.36-2.8H13.5V9.41c0-.81.22-1.36 1.38-1.36h1.48V5.56c-.26-.03-1.13-.11-2.15-.11-2.13 0-3.58 1.3-3.58 3.68v2.06H8.25V14h2.38v7h2.87Z" />
+                  </svg>
+                </a>
+                <a
+                  href="https://www.instagram.com/milibrosorpresa"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Instagram de Mi Libro Sorpresa"
+                  class="flex h-10 w-10 items-center justify-center rounded-full border border-[#3a5c78] text-[#c6d3de] transition hover:border-coral hover:text-coral">
+                  <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <rect x="3" y="3" width="18" height="18" rx="5" />
+                    <circle cx="12" cy="12" r="4" />
+                    <circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none" />
+                  </svg>
+                </a>
+              </div>
             </div>
             <nav aria-label="Enlaces del pie de página">
               <ul class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-x-7">
