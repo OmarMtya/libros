@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mi Libro Sorpresa · Anuncio 9:16 · Variante 5</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Instrument+Sans:ital,wdth,wght@0,75..100,400..700;1,75..100,400..700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --ink: #132a3a;
+      --ink-soft: #21465e;
+      --coral: #dd5d46;
+      --coral-deep: #bd4937;
+      --marker: #f2be45;
+      --muted: #c6d3de;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0b1620;
+      font-family: 'Instrument Sans', Arial, sans-serif;
+    }
+
+    .story {
+      position: relative;
+      width: 1080px;
+      height: 1920px;
+      flex-shrink: 0;
+      overflow: hidden;
+      background: var(--ink);
+      color: #fff;
+      transform-origin: center center;
+    }
+
+    .photo {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .veil {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        180deg,
+        rgba(19, 42, 58, 0.95) 0%,
+        rgba(19, 42, 58, 0.8) 24%,
+        rgba(19, 42, 58, 0.62) 48%,
+        rgba(19, 42, 58, 0.78) 68%,
+        rgba(19, 42, 58, 0.96) 100%
+      );
+    }
+
+    .content {
+      position: absolute;
+      top: 300px;
+      right: 90px;
+      bottom: 700px;
+      left: 90px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .wordmark {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 56px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      color: #fff;
+    }
+
+    .wordmark .coral-block {
+      display: inline-block;
+      padding: 6px 14px 8px;
+      color: #fff;
+      background: var(--coral);
+      border-radius: 2px;
+    }
+
+    .textblock {
+      max-width: 900px;
+    }
+
+    .headline {
+      max-width: 860px;
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 92px;
+      font-weight: 700;
+      line-height: 0.98;
+      letter-spacing: -0.055em;
+      color: #fff;
+      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.12), 0 6px 28px rgba(10, 20, 28, 0.35);
+    }
+
+    .headline .accent {
+      position: relative;
+      white-space: nowrap;
+    }
+
+    .headline .accent::after {
+      content: '';
+      position: absolute;
+      left: 2%;
+      right: 2%;
+      bottom: 0.04em;
+      height: 3px;
+      background: var(--coral);
+    }
+
+    .subtitle {
+      max-width: 720px;
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 28px;
+      line-height: 1.4;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      margin-top: 26px;
+      padding: 12px 20px 11px;
+      color: #fff;
+      background: var(--coral);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .price {
+      margin-top: 24px;
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 100px;
+      font-weight: 800;
+      letter-spacing: -0.05em;
+      line-height: 1;
+      color: #fff;
+      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.12), 0 6px 28px rgba(10, 20, 28, 0.35);
+    }
+
+    .shipping {
+      display: inline-block;
+      margin-top: 22px;
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 40px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+
+    .shipping .highlight {
+      background: var(--marker);
+      color: var(--ink);
+      padding: 2px 10px 4px;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+
+    .note {
+      margin-top: 14px;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 20px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .story {
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="story" id="story" aria-label="Anuncio de Mi Libro Sorpresa">
+    <img
+      class="photo"
+      src="https://images.pexels.com/photos/4218981/pexels-photo-4218981.jpeg?auto=compress&cs=tinysrgb&w=1600"
+      alt=""
+      aria-hidden="true">
+    <div class="veil" aria-hidden="true"></div>
+
+    <div class="content">
+      <p class="wordmark">Mi Libro <span class="coral-block">Sorpresa</span></p>
+
+      <div class="textblock">
+        <h1 class="headline">Un libro sorpresa<br><span class="accent">elegido para ti.</span></h1>
+        <p class="subtitle">Elegido con datos, criterio y cuidado.</p>
+        <p class="badge">Válido todo el mes de agosto</p>
+        <p class="price">$499 MXN</p>
+        <p class="shipping"><span class="highlight">Incluye envío</span></p>
+        <p class="note">Solo envíos dentro de México</p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      var canvas = document.getElementById('story');
+      function fit() {
+        var scale = Math.min(window.innerWidth / 1080, window.innerHeight / 1920, 1);
+        canvas.style.transform = 'scale(' + scale + ')';
+      }
+      window.addEventListener('resize', fit);
+      fit();
+    })();
+  </script>
+</body>
+</html>
