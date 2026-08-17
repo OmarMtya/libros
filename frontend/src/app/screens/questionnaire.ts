@@ -1,9 +1,10 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService, BookResult, Question, Session, Tag } from '../api.service';
 import { AuthService } from '../auth.service';
+import { DialogService } from '../dialog.service';
 import { DISLIKED_BOOK_REASONS, LOVED_BOOK_ASPECTS, TAG_LABELS, TAG_TYPE_LABELS } from '../labels';
 import { rankingDisabled, rankingPosition, toggleRankingSelection } from '../ranking-utils';
 import { ToastService } from '../toast.service';
@@ -11,6 +12,27 @@ import { ToastService } from '../toast.service';
 type TagGroup = 'liked' | 'curious' | 'notInterested';
 
 const TOTAL_QUESTIONS = 16;
+
+interface QuestionnaireDraftState {
+  updatedAt: number;
+  scaleValue: number | null;
+  selectedKeys: string[];
+  structuredResponse: Record<string, unknown>;
+  lovedBooks: BookResult[];
+  lovedBookAspects: Record<string, string[]>;
+  lovedBookRatings: Record<string, number>;
+  lovedBookComments: Record<string, string>;
+  dislikedBooks: BookResult[];
+  dislikedBookReasons: Record<string, string[]>;
+  dislikedBookReasonTexts: Record<string, string>;
+  dislikedBookRatings: Record<string, number>;
+  complexity: { linguistic: number | null; structural: number | null };
+  lengthSeries: { minPages: number; maxPages: number; seriesPreference: string };
+  languagePreferences: { spanish: boolean; english: boolean };
+  tagSelections: Record<TagGroup, string[]>;
+}
+
+const DRAFTS_STORAGE_PREFIX = 'mls:questionnaire-drafts:v1:';
 
 @Component({
   selector: 'app-questionnaire',
@@ -84,15 +106,22 @@ const TOTAL_QUESTIONS = 16;
                     }
                   </ul>
                 }
+                @if (lovedBookQuery && lovedSearch().loading) {
+                  <ul class="absolute z-10 mt-1 w-full overflow-hidden rounded-sm border border-[#9eb2c1] bg-white" aria-hidden="true">
+                    @for (item of [0, 1, 2]; track item) {
+                      <li class="flex animate-pulse items-center gap-3 border-b border-[#e6eef3] px-3 py-2 last:border-b-0">
+                        <div class="h-12 w-8 shrink-0 bg-[#e6eef3]"></div>
+                        <div class="min-w-0 flex-1 space-y-2">
+                          <div class="h-3 w-4/5 rounded bg-[#e6eef3]"></div>
+                          <div class="h-3 w-2/5 rounded bg-[#e6eef3]"></div>
+                        </div>
+                      </li>
+                    }
+                  </ul>
+                }
               </div>
               @if (lovedBookQuery && lovedSearch().searched && !lovedSearch().loading && !lovedSearch().error && lovedBookResults().length === 0) {
                 <p class="mt-2 text-sm text-[#536875]">No encontramos libros para «{{ lovedBookQuery }}». Prueba con otro título o autor.</p>
-              }
-              @if (lovedBookQuery && lovedSearch().loading) {
-                <p class="mt-2 flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-[#7d9ab0]">
-                  <svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                  Buscando…
-                </p>
               }
               @if (lovedBookQuery && lovedSearch().error) {
                 <div class="mt-2 flex items-center justify-between gap-3 rounded-sm border-l-[3px] border-coral bg-[#fbe9e6] px-3 py-2">
@@ -180,15 +209,22 @@ const TOTAL_QUESTIONS = 16;
                     }
                   </ul>
                 }
+                @if (dislikedBookQuery && dislikedSearch().loading) {
+                  <ul class="absolute z-10 mt-1 w-full overflow-hidden rounded-sm border border-[#9eb2c1] bg-white" aria-hidden="true">
+                    @for (item of [0, 1, 2]; track item) {
+                      <li class="flex animate-pulse items-center gap-3 border-b border-[#e6eef3] px-3 py-2 last:border-b-0">
+                        <div class="h-12 w-8 shrink-0 bg-[#e6eef3]"></div>
+                        <div class="min-w-0 flex-1 space-y-2">
+                          <div class="h-3 w-4/5 rounded bg-[#e6eef3]"></div>
+                          <div class="h-3 w-2/5 rounded bg-[#e6eef3]"></div>
+                        </div>
+                      </li>
+                    }
+                  </ul>
+                }
               </div>
               @if (dislikedBookQuery && dislikedSearch().searched && !dislikedSearch().loading && !dislikedSearch().error && dislikedBookResults().length === 0) {
                 <p class="mt-2 text-sm text-[#536875]">No encontramos libros para «{{ dislikedBookQuery }}». Prueba con otro título o autor.</p>
-              }
-              @if (dislikedBookQuery && dislikedSearch().loading) {
-                <p class="mt-2 flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-[#7d9ab0]">
-                  <svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                  Buscando…
-                </p>
               }
               @if (dislikedBookQuery && dislikedSearch().error) {
                 <div class="mt-2 flex items-center justify-between gap-3 rounded-sm border-l-[3px] border-coral bg-[#fbe9e6] px-3 py-2">
@@ -460,16 +496,7 @@ const TOTAL_QUESTIONS = 16;
               [disabled]="loading() || (current.responseType === 'ranking' && selectedKeys.length !== 3)">
               Guardar y continuar
             </button>
-            @if (current.questionKey === 'Q01_LOVED_BOOKS') {
-              <button
-                class="w-full rounded-sm border border-[#7d9ab0] px-6 py-3 text-sm font-bold text-ink transition hover:bg-[#e6eef3] disabled:cursor-wait disabled:opacity-60 sm:w-auto"
-                type="button"
-                (click)="skipForNeverRead()"
-                [disabled]="loading()">
-                Nunca he leído
-              </button>
-            }
-            @if (!current.isRequired && current.questionKey !== 'Q01_LOVED_BOOKS') {
+            @if (!current.isRequired) {
               <button
                 class="w-full rounded-sm border border-[#7d9ab0] px-6 py-3 text-sm font-bold text-ink transition hover:bg-[#e6eef3] disabled:cursor-wait disabled:opacity-60 sm:w-auto"
                 type="button"
@@ -489,12 +516,13 @@ const TOTAL_QUESTIONS = 16;
     </div>
   `,
 })
-export class Questionnaire {
+export class Questionnaire implements OnDestroy {
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
+  private readonly dialog = inject(DialogService);
 
   readonly session = signal<Session | null>(null);
   readonly question = signal<Question | null>(null);
@@ -562,6 +590,11 @@ export class Questionnaire {
   private readonly searchSeq: Record<'loved' | 'disliked', number> = { loved: 0, disliked: 0 };
 
   private bootstrapped = false;
+  private draftTimer: ReturnType<typeof setInterval> | null = null;
+  private readonly handleBeforeUnload = (): void => this.saveDraft();
+  private readonly handleVisibilityChange = (): void => {
+    if (document.visibilityState === 'hidden') this.saveDraft();
+  };
 
   constructor() {
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
@@ -574,6 +607,16 @@ export class Questionnaire {
       }
       void this.bootstrap();
     });
+    this.draftTimer = setInterval(() => this.saveDraft(), 5000);
+    window.addEventListener('beforeunload', this.handleBeforeUnload);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+  }
+
+  ngOnDestroy(): void {
+    if (this.draftTimer) clearInterval(this.draftTimer);
+    window.removeEventListener('beforeunload', this.handleBeforeUnload);
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    this.saveDraft();
   }
 
   private async bootstrap(): Promise<void> {
@@ -600,7 +643,9 @@ export class Questionnaire {
       const session = await this.api.createSession();
       this.session.set(session);
       this.tags.set(await this.api.listTags());
-      await this.loadNextQuestion();
+      if (!await this.resumeFromDraft()) {
+        await this.loadNextQuestion();
+      }
     });
   }
 
@@ -609,6 +654,7 @@ export class Questionnaire {
       await this.api.resetQuestionnaire();
       this.alreadyCompleted.set(false);
       this.history.set([]);
+      this.clearAllDrafts();
       this.toast.success('Empecemos desde cero.');
       await this.startQuestionnaire();
     });
@@ -627,6 +673,7 @@ export class Questionnaire {
       const { nextQuestion } = await this.api.submitAnswer(session.id, question.questionKey, this.responseFor(question));
       this.history.update((items) => [...items, question.questionKey]);
       this.resetAnswer();
+      this.clearDraft(question.questionKey);
       await this.applyNextQuestion(nextQuestion);
     });
   }
@@ -635,23 +682,20 @@ export class Questionnaire {
     const session = this.session();
     const question = this.question();
     if (!session || !question || question.isRequired) return;
+    if (this.hasCurrentResponse()) {
+      const confirmed = await this.dialog.confirm({
+        title: '¿Omitir esta pregunta?',
+        message: 'Ya tienes una selección en esta pregunta. Si la omites, se descartará. ¿Continuar?',
+        confirmLabel: 'Sí, omitir',
+        cancelLabel: 'Cancelar',
+      });
+      if (!confirmed) return;
+    }
     await this.run(async () => {
       const { nextQuestion } = await this.api.submitAnswer(session.id, question.questionKey, { skipped: true });
       this.history.update((items) => [...items, question.questionKey]);
       this.resetAnswer();
-      await this.applyNextQuestion(nextQuestion);
-    });
-  }
-
-  async skipForNeverRead(): Promise<void> {
-    const session = this.session();
-    const question = this.question();
-    if (!session || !question || question.questionKey !== 'Q01_LOVED_BOOKS') return;
-    await this.run(async () => {
-      await this.api.submitAnswer(session.id, 'Q01_LOVED_BOOKS', { skipped: true });
-      const { nextQuestion } = await this.api.submitAnswer(session.id, 'Q02_DISLIKED_BOOK', { skipped: true });
-      this.history.update((items) => [...items, 'Q01_LOVED_BOOKS']);
-      this.resetAnswer();
+      this.clearDraft(question.questionKey);
       await this.applyNextQuestion(nextQuestion);
     });
   }
@@ -664,6 +708,7 @@ export class Questionnaire {
       const previous = await this.api.getQuestionWithResponse(session.id, previousKey);
       this.applySavedResponse(previous, previous.response);
       this.question.set(previous);
+      this.restoreDraft(previous);
       this.history.update((items) => items.slice(0, -1));
     });
   }
@@ -673,6 +718,7 @@ export class Questionnaire {
     if (!session) return;
     await this.api.completeSession(session.id);
     this.question.set(null);
+    this.clearAllDrafts();
     await this.router.navigate(['/app/experiencia']);
   }
 
@@ -780,6 +826,7 @@ export class Questionnaire {
     this.lovedSearch.set({ loading: false, error: null, searched: false });
     this.searchSeq.loved++;
     setTimeout(() => document.getElementById(`loved-book-${book.openLibraryId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 0);
+    this.saveDraft();
   }
 
   removeLovedBook(openLibraryId: string): void {
@@ -787,6 +834,7 @@ export class Questionnaire {
     delete this.lovedBookAspects[openLibraryId];
     delete this.lovedBookRatings[openLibraryId];
     delete this.lovedBookComments[openLibraryId];
+    this.saveDraft();
   }
 
   toggleLovedBookAspect(bookId: string, aspect: string): void {
@@ -814,6 +862,7 @@ export class Questionnaire {
     this.dislikedSearch.set({ loading: false, error: null, searched: false });
     this.searchSeq.disliked++;
     setTimeout(() => document.getElementById(`disliked-book-${book.openLibraryId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 0);
+    this.saveDraft();
   }
 
   removeDislikedBook(openLibraryId: string): void {
@@ -821,6 +870,7 @@ export class Questionnaire {
     delete this.dislikedBookReasons[openLibraryId];
     delete this.dislikedBookReasonTexts[openLibraryId];
     delete this.dislikedBookRatings[openLibraryId];
+    this.saveDraft();
   }
 
   setDislikedBookRating(bookId: string, value: number): void {
@@ -863,6 +913,28 @@ export class Questionnaire {
 
   selectedTags(group: TagGroup): Tag[] {
     return this.tagSelections[group].flatMap((tagKey) => this.tags().filter((tag) => tag.tagKey === tagKey));
+  }
+
+  private hasCurrentResponse(): boolean {
+    const question = this.question();
+    if (!question) return false;
+    if (question.questionKey === 'Q01_LOVED_BOOKS' || question.questionKey === 'Q02_DISLIKED_BOOK') {
+      return this.lovedBooks.length > 0 || this.dislikedBooks.length > 0;
+    }
+    if (question.responseType === 'scale') return this.scaleValue !== null;
+    if (question.responseType === 'single_select' || question.responseType === 'multi_select' || question.responseType === 'ranking') {
+      return this.selectedKeys.length > 0;
+    }
+    if (question.questionKey === 'Q07_COMPLEXITY') return this.complexity.linguistic !== null || this.complexity.structural !== null;
+    if (question.questionKey === 'Q11_GENRES_THEMES') return Object.values(this.tagSelections).some((keys) => keys.length > 0);
+    if (question.questionKey === 'Q12_LENGTH_SERIES') {
+      return this.lengthSeries.minPages !== 100 || this.lengthSeries.maxPages !== 400 || this.lengthSeries.seriesPreference !== 'standalone_preferred';
+    }
+    if (question.questionKey === 'Q13_FORMAT_LANGUAGE') return !this.languagePreferences.spanish || this.languagePreferences.english;
+    if (question.questionKey === 'Q15_ADDITIONAL_COMMENTS') {
+      return typeof this.structuredResponse['comment'] === 'string' && this.structuredResponse['comment'].trim().length > 0;
+    }
+    return false;
   }
 
   private validate(question: Question): string | null {
@@ -1041,6 +1113,126 @@ export class Questionnaire {
     }
   }
 
+  private draftKey(): string | null {
+    const session = this.session();
+    return session ? `${DRAFTS_STORAGE_PREFIX}${session.id}` : null;
+  }
+
+  private readDrafts(): Record<string, QuestionnaireDraftState> {
+    const key = this.draftKey();
+    if (!key) return {};
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw) as Record<string, QuestionnaireDraftState>;
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private writeDrafts(drafts: Record<string, QuestionnaireDraftState>): void {
+    const key = this.draftKey();
+    if (!key) return;
+    try {
+      localStorage.setItem(key, JSON.stringify(drafts));
+    } catch {
+      // almacenamiento no disponible
+    }
+  }
+
+  private saveDraft(): void {
+    const question = this.question();
+    if (!question) return;
+    const drafts = this.readDrafts();
+    drafts[question.questionKey] = {
+      updatedAt: Date.now(),
+      scaleValue: this.scaleValue,
+      selectedKeys: [...this.selectedKeys],
+      structuredResponse: { ...this.structuredResponse },
+      lovedBooks: [...this.lovedBooks],
+      lovedBookAspects: { ...this.lovedBookAspects },
+      lovedBookRatings: { ...this.lovedBookRatings },
+      lovedBookComments: { ...this.lovedBookComments },
+      dislikedBooks: [...this.dislikedBooks],
+      dislikedBookReasons: { ...this.dislikedBookReasons },
+      dislikedBookReasonTexts: { ...this.dislikedBookReasonTexts },
+      dislikedBookRatings: { ...this.dislikedBookRatings },
+      complexity: { ...this.complexity },
+      lengthSeries: { ...this.lengthSeries },
+      languagePreferences: { ...this.languagePreferences },
+      tagSelections: { liked: [...this.tagSelections.liked], curious: [...this.tagSelections.curious], notInterested: [...this.tagSelections.notInterested] },
+    };
+    this.writeDrafts(drafts);
+  }
+
+  private applyDraft(draft: QuestionnaireDraftState): void {
+    this.resetAnswer();
+    this.scaleValue = typeof draft.scaleValue === 'number' ? draft.scaleValue : null;
+    this.selectedKeys = Array.isArray(draft.selectedKeys) ? [...draft.selectedKeys] : [];
+    this.structuredResponse = draft.structuredResponse && typeof draft.structuredResponse === 'object' ? { ...draft.structuredResponse } : {};
+    this.lovedBooks = Array.isArray(draft.lovedBooks) ? [...draft.lovedBooks] : [];
+    this.lovedBookAspects = { ...(draft.lovedBookAspects ?? {}) };
+    this.lovedBookRatings = { ...(draft.lovedBookRatings ?? {}) };
+    this.lovedBookComments = { ...(draft.lovedBookComments ?? {}) };
+    this.dislikedBooks = Array.isArray(draft.dislikedBooks) ? [...draft.dislikedBooks] : [];
+    this.dislikedBookReasons = { ...(draft.dislikedBookReasons ?? {}) };
+    this.dislikedBookReasonTexts = { ...(draft.dislikedBookReasonTexts ?? {}) };
+    this.dislikedBookRatings = { ...(draft.dislikedBookRatings ?? {}) };
+    this.complexity = { linguistic: draft.complexity?.linguistic ?? null, structural: draft.complexity?.structural ?? null };
+    this.lengthSeries = {
+      minPages: typeof draft.lengthSeries?.minPages === 'number' ? draft.lengthSeries.minPages : 100,
+      maxPages: typeof draft.lengthSeries?.maxPages === 'number' ? draft.lengthSeries.maxPages : 400,
+      seriesPreference: typeof draft.lengthSeries?.seriesPreference === 'string' ? draft.lengthSeries.seriesPreference : 'standalone_preferred',
+    };
+    this.languagePreferences = { spanish: draft.languagePreferences?.spanish ?? false, english: draft.languagePreferences?.english ?? false };
+    this.tagSelections = {
+      liked: Array.isArray(draft.tagSelections?.liked) ? [...draft.tagSelections.liked] : [],
+      curious: Array.isArray(draft.tagSelections?.curious) ? [...draft.tagSelections.curious] : [],
+      notInterested: Array.isArray(draft.tagSelections?.notInterested) ? [...draft.tagSelections.notInterested] : [],
+    };
+  }
+
+  private restoreDraft(question: Question): void {
+    const draft = this.readDrafts()[question.questionKey];
+    if (!draft) return;
+    this.applyDraft(draft);
+  }
+
+  private clearDraft(questionKey: string): void {
+    const drafts = this.readDrafts();
+    if (!(questionKey in drafts)) return;
+    delete drafts[questionKey];
+    this.writeDrafts(drafts);
+  }
+
+  private clearAllDrafts(): void {
+    const key = this.draftKey();
+    if (!key) return;
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // almacenamiento no disponible
+    }
+  }
+
+  private async resumeFromDraft(): Promise<boolean> {
+    const drafts = this.readDrafts();
+    const entries = Object.entries(drafts);
+    if (entries.length === 0) return false;
+    const latest = entries.reduce((a, b) => (b[1].updatedAt > a[1].updatedAt ? b : a));
+    if (!this.history().includes(latest[0])) return false;
+    const session = this.session();
+    if (!session) return false;
+    const answered = this.history();
+    this.history.set(answered.slice(0, Math.max(0, answered.indexOf(latest[0]))));
+    const previous = await this.api.getQuestionWithResponse(session.id, latest[0]);
+    this.applySavedResponse(previous, previous.response);
+    this.restoreDraft(previous);
+    this.question.set(previous);
+    return true;
+  }
+
   private searchText(value: string): string {
     return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   }
@@ -1054,7 +1246,8 @@ export class Questionnaire {
 
   private async applyNextQuestion(nextQuestion: Question | null): Promise<void> {
     this.question.set(nextQuestion);
-    if (!nextQuestion) await this.completeQuestionnaire();
+    if (nextQuestion) this.restoreDraft(nextQuestion);
+    else await this.completeQuestionnaire();
   }
 
   private async run(operation: () => Promise<void>): Promise<void> {

@@ -273,7 +273,19 @@ type ShelfCategory = 'enjoyed' | 'notEnjoyed';
                    <div class="mt-5">
                      <label for="profile-book-search" class="sr-only">Buscar un libro leído</label>
                      <input id="profile-book-search" type="search" autocomplete="off" [ngModel]="bookQuery" (ngModelChange)="onBookQueryChanged($event)" placeholder="Busca un título para agregarlo…" class="w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-3 text-sm text-ink outline-none transition focus:border-coral focus:ring-2 focus:ring-coral/20" />
-                     @if (bookSearchLoading()) { <p class="mt-2 text-xs text-[#567088]">Buscando…</p> }
+                     @if (bookSearchLoading()) {
+                        <div class="mt-2 animate-pulse overflow-hidden rounded-sm border border-[#cad7df] bg-white" aria-hidden="true">
+                          @for (item of [0, 1, 2]; track item) {
+                            <div class="flex items-center gap-3 border-b border-[#e6eef3] px-3 py-3 last:border-b-0">
+                              <div class="h-12 w-8 shrink-0 rounded-sm bg-[#e6eef3]"></div>
+                              <div class="min-w-0 flex-1 space-y-2">
+                                <div class="h-3 w-4/5 rounded bg-[#e6eef3]"></div>
+                                <div class="h-3 w-2/5 rounded bg-[#e6eef3]"></div>
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      }
                      @if (bookResults().length > 0) {
                        <div class="mt-2 max-h-72 overflow-y-auto rounded-sm border border-[#cad7df] bg-white">
                          @for (book of bookResults(); track book.openLibraryId) {
