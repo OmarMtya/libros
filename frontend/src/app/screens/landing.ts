@@ -65,8 +65,8 @@ const FAQS = [
     a: 'No. Descubrir el título forma parte de la experiencia. En el cuestionario sí podrás contarnos qué buscas, qué prefieres evitar y qué libros ya conoces.',
   },
   {
-    q: '¿Y si recibo un libro que ya leí?',
-    a: 'Tu perfil es la base de todo: nos basamos en los libros que ya has leído y en tus preferencias para buscar una recomendación que se adapte lo mejor posible a ti y que no hayas leído. Haremos todo lo posible por evitar repetir un libro, siempre que esa información esté registrada en tu perfil. Si has leído muchos libros y necesitas ayuda para agregar esa información, contáctanos; platicaremos contigo para completar tu estantería virtual y mejorar la selección.',
+    q: '¿Cómo evito que llegue un libro que ya leí?',
+    a: 'En el cuestionario nos cuentas qué libros ya has leído y qué prefieres evitar: con esa información construimos tu perfil y buscamos una recomendación que no hayas leído. Haremos todo lo posible por evitar repetir un libro, siempre que esa información esté registrada en tu perfil. Si has leído muchos libros y necesitas ayuda para agregar esa información, contáctanos; platicaremos contigo para completar tu estantería virtual y mejorar la selección.',
   },
   {
     q: '¿Necesito contratar una suscripción?',
