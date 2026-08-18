@@ -243,6 +243,29 @@ run('scoring de candidatos y selección trazable', () => {
     expect(candidate.bookEditionId).toBe(other.edition.id);
   });
 
+  it('override sin candidateId reutiliza el candidato existente en vez de chocar por el unique constraint', async () => {
+    const { edition, classification } = await makeApprovedEdition();
+    const { userId } = await makeReadyReader();
+    const { fulfillment } = await makeOrderFulfillment(userId);
+    const scored = await scoringService!.scoreForFulfillment(fulfillment.id);
+    const candidate = scored.candidates[0]!;
+
+    const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, {
+      bookEditionId: candidate.bookEditionId,
+      classificationVersionId: candidate.classificationVersionId,
+      reason: 'Override sobre candidato ya rankeado',
+    });
+
+    const stored = await prisma!.curationAssignment.findUniqueOrThrow({ where: { id: assignment.id } });
+    expect(stored.recommendationCandidateId).toBe(candidate.candidateId);
+    expect(stored.bookEditionId).toBe(edition.id);
+    expect(stored.classificationVersionId).toBe(classification.id);
+    const count = await prisma!.recommendationCandidate.count({
+      where: { recommendationId: scored.recommendation.id, classificationVersionId: candidate.classificationVersionId },
+    });
+    expect(count).toBe(1);
+  });
+
   it('candidato de otro fulfillment no puede asignarse', async () => {
     await makeApprovedEdition();
     const { userId } = await makeReadyReader();

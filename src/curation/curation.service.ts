@@ -552,8 +552,15 @@ export class CurationService {
 
     if (!recommendation) return null;
 
-    const override = await tx.recommendationCandidate.create({
-      data: {
+    const override = await tx.recommendationCandidate.upsert({
+      where: {
+        recommendationId_classificationVersionId: {
+          recommendationId: recommendation.id,
+          classificationVersionId,
+        },
+      },
+      update: {},
+      create: {
         recommendationId: recommendation.id,
         bookEditionId,
         classificationVersionId,
