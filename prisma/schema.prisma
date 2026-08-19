@@ -248,6 +248,7 @@ model ReaderProfile {
   evidenceMaturity        Decimal                  @default(0) @map("evidence_maturity") @db.Decimal(5, 4)
   readyToRecommend        Boolean                  @default(false) @map("ready_to_recommend")
   summary                 String?
+  goodreadsUrl            String?                  @map("goodreads_url") @db.VarChar(2048)
   publicSlug              String?                  @unique @map("public_slug") @db.VarChar(64)
   aiDescription           String?                  @map("ai_description") @db.VarChar(400)
   aiDescriptionStatus     String                   @default("none") @map("ai_description_status") @db.VarChar(20)

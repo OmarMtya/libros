@@ -92,6 +92,7 @@ export type ProfileFeedbackBook = {
 export type Profile = {
   currentVersion: number;
   readyToRecommend: boolean;
+  goodreadsUrl: string | null;
   globalProfileCoverage: string;
   onboardingCoreCoverage: string;
   evidenceMaturity: string;
@@ -148,7 +149,7 @@ export type PublicProfile = {
 
 export type ProductPackage = { key: 'libro_sorpresa_fisico'; name: string; description: string; priceCents: number; shippingCents: number; currency: string; includedFormats: string[] };
 export type CurrentUser = { id: string; email: string | null; displayName: string | null; role: 'customer' | 'admin' };
-export type AdminUser = { id: string; email: string | null; displayName: string | null; role: string; createdAt: string; readerProfile: { publicSlug: string | null; readyToRecommend: boolean; currentVersion: number; updatedAt: string } | null; _count: { orders: number; readingFeedback: number } };
+export type AdminUser = { id: string; email: string | null; displayName: string | null; role: string; createdAt: string; readerProfile: { publicSlug: string | null; readyToRecommend: boolean; goodreadsUrl: string | null; currentVersion: number; updatedAt: string } | null; _count: { orders: number; readingFeedback: number } };
 
 export type OrderAddress = {
   recipientName: string;
@@ -389,7 +390,7 @@ export class ApiService {
   }
 
   listSessions(): Promise<SessionDetail[]> {
-    return firstValueFrom(this.http.get<SessionDetail[]>(`${this.baseUrl}/questionnaire-sessions`, this.options()));
+    return firstValueFrom(this.http.get<SessionDetail[]>(`${this.baseUrl}/questionnaire-sessions`, { ...this.options(), params: { _ts: Date.now().toString() } }));
   }
 
   resetQuestionnaire(): Promise<unknown> {
@@ -397,11 +398,11 @@ export class ApiService {
   }
 
   nextQuestion(sessionId: string): Promise<Question | null> {
-    return firstValueFrom(this.http.get<Question | null>(`${this.baseUrl}/questionnaire-sessions/${sessionId}/next-question`, this.options()));
+    return firstValueFrom(this.http.get<Question | null>(`${this.baseUrl}/questionnaire-sessions/${sessionId}/next-question`, { ...this.options(), params: { _ts: Date.now().toString() } }));
   }
 
   getQuestionWithResponse(sessionId: string, questionKey: string): Promise<Question & { response: unknown }> {
-    return firstValueFrom(this.http.get<Question & { response: unknown }>(`${this.baseUrl}/questionnaire-sessions/${sessionId}/questions/${questionKey}`, this.options()));
+    return firstValueFrom(this.http.get<Question & { response: unknown }>(`${this.baseUrl}/questionnaire-sessions/${sessionId}/questions/${questionKey}`, { ...this.options(), params: { _ts: Date.now().toString() } }));
   }
 
   submitAnswer(sessionId: string, questionKey: string, response: unknown): Promise<{ answer: unknown; nextQuestion: Question | null }> {
@@ -434,6 +435,10 @@ export class ApiService {
 
   updateAvatar(url: string): Promise<{ avatarUrl: string | null }> {
     return firstValueFrom(this.http.patch<{ avatarUrl: string | null }>(`${this.baseUrl}/me/reader-profile/avatar`, { url }, this.options()));
+  }
+
+  updateGoodreads(url: string): Promise<{ goodreadsUrl: string | null }> {
+    return firstValueFrom(this.http.patch<{ goodreadsUrl: string | null }>(`${this.baseUrl}/me/reader-profile/goodreads`, { url }, this.options()));
   }
 
   submitFeedback(body: Record<string, unknown>): Promise<unknown> {

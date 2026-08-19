@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
@@ -49,5 +49,24 @@ export class ProfileController {
     const url = typeof body?.url === 'string' ? body.url.trim().slice(0, 2048) : null;
     await this.prisma.user.update({ where: { id: user.id }, data: { avatarUrl: url || null } });
     return { avatarUrl: url || null };
+  }
+
+  @Patch('goodreads')
+  async updateGoodreads(@CurrentUser() user: AuthenticatedUser, @Body() body: { url?: string }) {
+    const url = typeof body?.url === 'string' ? body.url.trim() : '';
+    const normalized = this.normalizeGoodreadsUrl(url);
+    await this.profiles.ensureProfile(user.id);
+    await this.prisma.readerProfile.update({ where: { userId: user.id }, data: { goodreadsUrl: normalized } });
+    return { goodreadsUrl: normalized };
+  }
+
+  private normalizeGoodreadsUrl(value: string): string | null {
+    if (!value) return null;
+    if (value.length > 2048) throw new BadRequestException('La URL de Goodreads es demasiado larga.');
+    const trimmed = value.replace(/\/+$/, '');
+    if (!/^https?:\/\/(www\.)?goodreads\.com\/user\/show\/\d+(?:[/?#-]|$)/i.test(trimmed)) {
+      throw new BadRequestException('Ingresa una URL válida de un perfil de Goodreads (ej. https://www.goodreads.com/user/show/12345).');
+    }
+    return trimmed;
   }
 }

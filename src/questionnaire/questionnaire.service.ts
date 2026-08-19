@@ -57,11 +57,25 @@ export class QuestionnaireService {
   }
 
   async listSessions(userId: string) {
-    return this.prisma.questionnaireSession.findMany({
+    const sessions = await this.prisma.questionnaireSession.findMany({
       where: { userId },
       orderBy: { startedAt: 'desc' },
       include: { answers: { select: { id: true, questionKey: true, answeredAt: true }, orderBy: { answeredAt: 'asc' } } },
     });
+    const versions = [...new Set(sessions.map((session) => session.questionnaireVersion))];
+    const definitions = await this.prisma.questionDefinition.findMany({
+      where: { questionnaireVersion: { in: versions } },
+      select: { questionnaireVersion: true, questionKey: true, displayOrder: true },
+    });
+    const orderByQuestion = new Map(definitions.map((definition) => [`${definition.questionnaireVersion}:${definition.questionKey}`, definition.displayOrder]));
+    return sessions.map((session) => ({
+      ...session,
+      answers: [...session.answers].sort((a, b) => {
+        const aOrder = orderByQuestion.get(`${session.questionnaireVersion}:${a.questionKey}`) ?? Number.MAX_SAFE_INTEGER;
+        const bOrder = orderByQuestion.get(`${session.questionnaireVersion}:${b.questionKey}`) ?? Number.MAX_SAFE_INTEGER;
+        return aOrder - bOrder;
+      }),
+    }));
   }
 
   async createSession(userId: string) {

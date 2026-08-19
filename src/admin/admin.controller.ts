@@ -16,7 +16,7 @@ export class AdminController {
       where: search ? { OR: [{ email: { contains: search, mode: 'insensitive' } }, { displayName: { contains: search, mode: 'insensitive' } }] } : undefined,
       select: {
         id: true, email: true, displayName: true, role: true, createdAt: true,
-        readerProfile: { select: { publicSlug: true, readyToRecommend: true, currentVersion: true, updatedAt: true } },
+        readerProfile: { select: { publicSlug: true, readyToRecommend: true, goodreadsUrl: true, currentVersion: true, updatedAt: true } },
         _count: { select: { orders: true, readingFeedback: true } },
       },
       orderBy: { createdAt: 'desc' },

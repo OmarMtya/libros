@@ -1,0 +1,1 @@
+ALTER TABLE "public"."reader_profiles" ADD COLUMN "goodreads_url" TEXT;

@@ -41,6 +41,9 @@ import { ToastService } from '../toast.service';
               </button>
               <div class="flex shrink-0 flex-col items-end gap-1">
                 <span class="font-mono text-xs text-[#566e80]">{{ user._count.orders }} pedidos · {{ user._count.readingFeedback }} opiniones</span>
+                @if (user.readerProfile?.goodreadsUrl; as goodreadsUrl) {
+                  <a class="text-xs font-semibold text-[#8a5a12] underline decoration-[#f2be45] underline-offset-2 hover:text-coral" [href]="goodreadsUrl" target="_blank" rel="noopener">Goodreads · pendiente de importar</a>
+                }
                 @if (user.readerProfile?.publicSlug; as slug) {
                   <a
                     class="text-sm font-semibold text-coral underline decoration-[#f2be45] underline-offset-2 transition hover:text-ink"

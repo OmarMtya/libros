@@ -181,6 +181,22 @@ const DRAFTS_STORAGE_PREFIX = 'mls:questionnaire-drafts:v1:';
                 }
               </div>
               <p class="text-sm text-[#7d9ab0]">{{ lovedBooks.length }} / {{ current.validation?.maxItems ?? 20 }} libros (mínimo {{ current.validation?.minItems ?? 1 }})</p>
+
+              <div class="rounded-sm border border-dashed border-[#9eb2c1] p-4">
+                <button type="button" class="text-sm font-semibold text-ink underline decoration-[#f2be45] underline-offset-2 hover:text-coral" (click)="goodreadsMode.set(goodreadsMode() === 'loved' ? null : 'loved')">{{ goodreadsSaved() ? 'Tu perfil de Goodreads ya está guardado' : '¿Tienes tu biblioteca en Goodreads? Prefiero importarla' }}</button>
+                @if (goodreadsMode() === 'loved') {
+                  <div class="mt-3">
+                    <p class="mb-2 text-sm text-[#536875]">Pega el enlace de tu perfil de Goodreads. Tu equipo la revisará manualmente para armar tu perfil.</p>
+                    <div class="flex gap-2">
+                      <input [(ngModel)]="goodreadsUrl" (ngModelChange)="goodreadsSaved.set(false); goodreadsMessage.set(null)" placeholder="https://www.goodreads.com/user/show/…" class="w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
+                      <button type="button" class="shrink-0 rounded-sm bg-ink px-4 py-2 text-sm font-bold text-white transition hover:bg-ink-soft disabled:cursor-wait disabled:opacity-60" (click)="saveGoodreads()" [disabled]="goodreadsSaving() || !goodreadsUrl.trim()">{{ goodreadsSaved() ? 'Guardado' : 'Guardar' }}</button>
+                    </div>
+                    @if (goodreadsMessage()) {
+                      <p class="mt-2 text-sm text-[#536875]">{{ goodreadsMessage() }}</p>
+                    }
+                  </div>
+                }
+              </div>
             </div>
           } @else if (current.questionKey === 'Q02_DISLIKED_BOOK') {
             <div class="space-y-5">
@@ -284,6 +300,22 @@ const DRAFTS_STORAGE_PREFIX = 'mls:questionnaire-drafts:v1:';
                 }
               </div>
               <p class="text-sm text-[#7d9ab0]">{{ dislikedBooks.length }} / {{ current.validation?.maxItems ?? 20 }} libros (mínimo {{ current.validation?.minItems ?? 1 }})</p>
+
+              <div class="rounded-sm border border-dashed border-[#9eb2c1] p-4">
+                <button type="button" class="text-sm font-semibold text-ink underline decoration-[#f2be45] underline-offset-2 hover:text-coral" (click)="goodreadsMode.set(goodreadsMode() === 'disliked' ? null : 'disliked')">{{ goodreadsSaved() ? 'Tu perfil de Goodreads ya está guardado' : '¿Tienes tu biblioteca en Goodreads? Prefiero importarla' }}</button>
+                @if (goodreadsMode() === 'disliked') {
+                  <div class="mt-3">
+                    <p class="mb-2 text-sm text-[#536875]">Pega el enlace de tu perfil de Goodreads. Tu equipo la revisará manualmente para armar tu perfil.</p>
+                    <div class="flex gap-2">
+                      <input [(ngModel)]="goodreadsUrl" (ngModelChange)="goodreadsSaved.set(false); goodreadsMessage.set(null)" placeholder="https://www.goodreads.com/user/show/…" class="w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2">
+                      <button type="button" class="shrink-0 rounded-sm bg-ink px-4 py-2 text-sm font-bold text-white transition hover:bg-ink-soft disabled:cursor-wait disabled:opacity-60" (click)="saveGoodreads()" [disabled]="goodreadsSaving() || !goodreadsUrl.trim()">{{ goodreadsSaved() ? 'Guardado' : 'Guardar' }}</button>
+                    </div>
+                    @if (goodreadsMessage()) {
+                      <p class="mt-2 text-sm text-[#536875]">{{ goodreadsMessage() }}</p>
+                    }
+                  </div>
+                }
+              </div>
             </div>
           } @else if (current.responseType === 'scale') {
             <div class="flex gap-2 sm:gap-3">
@@ -480,7 +512,7 @@ const DRAFTS_STORAGE_PREFIX = 'mls:questionnaire-drafts:v1:';
           }
 
           <div class="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
-            @if (history().length > 0) {
+            @if (canGoBack()) {
               <button
                 class="w-full rounded-sm border border-[#7d9ab0] px-6 py-3 text-sm font-bold text-ink transition hover:bg-[#e6eef3] disabled:cursor-wait disabled:opacity-60 sm:w-auto"
                 type="button"
@@ -551,6 +583,8 @@ export class Questionnaire implements OnDestroy {
 
   readonly position = computed(() => this.question()?.position ?? Math.min(this.history().length + 1, TOTAL_QUESTIONS));
 
+  readonly canGoBack = computed(() => this.history().length > 0 || this.position() > 1);
+
   readonly progress = computed(() => {
     const total = this.totalQuestions();
     if (total <= 0) return 0;
@@ -583,6 +617,11 @@ export class Questionnaire implements OnDestroy {
   dislikedBookReasons: Record<string, string[]> = {};
   dislikedBookReasonTexts: Record<string, string> = {};
   dislikedBookRatings: Record<string, number> = {};
+  readonly goodreadsMode = signal<'loved' | 'disliked' | null>(null);
+  readonly goodreadsSaving = signal(false);
+  readonly goodreadsSaved = signal(false);
+  readonly goodreadsMessage = signal<string | null>(null);
+  goodreadsUrl = '';
   complexity: { linguistic: number | null; structural: number | null } = { linguistic: null, structural: null };
   lengthSeries = { minPages: 100, maxPages: 400, seriesPreference: 'standalone_preferred' };
   languagePreferences = { spanish: true, english: false };
@@ -624,6 +663,9 @@ export class Questionnaire implements OnDestroy {
     this.bootstrapped = true;
     try {
       const sessions = await this.api.listSessions();
+      const profile = await this.api.getProfile();
+      this.goodreadsUrl = profile.goodreadsUrl ?? '';
+      this.goodreadsSaved.set(Boolean(this.goodreadsUrl));
       if (sessions.some((session) => session.status === 'completed')) {
         this.alreadyCompleted.set(true);
         return;
@@ -702,14 +744,28 @@ export class Questionnaire implements OnDestroy {
 
   async goBack(): Promise<void> {
     const session = this.session();
-    const previousKey = this.history().at(-1);
-    if (!session || !previousKey) return;
+    const current = this.question();
+    if (!session || !current) return;
     await this.run(async () => {
+      let answeredKeys = this.history();
+      const sessions = await this.api.listSessions();
+      const savedSession = sessions.find((item) => item.id === session.id);
+      if (savedSession) {
+        answeredKeys = savedSession.answers.map((answer) => answer.questionKey);
+        const currentIndex = answeredKeys.indexOf(current.questionKey);
+        if (currentIndex >= 0) answeredKeys = answeredKeys.slice(0, currentIndex);
+        this.history.set(answeredKeys);
+      } else if (answeredKeys.length === 0) {
+        return;
+      }
+      const previousKey = answeredKeys.at(-1);
+      if (!previousKey) return;
       const previous = await this.api.getQuestionWithResponse(session.id, previousKey);
       this.applySavedResponse(previous, previous.response);
       this.question.set(previous);
       this.restoreDraft(previous);
-      this.history.update((items) => items.slice(0, -1));
+      this.syncGoodreadsQuestion(previous);
+      this.history.set(answeredKeys.slice(0, -1));
     });
   }
 
@@ -915,11 +971,29 @@ export class Questionnaire implements OnDestroy {
     return this.tagSelections[group].flatMap((tagKey) => this.tags().filter((tag) => tag.tagKey === tagKey));
   }
 
+  async saveGoodreads(): Promise<void> {
+    const url = this.goodreadsUrl.trim();
+    if (!url) return;
+    this.goodreadsSaving.set(true);
+    this.goodreadsMessage.set(null);
+    try {
+      const result = await this.api.updateGoodreads(url);
+      this.goodreadsUrl = result.goodreadsUrl ?? '';
+      this.goodreadsSaved.set(true);
+      this.goodreadsMessage.set('Gracias, guardamos tu perfil de Goodreads. Lo revisaremos para armar tu ficha de lectura.');
+    } catch (error) {
+      this.goodreadsMessage.set(error instanceof Error ? error.message : 'No pudimos guardar tu perfil de Goodreads.');
+    } finally {
+      this.goodreadsSaving.set(false);
+    }
+  }
+
   private hasCurrentResponse(): boolean {
     const question = this.question();
     if (!question) return false;
     if (question.questionKey === 'Q01_LOVED_BOOKS' || question.questionKey === 'Q02_DISLIKED_BOOK') {
-      return this.lovedBooks.length > 0 || this.dislikedBooks.length > 0;
+      const importKey = question.questionKey === 'Q01_LOVED_BOOKS' ? 'loved' : 'disliked';
+      return (this.goodreadsMode() === importKey && this.goodreadsSaved()) || this.lovedBooks.length > 0 || this.dislikedBooks.length > 0;
     }
     if (question.responseType === 'scale') return this.scaleValue !== null;
     if (question.responseType === 'single_select' || question.responseType === 'multi_select' || question.responseType === 'ranking') {
@@ -939,6 +1013,9 @@ export class Questionnaire implements OnDestroy {
 
   private validate(question: Question): string | null {
     if (question.questionKey === 'Q01_LOVED_BOOKS') {
+      if (this.goodreadsMode() === 'loved') {
+        return this.goodreadsSaved() ? null : 'Guarda primero tu URL de Goodreads para continuar.';
+      }
       if (this.lovedBooks.length < (question.validation?.minItems ?? 1)) return `Agrega al menos ${question.validation?.minItems ?? 1} libros que te hayan gustado.`;
       const missingAspects = this.lovedBooks.find((book) => (this.lovedBookAspects[book.openLibraryId] ?? []).length === 0);
       if (missingAspects) return `Selecciona qué te gustó de «${missingAspects.title}».`;
@@ -946,6 +1023,9 @@ export class Questionnaire implements OnDestroy {
       return missingRatings ? `Califica «${missingRatings.title}» de 1 a 5.` : null;
     }
     if (question.questionKey === 'Q02_DISLIKED_BOOK') {
+      if (this.goodreadsMode() === 'disliked') {
+        return this.goodreadsSaved() ? null : 'Guarda primero tu URL de Goodreads para continuar.';
+      }
       if (this.dislikedBooks.length < (question.validation?.minItems ?? 1)) return `Agrega al menos ${question.validation?.minItems ?? 1} libros que no te hayan gustado.`;
       const missingReasons = this.dislikedBooks.find((book) => (this.dislikedBookReasons[book.openLibraryId] ?? []).length === 0);
       if (missingReasons) return `Selecciona el motivo de «${missingReasons.title}».`;
@@ -980,9 +1060,11 @@ export class Questionnaire implements OnDestroy {
     if (question.responseType === 'single_select') return this.selectedKeys[0];
     if (question.responseType === 'multi_select') return this.selectedKeys;
     if (question.responseType === 'ranking') return { ranking: this.selectedKeys };
+    if (question.questionKey === 'Q01_LOVED_BOOKS' && this.goodreadsMode() === 'loved') return { skipped: true };
     if (question.questionKey === 'Q01_LOVED_BOOKS') return {
       books: this.lovedBooks.map((book) => ({ work_id: book.openLibraryId, edition_id: book.openLibraryEditionId, cover_id: book.coverId, title: book.title, rating: this.lovedBookRatings[book.openLibraryId], liked_aspects: this.lovedBookAspects[book.openLibraryId] ?? [], free_text: (this.lovedBookComments[book.openLibraryId] ?? '').trim() || null })),
     };
+    if (question.questionKey === 'Q02_DISLIKED_BOOK' && this.goodreadsMode() === 'disliked') return { skipped: true };
     if (question.questionKey === 'Q02_DISLIKED_BOOK') return {
       books: this.dislikedBooks.map((book) => ({
         work_id: book.openLibraryId,
@@ -1027,6 +1109,7 @@ export class Questionnaire implements OnDestroy {
     this.dislikedBookReasons = {};
     this.dislikedBookReasonTexts = {};
     this.dislikedBookRatings = {};
+    this.goodreadsMessage.set(null);
     this.tagQueries = { liked: '', curious: '', notInterested: '' };
     this.tagSelections = { liked: [], curious: [], notInterested: [] };
     this.activeTagGroup = null;
@@ -1229,6 +1312,7 @@ export class Questionnaire implements OnDestroy {
     const previous = await this.api.getQuestionWithResponse(session.id, latest[0]);
     this.applySavedResponse(previous, previous.response);
     this.restoreDraft(previous);
+    this.syncGoodreadsQuestion(previous);
     this.question.set(previous);
     return true;
   }
@@ -1246,8 +1330,24 @@ export class Questionnaire implements OnDestroy {
 
   private async applyNextQuestion(nextQuestion: Question | null): Promise<void> {
     this.question.set(nextQuestion);
-    if (nextQuestion) this.restoreDraft(nextQuestion);
-    else await this.completeQuestionnaire();
+    if (nextQuestion) {
+      this.restoreDraft(nextQuestion);
+      this.syncGoodreadsQuestion(nextQuestion);
+    } else {
+      await this.completeQuestionnaire();
+    }
+  }
+
+  private syncGoodreadsQuestion(question: Question | null): void {
+    if (!question || (question.questionKey !== 'Q01_LOVED_BOOKS' && question.questionKey !== 'Q02_DISLIKED_BOOK')) {
+      this.goodreadsMode.set(null);
+      return;
+    }
+    const key = question.questionKey === 'Q01_LOVED_BOOKS' ? 'loved' : 'disliked';
+    this.goodreadsMode.set(this.goodreadsSaved() ? key : null);
+    if (this.goodreadsSaved()) {
+      this.goodreadsMessage.set('Tu perfil de Goodreads ya está guardado. Puedes actualizarlo aquí si lo necesitas.');
+    }
   }
 
   private async run(operation: () => Promise<void>): Promise<void> {
