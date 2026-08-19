@@ -639,20 +639,29 @@ run('cadena envío -> invitación -> feedback', () => {
     expect(stored.recommendationId).toBeNull();
   });
 
-  it('close-without-feedback revoca la invitación y genera 0 evidencias; reissue bloqueado', async () => {
+  it('close-without-feedback revoca la invitación y genera 0 evidencias; ver QR sigue activo sin reabrir el ciclo', async () => {
     const { edition, classification } = await makeApprovedEdition();
     const userId = '99999999-9999-9999-9999-999999999999';
     await prisma!.user.create({ data: { id: userId } });
     const { fulfillment } = await makeOrderFulfillment(userId);
     const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
     await curationService!.pack(assignment.id);
-    await curationService!.ship(assignment.id);
+    const shipped = await curationService!.ship(assignment.id);
     await curationService!.closeWithoutFeedback(assignment.id);
     const cycle = await prisma!.curationAssignment.findUnique({ where: { id: assignment.id } });
     expect(cycle?.feedbackCycleStatus).toBe('closed_without_feedback');
     const evidence = await prisma!.readerEvidence.findMany({ where: { bookId: edition.bookId } });
     expect(evidence.length).toBe(0);
-    await expect(curationService!.reissueInvitation(assignment.id)).rejects.toThrow();
+
+    const viewed = await curationService!.reissueInvitation(assignment.id);
+    expect(viewed.plainToken).toBe(shipped.plainToken);
+    expect(viewed.url).toBe(shipped.url);
+    expect(viewed.feedbackCycleStatus).toBe('closed_without_feedback');
+    const after = await prisma!.curationAssignment.findUnique({ where: { id: assignment.id } });
+    expect(after?.feedbackCycleStatus).toBe('closed_without_feedback');
+    const invitations = await prisma!.feedbackInvitation.findMany({ where: { curationAssignmentId: assignment.id } });
+    expect(invitations.length).toBe(1);
+    expect(invitations[0]!.status).toBe('revoked');
   });
 
   it('reabrir un ciclo cerrado sin feedback restaura la misma invitación (mismo URL)', async () => {

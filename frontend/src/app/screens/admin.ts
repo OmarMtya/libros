@@ -412,8 +412,8 @@ const aspectLabels: Partial<Record<string, string>> = {
                 @if (assignment.fulfillment.status === 'delivered') {
                   <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="action('undo-delivered', assignment.id)">Deshacer entregado</button>
                 }
+                <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="action('reissue-invitation', assignment.id)">Ver invitación</button>
                 @if (['invited', 'provisional_received'].includes(assignment.feedbackCycleStatus)) {
-                  <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="action('reissue-invitation', assignment.id)">Ver invitación</button>
                   @if (assignment.feedbacks.length === 0) {
                     <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="action('close-without-feedback', assignment.id)">Cerrar sin feedback</button>
                   }

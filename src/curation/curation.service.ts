@@ -382,38 +382,41 @@ export class CurationService {
     return this.prisma.$transaction(async (tx) => {
       const assignment = await tx.curationAssignment.findUnique({ where: { id: assignmentId }, select: { id: true, assignedBy: true, feedbackCycleStatus: true } });
       if (!assignment) throw new NotFoundException('No se encontró la asignación.');
-      if (assignment.feedbackCycleStatus === 'final_received' || assignment.feedbackCycleStatus === 'closed_without_feedback') {
-        throw new ConflictException(`No se puede reemitir una invitación con ciclo ${assignment.feedbackCycleStatus}. Usa reopen-learning para reabrirlo explícitamente.`);
-      }
       const now = new Date();
-      const pending = await tx.feedbackInvitation.findFirst({
-        where: { curationAssignmentId: assignmentId, status: 'pending' },
+      const invitations = await tx.feedbackInvitation.findMany({
+        where: { curationAssignmentId: assignmentId },
         orderBy: { createdAt: 'desc' },
-        select: { id: true, tokenHash: true, expiresAt: true },
+        select: { id: true, status: true, tokenHash: true, expiresAt: true },
       });
-      if (pending && (pending.expiresAt === null || pending.expiresAt > now)) {
+
+      const pending = invitations.find((invitation) => invitation.status === 'pending' && (invitation.expiresAt === null || invitation.expiresAt > now));
+      if (pending) {
         const plainToken = this.invitations.generateToken(pending.id);
         if (this.invitations.hashToken(plainToken) === pending.tokenHash) {
-          await this.audit.record(tx, {
-            actorId: assignment.assignedBy,
-            actionKind: 'view_invitation',
-            targetType: 'curation_assignment',
-            targetId: assignmentId,
-            reason: null,
-            payloadDiffJson: { invitationId: pending.id },
-          });
-          return {
-            invitation: { id: pending.id, curationAssignmentId: assignmentId },
-            plainToken,
-            url: this.invitations.urlFor(plainToken),
-            feedbackCycleStatus: assignment.feedbackCycleStatus,
-          };
+          return this.viewInvitation(tx, assignment, pending.id, plainToken);
         }
       }
-      if (pending) {
-        const expired = pending.expiresAt !== null && pending.expiresAt <= now;
+
+      const isClosed = assignment.feedbackCycleStatus === 'final_received' || assignment.feedbackCycleStatus === 'closed_without_feedback';
+      if (isClosed) {
+        for (const invitation of invitations) {
+          const plainToken = this.invitations.generateToken(invitation.id);
+          if (this.invitations.hashToken(plainToken) === invitation.tokenHash) {
+            return this.viewInvitation(tx, assignment, invitation.id, plainToken);
+          }
+        }
+        throw new ConflictException('No se encontró una invitación previa para mostrar el QR.');
+      }
+
+      if (assignment.feedbackCycleStatus === 'not_invited') {
+        throw new BadRequestException('El pedido aún no se ha enviado; no hay invitación para mostrar.');
+      }
+
+      const stale = invitations.find((invitation) => invitation.status === 'pending');
+      if (stale) {
+        const expired = stale.expiresAt !== null && stale.expiresAt <= now;
         await tx.feedbackInvitation.update({
-          where: { id: pending.id },
+          where: { id: stale.id },
           data: { status: expired ? 'expired' : 'revoked', revokedAt: expired ? null : now, optimisticLockVersion: { increment: 1 } },
         });
       }
@@ -428,6 +431,28 @@ export class CurationService {
       });
       return { ...created, feedbackCycleStatus: assignment.feedbackCycleStatus };
     });
+  }
+
+  private async viewInvitation(
+    tx: Prisma.TransactionClient,
+    assignment: { id: string; assignedBy: string; feedbackCycleStatus: string },
+    invitationId: string,
+    plainToken: string,
+  ) {
+    await this.audit.record(tx, {
+      actorId: assignment.assignedBy,
+      actionKind: 'view_invitation',
+      targetType: 'curation_assignment',
+      targetId: assignment.id,
+      reason: null,
+      payloadDiffJson: { invitationId },
+    });
+    return {
+      invitation: { id: invitationId, curationAssignmentId: assignment.id },
+      plainToken,
+      url: this.invitations.urlFor(plainToken),
+      feedbackCycleStatus: assignment.feedbackCycleStatus,
+    };
   }
 
   async reopenLearning(actorId: string, assignmentId: string, reason: string | undefined) {
