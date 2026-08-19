@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { FulfillmentStatus, Prisma } from '@prisma/client';
 import { EmailService } from '../email/email.service';
-import { FeedbackInvitationService } from '../feedback/feedback-invitation.service';
+import { FeedbackInvitationService, type CreatedInvitation } from '../feedback/feedback-invitation.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AssignDto, ReplaceDto, ShipDto } from './curation.dto';
 import { CuratorAuditService } from './curator-audit.service';
@@ -137,7 +137,26 @@ export class CurationService {
         data: { status: 'shipped', shippedAt: now, ...trackingData },
       });
       await tx.curationAssignment.update({ where: { id: assignmentId }, data: { feedbackCycleStatus: 'invited', optimisticLockVersion: { increment: 1 } } });
-      const created = await this.invitations.createPending(tx, assignmentId, now);
+      const pending = await tx.feedbackInvitation.findFirst({
+        where: { curationAssignmentId: assignmentId, status: 'pending' },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, tokenHash: true, expiresAt: true },
+      });
+      let created: CreatedInvitation;
+      if (pending) {
+        const plainToken = this.invitations.generateToken(pending.id);
+        if ((pending.expiresAt === null || pending.expiresAt > now) && this.invitations.hashToken(plainToken) === pending.tokenHash) {
+          created = { invitation: { id: pending.id, curationAssignmentId: assignmentId }, plainToken, url: this.invitations.urlFor(plainToken) };
+        } else {
+          await tx.feedbackInvitation.update({
+            where: { id: pending.id },
+            data: { status: pending.expiresAt !== null && pending.expiresAt <= now ? 'expired' : 'revoked', revokedAt: pending.expiresAt !== null && pending.expiresAt <= now ? null : now, optimisticLockVersion: { increment: 1 } },
+          });
+          created = await this.invitations.createPending(tx, assignmentId, now);
+        }
+      } else {
+        created = await this.invitations.createPending(tx, assignmentId, now);
+      }
       await this.audit.record(tx, {
         actorId: assignment.assignedBy,
         actionKind: 'send_book',
@@ -406,10 +425,6 @@ export class CurationService {
           }
         }
         throw new ConflictException('No se encontró una invitación previa para mostrar el QR.');
-      }
-
-      if (assignment.feedbackCycleStatus === 'not_invited') {
-        throw new BadRequestException('El pedido aún no se ha enviado; no hay invitación para mostrar.');
       }
 
       const stale = invitations.find((invitation) => invitation.status === 'pending');

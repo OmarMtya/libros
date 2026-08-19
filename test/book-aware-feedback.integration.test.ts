@@ -485,6 +485,24 @@ run('cadena envío -> invitación -> feedback', () => {
     await expect(tokenService!.resolveInvitation(fetched.plainToken)).resolves.toMatchObject({ received: false });
   });
 
+  it('permite ver la invitación antes de empaquetar y conserva el mismo QR al enviar', async () => {
+    const { edition, classification } = await makeApprovedEdition();
+    const userId = '77777776-7777-7777-7777-777777777776';
+    await prisma!.user.create({ data: { id: userId } });
+    const { fulfillment } = await makeOrderFulfillment(userId);
+    const assignment = await curationService!.assign('00000000-0000-0000-0000-0000000000aa', fulfillment.id, { bookEditionId: edition.id, classificationVersionId: classification.id });
+
+    const beforePacking = await curationService!.reissueInvitation(assignment.id);
+    expect(beforePacking.feedbackCycleStatus).toBe('not_invited');
+    expect((await prisma!.fulfillment.findUnique({ where: { id: fulfillment.id } }))?.status).toBe('assigned');
+    expect((await prisma!.feedbackInvitation.count({ where: { curationAssignmentId: assignment.id, status: 'pending' } }))).toBe(1);
+
+    const shipped = await curationService!.ship(assignment.id);
+    expect(shipped.plainToken).toBe(beforePacking.plainToken);
+    expect(shipped.url).toBe(beforePacking.url);
+    expect(await prisma!.feedbackInvitation.count({ where: { curationAssignmentId: assignment.id } })).toBe(1);
+  });
+
   it('undo logístico recorre hacia atrás delivered → in_delivery → shipped → packed → assigned', async () => {
     const { edition, classification } = await makeApprovedEdition();
     const userId = '88888888-8888-8888-8888-888888888888';
