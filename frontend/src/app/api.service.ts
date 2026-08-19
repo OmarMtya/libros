@@ -44,7 +44,13 @@ export type ProfileBookInput = {
 
 export type Tag = { tagKey: string; name: string; tagType: string };
 
-export type Session = { id: string; userId: string; status: string };
+export type Session = {
+  id: string;
+  userId: string;
+  status: string;
+  metadataJson?: unknown;
+  answers?: Array<{ questionKey: string }>;
+};
 export type SessionDetail = {
   id: string;
   userId: string;
@@ -52,6 +58,7 @@ export type SessionDetail = {
   questionnaireVersion: string;
   startedAt: string;
   completedAt: string | null;
+  metadataJson?: unknown;
   answers: Array<{ id: string; questionKey: string; answeredAt: string }>;
 };
 export type ProfileAnswer = {

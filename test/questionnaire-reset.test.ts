@@ -5,27 +5,14 @@ import { EvidenceFactory } from '../src/profile/evidence.factory';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 type TxRecord = {
-  questionnaireSession: { deleteMany: ReturnType<typeof vi.fn> };
-  readerTagPreference: { deleteMany: ReturnType<typeof vi.fn> };
-  readerOperationalConstraints: { deleteMany: ReturnType<typeof vi.fn> };
-  readerConditionalRule: { deleteMany: ReturnType<typeof vi.fn> };
-  readerPositiveTrigger: { deleteMany: ReturnType<typeof vi.fn> };
-  readerEvidence: {
-    findMany: ReturnType<typeof vi.fn>;
-    updateMany: ReturnType<typeof vi.fn>;
-  };
+  questionnaireSession: { findFirst: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
 };
 
 function mockService() {
   const tx: TxRecord = {
-    questionnaireSession: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
-    readerTagPreference: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
-    readerOperationalConstraints: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
-    readerConditionalRule: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
-    readerPositiveTrigger: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
-    readerEvidence: {
-      findMany: vi.fn().mockResolvedValue([]),
-      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+    questionnaireSession: {
+      findFirst: vi.fn().mockResolvedValue({ id: 'session-1', metadataJson: null }),
+      update: vi.fn().mockResolvedValue({ id: 'session-1' }),
     },
   };
   const prisma = {
@@ -52,43 +39,27 @@ function mockService() {
 }
 
 describe('questionnaire reset', () => {
-  it('deletes sessions and questionnaire-derived profile data, then recomputes', async () => {
+  it('reopens the completed session without deleting its answers, then recomputes', async () => {
     const { service, tx, profiles } = mockService();
     await service.reset('user-1');
 
-    expect(tx.questionnaireSession.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
-    expect(tx.readerTagPreference.deleteMany).toHaveBeenCalledWith({ where: { profileId: 'profile-1' } });
-    expect(tx.readerOperationalConstraints.deleteMany).toHaveBeenCalledWith({ where: { profileId: 'profile-1' } });
-    expect(tx.readerConditionalRule.deleteMany).toHaveBeenCalledWith({ where: { profileId: 'profile-1' } });
-    expect(tx.readerPositiveTrigger.deleteMany).toHaveBeenCalledWith({ where: { profileId: 'profile-1' } });
+    expect(tx.questionnaireSession.findFirst).toHaveBeenCalledWith({
+      where: { userId: 'user-1', questionnaireVersion: 'onboarding/1.1', status: 'completed' },
+      orderBy: { completedAt: 'desc' },
+    });
+    expect(tx.questionnaireSession.update).toHaveBeenCalledWith({
+      where: { id: 'session-1' },
+      data: { status: 'started', completedAt: null, metadataJson: { mode: 'revision' } },
+    });
     expect(profiles.recompute).toHaveBeenCalledWith('user-1', 'questionnaire_reset');
   });
 
-  it('clears supersession references and deactivates questionnaire evidence', async () => {
-    const { service, tx } = mockService();
-    tx.readerEvidence.findMany.mockResolvedValue([{ id: 'ev-1' }, { id: 'ev-2' }]);
-
-    await service.reset('user-1');
-
-    expect(tx.readerEvidence.updateMany).toHaveBeenNthCalledWith(1, {
-      where: { supersededById: { in: ['ev-1', 'ev-2'] } },
-      data: { supersededById: null },
-    });
-    const [, second] = tx.readerEvidence.updateMany.mock.calls;
-    expect(second?.[0]?.where.id.in).toEqual(['ev-1', 'ev-2']);
-    expect(second?.[0]?.data.status).toBe('rejected');
-  });
-
-  it('only touches questionnaire evidence, leaving feedback evidence active', async () => {
+  it('does not deactivate questionnaire evidence while the user edits responses', async () => {
     const { service, tx } = mockService();
 
     await service.reset('user-1');
 
-    expect(tx.readerEvidence.findMany).toHaveBeenCalledWith({
-      where: { profileId: 'profile-1', sourceType: 'questionnaire_answer' },
-      select: { id: true },
-    });
-    expect(tx.readerEvidence.updateMany).not.toHaveBeenCalled();
+    expect(tx.questionnaireSession.update).toHaveBeenCalledOnce();
   });
 
   it('invalidates the AI description without generating before the new questionnaire is complete', async () => {

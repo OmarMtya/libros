@@ -27,21 +27,24 @@ export class QuestionnaireService {
   ) {}
 
   async reset(userId: string) {
-    const profile = await this.profiles.ensureProfile(userId);
+    await this.profiles.ensureProfile(userId);
     await this.prisma.$transaction(async (tx) => {
-      await tx.questionnaireSession.deleteMany({ where: { userId } });
-      await tx.readerTagPreference.deleteMany({ where: { profileId: profile.id } });
-      await tx.readerOperationalConstraints.deleteMany({ where: { profileId: profile.id } });
-      await tx.readerConditionalRule.deleteMany({ where: { profileId: profile.id } });
-      await tx.readerPositiveTrigger.deleteMany({ where: { profileId: profile.id } });
-      const questionnaireEvidence = await tx.readerEvidence.findMany({
-        where: { profileId: profile.id, sourceType: 'questionnaire_answer' },
-        select: { id: true },
+      const session = await tx.questionnaireSession.findFirst({
+        where: { userId, questionnaireVersion: QUESTIONNAIRE_VERSION, status: 'completed' },
+        orderBy: { completedAt: 'desc' },
       });
-      const ids = questionnaireEvidence.map((item) => item.id);
-      if (ids.length > 0) {
-        await tx.readerEvidence.updateMany({ where: { supersededById: { in: ids } }, data: { supersededById: null } });
-        await tx.readerEvidence.updateMany({ where: { id: { in: ids } }, data: { status: 'rejected', deactivatedAt: new Date() } });
+      if (session) {
+        const metadata = session.metadataJson && typeof session.metadataJson === 'object' && !Array.isArray(session.metadataJson)
+          ? session.metadataJson as Record<string, unknown>
+          : {};
+        await tx.questionnaireSession.update({
+          where: { id: session.id },
+          data: {
+            status: 'started',
+            completedAt: null,
+            metadataJson: { ...metadata, mode: 'revision' } as Prisma.InputJsonValue,
+          },
+        });
       }
     });
     await this.invalidateAiDescription(userId);
@@ -83,6 +86,7 @@ export class QuestionnaireService {
     const resumable = await this.prisma.questionnaireSession.findFirst({
       where: { userId, questionnaireVersion: QUESTIONNAIRE_VERSION, status: { in: ['started', 'abandoned'] } },
       orderBy: { startedAt: 'desc' },
+      include: { answers: { select: { questionKey: true } } },
     });
     if (resumable) return resumable;
     return this.prisma.questionnaireSession.create({ data: { userId, questionnaireVersion: QUESTIONNAIRE_VERSION } });

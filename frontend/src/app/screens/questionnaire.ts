@@ -50,8 +50,8 @@ const DRAFTS_STORAGE_PREFIX = 'mls:questionnaire-drafts:v1:';
           <p class="mb-2 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Tu ficha de lectura</p>
           <h1 class="mb-3 font-display text-3xl font-bold tracking-[-0.04em] text-ink">Ya completaste tu cuestionario</h1>
           <p class="mx-auto mb-6 max-w-md text-[#536875]">
-            Puedes volver a responder cuando quieras. Al hacerlo, tus respuestas anteriores se descartan y
-            tu perfil se vuelve a calcular desde cero.
+            Puedes volver a responder cuando quieras. Conservaremos tus respuestas anteriores para que puedas
+            revisarlas y cambiar solo lo que necesites.
           </p>
           <button
             class="rounded-sm bg-coral px-6 py-3 text-sm font-bold text-white transition hover:bg-coral-deep disabled:cursor-wait disabled:opacity-60"
@@ -681,11 +681,20 @@ export class Questionnaire implements OnDestroy {
   }
 
   async startQuestionnaire(): Promise<void> {
+    await this.startQuestionnaireFrom(false);
+  }
+
+  private async startQuestionnaireFrom(editExistingResponses: boolean): Promise<void> {
     await this.run(async () => {
       const session = await this.api.createSession();
       this.session.set(session);
+      if (session.answers?.length && this.history().length === 0) {
+        this.history.set(session.answers.map((answer) => answer.questionKey));
+      }
       this.tags.set(await this.api.listTags());
-      if (!await this.resumeFromDraft()) {
+      if (editExistingResponses || this.isRevisionSession(session)) {
+        await this.loadFirstAnsweredQuestion();
+      } else if (!await this.resumeFromDraft()) {
         await this.loadNextQuestion();
       }
     });
@@ -697,8 +706,8 @@ export class Questionnaire implements OnDestroy {
       this.alreadyCompleted.set(false);
       this.history.set([]);
       this.clearAllDrafts();
-      this.toast.success('Empecemos desde cero.');
-      await this.startQuestionnaire();
+      this.toast.success('Cargamos tus respuestas anteriores para que puedas editarlas.');
+      await this.startQuestionnaireFrom(true);
     });
   }
 
@@ -713,7 +722,7 @@ export class Questionnaire implements OnDestroy {
     }
     await this.run(async () => {
       const { nextQuestion } = await this.api.submitAnswer(session.id, question.questionKey, this.responseFor(question));
-      this.history.update((items) => [...items, question.questionKey]);
+      this.history.update((items) => items.includes(question.questionKey) ? items : [...items, question.questionKey]);
       this.resetAnswer();
       this.clearDraft(question.questionKey);
       await this.applyNextQuestion(nextQuestion);
@@ -764,7 +773,7 @@ export class Questionnaire implements OnDestroy {
       this.applySavedResponse(previous, previous.response);
       this.question.set(previous);
       this.restoreDraft(previous);
-      this.syncGoodreadsQuestion(previous);
+      this.syncGoodreadsQuestion(previous, previous.response);
       this.history.set(answeredKeys.slice(0, -1));
     });
   }
@@ -1312,9 +1321,26 @@ export class Questionnaire implements OnDestroy {
     const previous = await this.api.getQuestionWithResponse(session.id, latest[0]);
     this.applySavedResponse(previous, previous.response);
     this.restoreDraft(previous);
-    this.syncGoodreadsQuestion(previous);
+    this.syncGoodreadsQuestion(previous, previous.response);
     this.question.set(previous);
     return true;
+  }
+
+  private isRevisionSession(session: Session): boolean {
+    return Boolean(session.metadataJson && typeof session.metadataJson === 'object' && !Array.isArray(session.metadataJson) && (session.metadataJson as Record<string, unknown>)['mode'] === 'revision');
+  }
+
+  private async loadFirstAnsweredQuestion(): Promise<void> {
+    const session = this.session();
+    const firstKey = this.history()[0];
+    if (!session || !firstKey) {
+      await this.loadNextQuestion();
+      return;
+    }
+    const first = await this.api.getQuestionWithResponse(session.id, firstKey);
+    this.applySavedResponse(first, first.response);
+    this.question.set(first);
+    this.syncGoodreadsQuestion(first, first.response);
   }
 
   private searchText(value: string): string {
@@ -1329,22 +1355,33 @@ export class Questionnaire implements OnDestroy {
   }
 
   private async applyNextQuestion(nextQuestion: Question | null): Promise<void> {
-    this.question.set(nextQuestion);
-    if (nextQuestion) {
-      this.restoreDraft(nextQuestion);
-      this.syncGoodreadsQuestion(nextQuestion);
+    const session = this.session();
+    const isRevision = Boolean(session && this.isRevisionSession(session));
+    let questionToShow = nextQuestion;
+    let savedResponse: unknown = undefined;
+    if (nextQuestion && isRevision && session) {
+      const savedQuestion = await this.api.getQuestionWithResponse(session.id, nextQuestion.questionKey);
+      questionToShow = savedQuestion;
+      savedResponse = savedQuestion.response;
+      this.applySavedResponse(savedQuestion, savedResponse);
+    }
+    this.question.set(questionToShow);
+    if (questionToShow) {
+      if (!isRevision) this.restoreDraft(questionToShow);
+      this.syncGoodreadsQuestion(questionToShow, isRevision ? savedResponse : undefined);
     } else {
       await this.completeQuestionnaire();
     }
   }
 
-  private syncGoodreadsQuestion(question: Question | null): void {
+  private syncGoodreadsQuestion(question: Question | null, savedResponse?: unknown): void {
     if (!question || (question.questionKey !== 'Q01_LOVED_BOOKS' && question.questionKey !== 'Q02_DISLIKED_BOOK')) {
       this.goodreadsMode.set(null);
       return;
     }
     const key = question.questionKey === 'Q01_LOVED_BOOKS' ? 'loved' : 'disliked';
-    this.goodreadsMode.set(this.goodreadsSaved() ? key : null);
+    const savedAsSkipped = savedResponse !== undefined && savedResponse !== null && typeof savedResponse === 'object' && !Array.isArray(savedResponse) && (savedResponse as Record<string, unknown>)['skipped'] === true;
+    this.goodreadsMode.set(savedResponse === undefined ? (this.goodreadsSaved() ? key : null) : (savedAsSkipped && this.goodreadsSaved() ? key : null));
     if (this.goodreadsSaved()) {
       this.goodreadsMessage.set('Tu perfil de Goodreads ya está guardado. Puedes actualizarlo aquí si lo necesitas.');
     }
