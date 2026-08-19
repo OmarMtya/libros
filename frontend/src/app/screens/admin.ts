@@ -1,7 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe, CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { type SafeUrl } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
+import { QRCodeComponent } from 'angularx-qrcode';
 import { AdminAssignment, AdminBook, AdminCandidate, AdminEdition, AdminFulfillment, AdminOrder, AdminScoreResult, AdminUser, ApiService, BookResult } from '../api.service';
 import { DialogService } from '../dialog.service';
 import { ToastService } from '../toast.service';
@@ -56,7 +58,7 @@ const aspectLabels: Partial<Record<string, string>> = {
 
 @Component({
   selector: 'app-admin',
-  imports: [FormsModule, DatePipe, CurrencyPipe],
+  imports: [FormsModule, DatePipe, CurrencyPipe, QRCodeComponent],
   template: `
     <div class="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <p class="mb-2 font-mono text-xs uppercase tracking-[0.08em] text-[#567088]">Administración</p>
@@ -626,6 +628,25 @@ const aspectLabels: Partial<Record<string, string>> = {
                   </div>
                   @if (invitationUrl() && invitationFor() === order.activeAssignment?.id) {
                     <p class="mt-2 break-all rounded-sm bg-[#e2f0e9] px-3 py-2 text-sm text-[#16442f]">Invitación: <a class="underline" [href]="invitationUrl()" target="_blank">{{ invitationUrl() }}</a></p>
+                    <div class="mt-3 flex flex-wrap items-center gap-4 rounded-sm border border-[#d6e1e8] bg-[#f7fafc] p-3">
+                      <qrcode
+                        [qrdata]="invitationUrl()!"
+                        [width]="240"
+                        [elementType]="'canvas'"
+                        [errorCorrectionLevel]="'H'"
+                        [margin]="4"
+                        [ariaLabel]="'Código QR de la invitación'"
+                        (qrCodeURL)="setQrImageUrl($event)" />
+                      <div class="max-w-sm text-sm text-[#536875]">
+                        <p class="font-semibold text-ink">QR listo para imprimir</p>
+                        <p class="mt-1">Descarga la imagen y colócala en la carta del paquete.</p>
+                        @if (qrImageUrl(); as imageUrl) {
+                          <a class="mt-3 inline-block rounded-sm bg-ink px-3 py-2 text-sm font-bold text-white hover:bg-ink-soft" [href]="imageUrl" [download]="qrFilename()">Descargar PNG</a>
+                        } @else {
+                          <p class="mt-3 font-mono text-xs uppercase tracking-wide text-[#567088]">Generando imagen…</p>
+                        }
+                      </div>
+                    </div>
                   }
                 }
               </div>
@@ -673,6 +694,7 @@ export class AdminScreen {
   });
   readonly invitationUrl = signal<string | null>(null);
   readonly invitationFor = signal<string | null>(null);
+  readonly qrImageUrl = signal<SafeUrl | null>(null);
   private readonly confirmations: Record<string, { title: string; message: string; confirmLabel: string; danger?: boolean }> = {
     pack: { title: 'Empaquetar pedido', message: '¿Marcar el pedido como empaquetado?', confirmLabel: 'Empaquetar' },
     'in-delivery': { title: 'Marcar en proceso de entrega', message: '¿Marcar el pedido como en proceso de entrega?', confirmLabel: 'Marcar' },
@@ -1247,8 +1269,7 @@ export class AdminScreen {
     await this.run(async () => {
       const result = await this.api.adminAction(action, assignmentId);
       if (result.url) {
-        this.invitationUrl.set(result.url);
-        this.invitationFor.set(assignmentId);
+        this.showInvitation(result.url, assignmentId);
       }
       await this.loadAssignments();
     });
@@ -1274,12 +1295,25 @@ export class AdminScreen {
     await this.run(async () => {
       const result = await this.api.adminReopenLearning(assignmentId, undefined);
       if (result.url) {
-        this.invitationUrl.set(result.url);
-        this.invitationFor.set(assignmentId);
+        this.showInvitation(result.url, assignmentId);
       }
       this.toast.success('Ciclo reabierto. Nueva invitación generada.');
       await this.loadAssignments();
     });
+  }
+
+  setQrImageUrl(url: SafeUrl): void {
+    this.qrImageUrl.set(url);
+  }
+
+  qrFilename(): string {
+    return `invitacion-${this.invitationFor()?.slice(0, 8) ?? 'qr'}.png`;
+  }
+
+  private showInvitation(url: string, assignmentId: string): void {
+    if (this.invitationUrl() !== url) this.qrImageUrl.set(null);
+    this.invitationUrl.set(url);
+    this.invitationFor.set(assignmentId);
   }
 
   private async run(operation: () => Promise<void>): Promise<void> {
