@@ -619,8 +619,14 @@ const aspectLabels: Partial<Record<string, string>> = {
                     @if ((order.fulfillment.status === 'shipped' || order.fulfillment.status === 'in_delivery' || order.fulfillment.status === 'delivered') && order.activeAssignment) {
                       <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3] disabled:opacity-60" [disabled]="loading()" (click)="editTracking(order)">Editar guía</button>
                     }
+                    @if (order.activeAssignment) {
+                      <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="action('reissue-invitation', order.activeAssignment.id)">Ver invitación</button>
+                    }
                     <button type="button" class="rounded-sm border border-[#7d9ab0] px-3 py-1 text-sm hover:bg-[#e6eef3]" (click)="openReader(order.user.id)">Ver lector</button>
                   </div>
+                  @if (invitationUrl() && invitationFor() === order.activeAssignment?.id) {
+                    <p class="mt-2 break-all rounded-sm bg-[#e2f0e9] px-3 py-2 text-sm text-[#16442f]">Invitación: <a class="underline" [href]="invitationUrl()" target="_blank">{{ invitationUrl() }}</a></p>
+                  }
                 }
               </div>
             }
