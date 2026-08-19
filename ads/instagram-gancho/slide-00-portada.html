@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>5 libros para cuando necesitas un gancho r&aacute;pido &middot; Portada</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Instrument+Sans:ital,wdth,wght@0,75..100,400..700;1,75..100,400..700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #132a3a;
+      --ink-deep: #07131d;
+      --coral: #dd5d46;
+      --marker: #f2be45;
+      --paper: #f5f0e8;
+      --muted: #3b596c;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: var(--paper);
+      font-family: 'Instrument Sans', Arial, sans-serif;
+    }
+
+    .cover-slide {
+      position: relative;
+      width: 1080px;
+       height: 1350px;
+      flex-shrink: 0;
+      overflow: hidden;
+      color: var(--ink);
+      background: var(--paper);
+      transform-origin: center center;
+    }
+
+    .photo {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center center;
+      opacity: 1;
+      filter: brightness(1.06) saturate(0.94);
+    }
+
+    .veil {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(245, 240, 232, 0.14) 0%, rgba(245, 240, 232, 0.02) 46%, rgba(7, 19, 29, 0.2) 100%),
+        linear-gradient(90deg, rgba(245, 240, 232, 0.2) 0%, rgba(245, 240, 232, 0) 58%, rgba(7, 19, 29, 0.12) 100%);
+    }
+
+    .grain {
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(rgba(19, 42, 58, 0.18) 0.7px, transparent 0.7px);
+      background-size: 9px 9px;
+      opacity: 0.08;
+      pointer-events: none;
+    }
+
+    .content {
+      position: relative;
+      z-index: 2;
+      display: block;
+      height: 100%;
+      padding: 62px 72px 52px;
+    }
+
+    .topline {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 30px;
+    }
+
+    .brand {
+      color: var(--ink);
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 42px;
+      font-weight: 800;
+      letter-spacing: -0.055em;
+      line-height: 0.95;
+    }
+
+    .brand span {
+      display: inline-block;
+      padding: 4px 10px 6px;
+      background: var(--coral);
+    }
+
+    .headline-block {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 830px;
+      margin: 0;
+      padding: 46px 52px 50px;
+      color: var(--ink);
+      background: rgba(245, 240, 232, 0.94);
+      border-top: 12px solid var(--coral);
+      box-shadow: 0 24px 70px rgba(7, 19, 29, 0.2);
+      text-align: center;
+      transform: translate(-50%, -50%);
+    }
+
+    .eyebrow {
+      display: inline-block;
+      margin: 0 auto 24px;
+      padding: 9px 13px 8px;
+      color: var(--ink);
+      background: var(--marker);
+      font-family: 'IBM Plex Mono', Consolas, monospace;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 790px;
+      color: var(--ink);
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 102px;
+      font-weight: 800;
+      letter-spacing: -0.07em;
+      line-height: 0.86;
+      text-transform: uppercase;
+      text-shadow: none;
+    }
+
+    h1 .highlight {
+      display: inline-block;
+      padding: 0 12px 6px;
+      color: var(--ink);
+      background: var(--marker);
+      text-shadow: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .cover-slide {
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="cover-slide" id="cover-slide" aria-label="Portada del carrusel 5 libros para cuando necesitas un gancho r&aacute;pido">
+    <img
+      class="photo"
+       src="https://images.pexels.com/photos/4218981/pexels-photo-4218981.jpeg?auto=compress&cs=tinysrgb&w=1600"
+       alt="Persona leyendo un libro con luz natural">
+    <div class="veil" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+
+    <div class="content">
+      <div>
+        <header class="topline">
+           <p class="brand">Mi Libro <span>Sorpresa</span></p>
+        </header>
+
+        <section class="headline-block">
+          <p class="eyebrow">Para lectores impacientes</p>
+          <h1>5 libros para cuando necesitas un <span class="highlight">gancho r&aacute;pido</span></h1>
+        </section>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      var canvas = document.getElementById('cover-slide');
+      function fit() {
+         var scale = Math.min(window.innerWidth / 1080, window.innerHeight / 1350, 1);
+        canvas.style.transform = 'scale(' + scale + ')';
+      }
+      window.addEventListener('resize', fit);
+      fit();
+    })();
+  </script>
+</body>
+</html>

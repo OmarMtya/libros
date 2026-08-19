@@ -9,7 +9,7 @@ import {
   statSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname, basename } from 'node:path';
+import { join, dirname, basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 function killTree(pid) {
@@ -24,8 +24,9 @@ const CHROME =
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const SCALE = Math.max(1, Number(process.env.SCALE || 2));
 const W = 1080;
-const H = 1920;
-const OUT_DIR = join(here, 'export');
+const H = 1350;
+const SOURCE_DIR = resolve(process.env.SOURCE_DIR || here);
+const OUT_DIR = resolve(process.env.OUT_DIR || join(here, 'export'));
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -165,9 +166,9 @@ async function renderPage(cdp, url, outPath) {
 }
 
 async function main() {
-  const files = readdirSync(here)
+  const files = readdirSync(SOURCE_DIR)
     .filter((f) => /\.html$/i.test(f))
-    .filter((f) => statSync(join(here, f)).isFile());
+    .filter((f) => statSync(join(SOURCE_DIR, f)).isFile());
   if (!files.length) throw new Error('No hay archivos .html en la carpeta');
 
   mkdirSync(OUT_DIR, { recursive: true });
@@ -198,7 +199,7 @@ async function main() {
 
     console.log(`Renderizando ${files.length} historias a ${W * SCALE}x${H * SCALE}px...`);
     for (const f of files) {
-      const url = 'file:///' + join(here, f).replace(/\\/g, '/');
+      const url = 'file:///' + join(SOURCE_DIR, f).replace(/\\/g, '/');
       await renderPage(cdp, url, join(OUT_DIR, f.replace(/\.html$/i, '.png')));
     }
   } finally {
