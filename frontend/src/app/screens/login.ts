@@ -53,7 +53,8 @@ const TRUST_LINE = ['Libro físico', 'Pago único', 'Sin suscripción', 'Envío 
 
         <section class="w-full max-w-md lg:max-w-sm xl:max-w-md">
           <div class="rounded-sm border border-white/10 bg-white p-6 text-graphite shadow-[0_24px_60px_rgba(8,20,30,0.45)] sm:p-8">
-            <div class="mb-7 grid grid-cols-2 gap-1 rounded-sm border border-[#d8e1e8] bg-[#eef3f6] p-1" role="tablist" aria-label="Acceso">
+             @if (mode() !== 'forgot') {
+             <div class="mb-7 grid grid-cols-2 gap-1 rounded-sm border border-[#d8e1e8] bg-[#eef3f6] p-1" role="tablist" aria-label="Acceso">
               <button
                 type="button"
                 role="tab"
@@ -75,66 +76,78 @@ const TRUST_LINE = ['Libro físico', 'Pago único', 'Sin suscripción', 'Envío 
                 [class.text-[#567088]]="mode() !== 'register'"
                 (click)="switchMode('register')">
                 Crear cuenta
-              </button>
-            </div>
+               </button>
+             </div>
+             }
 
-            <div #authPanel>
-            <h2 class="font-display text-2xl font-bold tracking-[-0.03em] text-ink sm:text-3xl">
-              {{ mode() === 'login' ? 'Bienvenido de vuelta' : 'Crea tu perfil lector' }}
-            </h2>
-            <p class="mb-6 mt-2 text-sm leading-relaxed text-[#536875]">
-              {{ mode() === 'login'
-                ? 'Entra para continuar armando tu próxima sorpresa.'
-                : 'Cuéntanos cómo lees y empecemos a elegir un libro con intención.' }}
-            </p>
+             <div #authPanel>
+             <h2 class="font-display text-2xl font-bold tracking-[-0.03em] text-ink sm:text-3xl">
+               {{ mode() === 'login' ? 'Bienvenido de vuelta' : (mode() === 'register' ? 'Crea tu perfil lector' : 'Recupera tu acceso') }}
+             </h2>
+             <p class="mb-6 mt-2 text-sm leading-relaxed text-[#536875]">
+               {{ mode() === 'login'
+                 ? 'Entra para continuar armando tu próxima sorpresa.'
+                 : (mode() === 'register'
+                   ? 'Cuéntanos cómo lees y empecemos a elegir un libro con intención.'
+                   : 'Escribe tu correo y te enviaremos un enlace para crear una contraseña nueva.') }}
+             </p>
 
-            <form class="space-y-4" (ngSubmit)="submit()">
-              @if (mode() === 'register') {
+             <form class="space-y-4" (ngSubmit)="submit()">
+               @if (mode() === 'register') {
                 <label class="block">
-                  <span class="mb-1.5 block text-sm font-semibold text-ink">Tu nombre</span>
+                   <span class="mb-1.5 block text-sm font-semibold text-ink">Tu nombre</span>
                   <input
                     [(ngModel)]="name"
                     name="name"
                     type="text"
                     autocomplete="name"
-                    placeholder="Cómo quieres que te llamemos"
-                    class="w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2.5 text-ink placeholder:text-[#8fa8bc] focus:border-ink">
+                     placeholder="Cómo quieres que te llamemos"
+                     class="w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2.5 text-ink placeholder:text-[#8fa8bc] focus:border-ink">
                 </label>
-              }
-              <label class="block">
+                }
+
+               <label class="block">
                 <span class="mb-1.5 block text-sm font-semibold text-ink">Correo electrónico</span>
                 <input
                   [(ngModel)]="email"
                   name="email"
                   type="email"
                   autocomplete="email"
-                  placeholder="tucorreo@ejemplo.com"
-                  class="w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2.5 text-ink placeholder:text-[#8fa8bc] focus:border-ink">
-              </label>
-              <label class="block">
-                <span class="mb-1.5 block text-sm font-semibold text-ink">Contraseña</span>
-                <div class="relative">
-                  <input
-                    [(ngModel)]="password"
-                    name="password"
-                    [type]="showPassword() ? 'text' : 'password'"
-                    [attr.autocomplete]="mode() === 'login' ? 'current-password' : 'new-password'"
-                    placeholder="Mínimo 6 caracteres"
-                    class="w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2.5 pr-11 text-ink placeholder:text-[#8fa8bc] focus:border-ink">
-                  <button
-                    type="button"
-                    class="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-[#7d9ab0] transition hover:text-ink active:scale-90"
-                    [attr.aria-label]="showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
-                    [attr.aria-pressed]="showPassword()"
-                    (click)="showPassword.set(!showPassword())">
-                    @if (showPassword()) {
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 0 1-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"/></svg>
-                    } @else {
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
-                    }
-                  </button>
-                </div>
-              </label>
+                   placeholder="tucorreo@ejemplo.com"
+                   class="w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2.5 text-ink placeholder:text-[#8fa8bc] focus:border-ink">
+               </label>
+               @if (mode() !== 'forgot') {
+                 <label class="block">
+                   <span class="mb-1.5 block text-sm font-semibold text-ink">Contraseña</span>
+                   <div class="relative">
+                     <input
+                       [(ngModel)]="password"
+                       name="password"
+                       [type]="showPassword() ? 'text' : 'password'"
+                       [attr.autocomplete]="mode() === 'login' ? 'current-password' : 'new-password'"
+                       placeholder="Mínimo 6 caracteres"
+                       class="w-full rounded-sm border border-[#9eb2c1] bg-white px-3 py-2.5 pr-11 text-ink placeholder:text-[#8fa8bc] focus:border-ink">
+                     <button
+                       type="button"
+                       class="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-[#7d9ab0] transition hover:text-ink active:scale-90"
+                       [attr.aria-label]="showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                       [attr.aria-pressed]="showPassword()"
+                       (click)="showPassword.set(!showPassword())">
+                       @if (showPassword()) {
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 0 1-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"/></svg>
+                       } @else {
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573 3.007-9.963 7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+                       }
+                     </button>
+                   </div>
+                 </label>
+               }
+
+               @if (mode() === 'login') {
+                 <button type="button" class="-mt-1 text-left text-sm font-semibold text-ink underline underline-offset-2 hover:text-coral" (click)="switchMode('forgot')">
+                   ¿Olvidaste tu contraseña?
+                 </button>
+               }
 
               @if (error()) {
                 <p class="rounded-sm border-l-[3px] border-coral bg-[#fbe9e6] px-3 py-2 text-sm text-[#7a2c1f]" role="alert">
@@ -169,23 +182,24 @@ const TRUST_LINE = ['Libro físico', 'Pago único', 'Sin suscripción', 'Envío 
                 </p>
               }
 
-              <button
-                type="submit"
+               <button
+                 type="submit"
                 [disabled]="busy()"
                 class="w-full rounded-sm bg-coral px-6 py-3 text-sm font-bold text-white transition hover:bg-coral-deep active:scale-[0.97] disabled:cursor-wait disabled:opacity-60">
-                {{ busy() ? 'Un momento…' : (mode() === 'login' ? 'Iniciar sesión' : 'Crear mi cuenta') }}
-              </button>
+                 {{ busy() ? 'Un momento…' : (mode() === 'login' ? 'Iniciar sesión' : (mode() === 'register' ? 'Crear mi cuenta' : 'Enviar enlace de recuperación')) }}
+               </button>
             </form>
 
             </div>
 
-            <div class="my-5 flex items-center gap-3" aria-hidden="true">
+             @if (mode() !== 'forgot') {
+             <div class="my-5 flex items-center gap-3" aria-hidden="true">
               <span class="h-px flex-1 bg-[#d8e1e8]"></span>
               <span class="font-mono text-[11px] uppercase tracking-[0.08em] text-[#7d9ab0]">o</span>
               <span class="h-px flex-1 bg-[#d8e1e8]"></span>
-            </div>
+             </div>
 
-            <button
+             <button
               type="button"
               class="flex w-full items-center justify-center gap-3 rounded-sm border border-[#9eb2c1] bg-white px-6 py-3 text-sm font-bold text-ink transition hover:bg-[#eef3f6] active:scale-[0.97] disabled:cursor-wait disabled:opacity-60"
               (click)="google()"
@@ -196,18 +210,26 @@ const TRUST_LINE = ['Libro físico', 'Pago único', 'Sin suscripción', 'Envío 
                 <path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"/>
                 <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"/>
               </svg>
-              Continuar con Google
-            </button>
+               Continuar con Google
+             </button>
+             }
 
-            <p class="mt-5 text-center text-sm text-[#567088]">
+             @if (mode() !== 'forgot') {
+             <p class="mt-5 text-center text-sm text-[#567088]">
               {{ mode() === 'login' ? '¿Aún no tienes cuenta?' : '¿Ya tienes una cuenta?' }}
               <button
                 type="button"
                 class="font-semibold text-ink underline underline-offset-2 hover:text-coral"
                 (click)="switchMode(mode() === 'login' ? 'register' : 'login')">
-                {{ mode() === 'login' ? 'Crear cuenta' : 'Iniciar sesión' }}
-              </button>
-            </p>
+               {{ mode() === 'login' ? 'Crear cuenta' : 'Iniciar sesión' }}
+               </button>
+             </p>
+             } @else {
+               <p class="mt-5 text-center text-sm text-[#567088]">
+                 ¿Recordaste tu contraseña?
+                 <button type="button" class="font-semibold text-ink underline underline-offset-2 hover:text-coral" (click)="switchMode('login')">Volver a iniciar sesión</button>
+               </p>
+             }
           </div>
 
           <p class="mt-5 text-center font-mono text-[11px] uppercase tracking-[0.08em] text-mist/80">
@@ -227,7 +249,7 @@ export class Login {
   readonly LOGIN_MEDIA = LOGIN_MEDIA;
   readonly TRUST_LINE = TRUST_LINE;
 
-  readonly mode = signal<'login' | 'register'>('login');
+  readonly mode = signal<'login' | 'register' | 'forgot'>('login');
   readonly busy = signal(false);
   readonly showPassword = signal(false);
   readonly error = signal<string | null>(null);
@@ -256,7 +278,7 @@ export class Login {
   password = '';
   acceptedTerms = false;
 
-  switchMode(mode: 'login' | 'register'): void {
+  switchMode(mode: 'login' | 'register' | 'forgot'): void {
     this.mode.set(mode);
     this.error.set(null);
     this.info.set(null);
@@ -267,8 +289,8 @@ export class Login {
     if (this.busy()) return;
     const email = this.email.trim();
     const password = this.password;
-    if (!email || !password) {
-      this.error.set('Completa tu correo y tu contraseña.');
+    if (!email || (this.mode() !== 'forgot' && !password)) {
+      this.error.set(this.mode() === 'forgot' ? 'Escribe tu correo electrónico.' : 'Completa tu correo y tu contraseña.');
       return;
     }
     if (this.mode() === 'register') {
@@ -294,7 +316,7 @@ export class Login {
         await this.store.signInWithEmail(email, password);
         this.toast.success('Hola de nuevo. Retomemos tu perfil lector.');
         await this.router.navigate(['/app']);
-      } else {
+      } else if (this.mode() === 'register') {
         const result = await this.store.signUpWithEmail(email, password, this.name.trim());
         if (result.needsConfirmation) {
           this.switchMode('login');
@@ -303,6 +325,9 @@ export class Login {
           this.toast.success('Tu perfil lector está listo.');
           await this.router.navigate(['/app']);
         }
+      } else {
+        await this.auth.resetPasswordForEmail(email);
+        this.info.set('Si existe una cuenta con ese correo, recibirás un enlace para crear una contraseña nueva. Revisa también tu carpeta de spam.');
       }
     } catch (err) {
       this.error.set(this.translateError(err));

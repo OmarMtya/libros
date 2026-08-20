@@ -39,7 +39,7 @@ export class App {
 }
 
 function inShell(path: string, loggedIn: boolean): boolean {
-  if (!path.startsWith('/app') || path === '/app/login') return false;
+  if (!path.startsWith('/app') || path === '/app/login' || path === '/app/restablecer-contrasena') return false;
   if (path.startsWith('/app/perfil/')) return loggedIn;
   return true;
 }

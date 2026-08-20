@@ -7,6 +7,7 @@ import { profileGuard } from './guards/profile.guard';
 export const routes: Routes = [
   { path: '', loadComponent: () => import('./screens/landing').then((m) => m.Landing) },
   { path: 'app/login', loadComponent: () => import('./screens/login').then((m) => m.Login) },
+  { path: 'app/restablecer-contrasena', loadComponent: () => import('./screens/reset-password').then((m) => m.ResetPassword) },
   { path: 'app', redirectTo: 'app/experiencia', pathMatch: 'full' },
   { path: 'app/cuestionario', loadComponent: () => import('./screens/questionnaire').then((m) => m.Questionnaire), canActivate: [authGuard] },
   { path: 'app/experiencia', loadComponent: () => import('./screens/experience').then((m) => m.Experience), canActivate: [authGuard, profileGuard] },

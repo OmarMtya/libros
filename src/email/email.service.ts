@@ -30,23 +30,29 @@ export class EmailService {
     vars: EmailTemplateMap[K],
     idempotencyKey: string,
   ): Promise<void> {
-    if (!this.resend) {
-      this.logger.log(`[email simulado] ${key} -> ${to} (idempotency ${idempotencyKey})`);
-      return;
-    }
     const { subject, html } = renderEmail(key, vars);
+    await this.sendRendered(to, { subject, html }, idempotencyKey);
+  }
+
+  async sendRendered(to: string, rendered: { subject: string; html: string }, idempotencyKey: string): Promise<boolean> {
+    if (!this.resend) {
+      this.logger.log(`[email simulado] ${rendered.subject} -> ${to} (idempotency ${idempotencyKey})`);
+      return true;
+    }
     try {
       const { data, error } = await this.resend.emails.send(
-        { from: this.from, to: [to], subject, html },
+        { from: this.from, to: [to], subject: rendered.subject, html: rendered.html },
         { idempotencyKey },
       );
       if (error) {
-        this.logger.error(`Fallo al enviar ${key} a ${to}: ${error.message}`);
-        return;
+        this.logger.error(`Fallo al enviar ${rendered.subject} a ${to}: ${error.message}`);
+        return false;
       }
-      this.logger.log(`Correo ${key} enviado a ${to} (${data?.id ?? 'sin id'})`);
+      this.logger.log(`Correo ${rendered.subject} enviado a ${to} (${data?.id ?? 'sin id'})`);
+      return true;
     } catch (error) {
-      this.logger.error(`Error inesperado enviando ${key} a ${to}:`, error instanceof Error ? error.stack : error);
+      this.logger.error(`Error inesperado enviando correo a ${to}:`, error instanceof Error ? error.stack : error);
+      return false;
     }
   }
 }

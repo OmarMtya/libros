@@ -60,6 +60,20 @@ export class AuthService {
     return { needsConfirmation: !data.session };
   }
 
+  async resetPasswordForEmail(email: string): Promise<void> {
+    if (!this.client) throw new Error('Configura Supabase para habilitar la recuperación de contraseña.');
+    const { error } = await this.client.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/app/restablecer-contrasena`,
+    });
+    if (error) throw error;
+  }
+
+  async updatePassword(password: string): Promise<void> {
+    if (!this.client) throw new Error('Configura Supabase para cambiar la contraseña.');
+    const { error } = await this.client.auth.updateUser({ password });
+    if (error) throw error;
+  }
+
   async signOut(): Promise<void> {
     if (!this.client) return;
     const { error } = await this.client.auth.signOut();
