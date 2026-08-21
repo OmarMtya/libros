@@ -69,3 +69,25 @@ El workflow `.github/workflows/e2e.yml` corre **1 vez por día** (cron) y se pue
 - Si algún día el teardown falla (p. ej. DB caída), el `globalSetup` limpia la cuenta residual al día
   siguiente antes de registrar de nuevo.
 - Los tests corren en serie (`workers: 1`) porque comparten una sola cuenta.
+
+### Qué puede romper los tests (si cambian las preguntas)
+
+El flujo de opciones es **mayormente genérico** (clic en primera opción / escala `3` / ranking de 3),
+así que cambiar el texto de las respuestas normalmente **no rompe**. Lo frágil está en:
+
+- **Placeholders del cuestionario** en `questionnaire.ts`: `Busca un título…`, `Busca un título que no
+  te haya gustado`, `Busca una etiqueta`, y los textos de detección `Estructura`, `Idiomas`,
+  `Páginas mínimas`. Si se renombran, hay que actualizarlos.
+- **Q01/Q02**: el clic de aspecto/motivo usa el primer "pill" (botón redondeado que no sea la
+  calificación `h-10`). Si se cambia la estructura del DOM de la tarjeta de libro, revisarlo.
+- **Q11 (etiquetas)**: la validación del servidor exige **≥1 etiqueta en "Me gustan" Y ≥1 en
+  "Me dan curiosidad"**. El helper busca con varios términos (`novela, fantasia, ficcion, misterio,
+  amor, …`); si el catálogo de tags se vaciara o cambiara por completo, no encontraría ninguna y el
+  test fallaría.
+- **Q13 (idiomas)**: `Español` ya viene marcado por defecto, así que el test activa `Inglés` en su
+  lugar (marcar Español lo desmarcaría). Si la UI cambiara esa lógica, revisarlo.
+- **Q12 (páginas/sagas)**: usa `getByLabel('Páginas mínimas' / 'Páginas máximas')` y el select de
+  preferencia de sagas con el valor `standalone_preferred`.
+
+Regla de oro: **no cambies el texto/opciones del cuestionario sin volver a correr los e2e** (o
+sin avisar), porque el job diario validará el flujo completo.
