@@ -1,0 +1,25 @@
+{
+  "name": "libros-e2e",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Tests e2e de producción para milibrosorpresa.com (registro, login, cuestionario, perfil, mi-experiencia y checkout Stripe).",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "install:browsers": "playwright install --with-deps chromium",
+    "cleanup": "tsx scripts/cleanup.ts",
+    "cleanup:confirm": "tsx scripts/cleanup.ts --confirm-only"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.2",
+    "@types/node": "^22.9.0",
+    "@types/pg": "^8.11.10",
+    "tsx": "^4.19.2"
+  }
+}

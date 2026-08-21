@@ -16,7 +16,9 @@
     "stripe:listen": "stripe listen --forward-to http://localhost:3000/v1/webhooks/stripe",
     "aspire:start": "npm --prefix aspire-apphost run aspire:start",
     "aspire:build": "npm --prefix aspire-apphost run aspire:build",
-    "aspire:dev": "npm --prefix aspire-apphost run aspire:dev"
+    "aspire:dev": "npm --prefix aspire-apphost run aspire:dev",
+    "e2e": "npm --prefix e2e test",
+    "e2e:cleanup": "npm --prefix e2e run cleanup"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
