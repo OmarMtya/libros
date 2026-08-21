@@ -1,5 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedUser, SupabaseJwtClaims } from './auth.types';
@@ -61,7 +61,14 @@ export class SupabaseAuthService {
       const user = await this.prisma.user.update({ where: { id: byEmail.id }, data: { id: claims.sub, ...(googleAvatar && !byEmail.avatarUrl ? { ...data, avatarUrl: googleAvatar } : data) } });
       return { id: user.id, email: user.email, displayName: user.displayName, role: user.role };
     }
-    const user = await this.prisma.user.create({ data: { id: claims.sub, ...data, ...(googleAvatar ? { avatarUrl: googleAvatar } : {}) } });
-    return { id: user.id, email: user.email, displayName: user.displayName, role: user.role };
+    try {
+      const user = await this.prisma.user.create({ data: { id: claims.sub, ...data, ...(googleAvatar ? { avatarUrl: googleAvatar } : {}) } });
+      return { id: user.id, email: user.email, displayName: user.displayName, role: user.role };
+    } catch (error) {
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error;
+      const concurrentUser = await this.prisma.user.findUnique({ where: { id: claims.sub } });
+      if (!concurrentUser) throw error;
+      return { id: concurrentUser.id, email: concurrentUser.email, displayName: concurrentUser.displayName, role: concurrentUser.role };
+    }
   }
 }

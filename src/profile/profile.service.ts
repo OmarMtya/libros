@@ -39,19 +39,15 @@ export class ProfileService {
 
   async ensureProfile(userId: string) {
     await this.prisma.user.upsert({ where: { id: userId }, create: { id: userId }, update: {} });
-    const existing = await this.prisma.readerProfile.findUnique({ where: { userId } });
-    if (existing) {
-      await this.ensurePublicSlug(existing.id);
-      return this.prisma.readerProfile.findUniqueOrThrow({ where: { userId } });
-    }
-
-    const profile = await this.prisma.readerProfile.create({
-      data: {
+    const profile = await this.prisma.readerProfile.upsert({
+      where: { userId },
+      create: {
         userId,
         schemaVersion: PROFILE_SCHEMA_VERSION,
         snapshotJson: {},
         dimensions: { createMany: { data: DIMENSIONS.map((dimension) => ({ dimensionKey: dimension.key })) } },
       },
+      update: {},
     });
     await this.ensurePublicSlug(profile.id);
     return this.prisma.readerProfile.findUniqueOrThrow({ where: { userId } });
@@ -72,13 +68,8 @@ export class ProfileService {
     throw new ConflictException('No se pudo generar un slug público único.');
   }
 
-  private async ensurePublicSlugForUser(userId: string): Promise<void> {
-    const profile = await this.prisma.readerProfile.findUnique({ where: { userId }, select: { id: true } });
-    if (profile) await this.ensurePublicSlug(profile.id);
-  }
-
   async getProfile(userId: string) {
-    await this.ensurePublicSlugForUser(userId);
+    await this.ensureProfile(userId);
     const profile = await this.prisma.readerProfile.findUnique({
       where: { userId },
       include: {
