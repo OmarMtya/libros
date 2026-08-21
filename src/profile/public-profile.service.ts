@@ -326,6 +326,50 @@ export class PublicProfileService {
       });
     }
 
+    const goodreadsLibrary = Array.isArray(snapshot.goodreads_library) ? snapshot.goodreads_library : [];
+    for (const rawBook of goodreadsLibrary) {
+      if (!rawBook || typeof rawBook !== 'object' || Array.isArray(rawBook)) continue;
+      const book = rawBook as Record<string, unknown>;
+      const title = typeof book.title === 'string' ? book.title.trim() : '';
+      const rating = typeof book.rating === 'number' && Number.isInteger(book.rating) && book.rating >= 0 && book.rating <= 5 ? book.rating : null;
+      if (!title || rating === null) continue;
+      const key = title.toLowerCase();
+      const destination = rating >= 3 ? enjoyed : notEnjoyed;
+      const author = typeof book.author === 'string' ? book.author.trim() : '';
+      const review = {
+        readingStatus: null,
+        selectionFitRating: rating,
+        started: null,
+        completionPercentage: null,
+        notStartedReason: null,
+        outcomeAttribution: null,
+        positiveAspects: [],
+        negativeAspects: [],
+        freeText: `Importado de Goodreads; rating ${rating}/5.`,
+      };
+      if (seen.has(key)) {
+        const existing = [...enjoyed, ...notEnjoyed].find((item) => item.title.toLowerCase() === key);
+        if (existing) {
+          const currentDestination = enjoyed.includes(existing) ? enjoyed : notEnjoyed;
+          if (currentDestination !== destination) {
+            currentDestination.splice(currentDestination.indexOf(existing), 1);
+            destination.push(existing);
+          }
+          if (!existing.source.includes('profile')) existing.source = [...existing.source, 'profile'];
+          if (!existing.review) existing.review = review;
+        }
+        continue;
+      }
+      seen.add(key);
+      destination.push({
+        title,
+        authors: author ? [author] : [],
+        coverUrl: null,
+        source: ['profile'],
+        review,
+      });
+    }
+
     return { enjoyed, notEnjoyed };
   }
 

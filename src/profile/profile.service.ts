@@ -306,6 +306,8 @@ export class ProfileService {
           dimension_weights: priority.dimensionWeights,
           calculation_version: SCORING_CALCULATION_VERSION,
         } : null,
+        goodreads_import: currentMeta.goodreads_import ?? null,
+        goodreads_library: currentMeta.goodreads_library ?? [],
         supplemental_books: this.readSupplementalBooks(currentMeta.supplemental_books),
         dimensions: Object.fromEntries(computed.map((item) => [item.key, {
           value: item.aggregate.value?.toFixed(4) ?? null,
