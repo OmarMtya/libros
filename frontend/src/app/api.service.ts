@@ -151,7 +151,15 @@ export type PublicProfile = {
   categories: { liked: PublicProfileCategory[]; curious: PublicProfileCategory[]; notInterested: PublicProfileCategory[] };
   constraints: { preferredPagesMin: number | null; preferredPagesMax: number | null; seriesPreference: string | null; languages: string[]; formats: string[] } | null;
   books: { enjoyed: PublicProfileBook[]; notEnjoyed: PublicProfileBook[] };
+  bookCounts: { enjoyed: number; notEnjoyed: number };
   currentlyReading: { title: string | null; author: string | null; coverUrl: string | null } | null;
+};
+export type PublicProfileBooksPage = {
+  books: PublicProfileBook[];
+  offset: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
 };
 
 export type ProductPackage = { key: 'libro_sorpresa_fisico'; name: string; description: string; priceCents: number; shippingCents: number; currency: string; includedFormats: string[] };
@@ -436,6 +444,12 @@ export class ApiService {
     return firstValueFrom(this.http.get<PublicProfile>(`${this.baseUrl}/public/profiles/${encodeURIComponent(slug)}`, this.options()));
   }
 
+  getPublicProfileBooks(slug: string, category: 'enjoyed' | 'notEnjoyed', offset: number, limit = 50): Promise<PublicProfileBooksPage> {
+    return firstValueFrom(this.http.get<PublicProfileBooksPage>(`${this.baseUrl}/public/profiles/${encodeURIComponent(slug)}/books`, {
+      ...this.options(),
+      params: { category, offset: offset.toString(), limit: limit.toString() },
+    }));
+  }
   regenerateDescription(): Promise<unknown> {
     return firstValueFrom(this.http.post(`${this.baseUrl}/me/reader-profile/regenerate-description`, {}, this.options()));
   }

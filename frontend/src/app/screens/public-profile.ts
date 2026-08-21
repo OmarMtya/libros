@@ -182,14 +182,14 @@ type ShelfCategory = 'enjoyed' | 'notEnjoyed';
             <h2 class="mb-2 mt-8 text-sm font-bold uppercase tracking-wider text-ink">Libros</h2>
              <div class="space-y-8">
                <div>
-                 <app-book-carousel title="Disfrutados" [actionLabel]="current.isOwner && !current.notReady ? '+ Agregar' : null" [actionAriaLabel]="current.isOwner && !current.notReady ? 'Agregar un libro a Me gustan' : ''" [canRemove]="current.isOwner && !current.notReady" [books]="current.books.enjoyed" (action)="openShelfEditor('enjoyed')" (remove)="removeProfileBook($event)" (edit)="editProfileBook('enjoyed', $event)">
+                 <app-book-carousel title="Disfrutados" [actionLabel]="current.isOwner && !current.notReady ? '+ Agregar' : null" [actionAriaLabel]="current.isOwner && !current.notReady ? 'Agregar un libro a Me gustan' : ''" [canRemove]="current.isOwner && !current.notReady" [books]="current.books.enjoyed" [hasMore]="hasMoreBooks('enjoyed')" [loadingMore]="loadingMoreBooks().enjoyed" (action)="openShelfEditor('enjoyed')" (loadMore)="loadMoreBooks('enjoyed')" (remove)="removeProfileBook($event)" (edit)="editProfileBook('enjoyed', $event)">
                    @if (shelfEditor() === 'enjoyed') {
                      <ng-container book-carousel-action-content [ngTemplateOutlet]="shelfEditorTemplate" [ngTemplateOutletContext]="{ $implicit: 'enjoyed' }" />
                    }
                  </app-book-carousel>
                </div>
                <div>
-                 <app-book-carousel title="No disfrutados o abandonados" [actionLabel]="current.isOwner && !current.notReady ? '+ Agregar' : null" [actionAriaLabel]="current.isOwner && !current.notReady ? 'Agregar un libro a No me gustaron' : ''" [canRemove]="current.isOwner && !current.notReady" [books]="current.books.notEnjoyed" (action)="openShelfEditor('notEnjoyed')" (remove)="removeProfileBook($event)" (edit)="editProfileBook('notEnjoyed', $event)">
+                 <app-book-carousel title="No disfrutados o abandonados" [actionLabel]="current.isOwner && !current.notReady ? '+ Agregar' : null" [actionAriaLabel]="current.isOwner && !current.notReady ? 'Agregar un libro a No me gustaron' : ''" [canRemove]="current.isOwner && !current.notReady" [books]="current.books.notEnjoyed" [hasMore]="hasMoreBooks('notEnjoyed')" [loadingMore]="loadingMoreBooks().notEnjoyed" (action)="openShelfEditor('notEnjoyed')" (loadMore)="loadMoreBooks('notEnjoyed')" (remove)="removeProfileBook($event)" (edit)="editProfileBook('notEnjoyed', $event)">
                    @if (shelfEditor() === 'notEnjoyed') {
                      <ng-container book-carousel-action-content [ngTemplateOutlet]="shelfEditorTemplate" [ngTemplateOutletContext]="{ $implicit: 'notEnjoyed' }" />
                    }
@@ -355,6 +355,7 @@ export class PublicProfileScreen {
   readonly bookSearchLoading = signal(false);
   readonly pendingBooks = signal<ProfileBookInput[]>([]);
   readonly shelfEditor = signal<ShelfCategory | null>(null);
+  readonly loadingMoreBooks = signal<Record<ShelfCategory, boolean>>({ enjoyed: false, notEnjoyed: false });
   bookQuery = '';
   private bookSearchTimer: ReturnType<typeof setTimeout> | null = null;
   private bookSearchRequest = 0;
@@ -407,6 +408,36 @@ export class PublicProfileScreen {
   formatLabel(format: string): string {
     const labels: Record<string, string> = { physical: 'Físico', ebook: 'Ebook', audiobook: 'Audiolibro' };
     return labels[format] ?? format;
+  }
+
+  hasMoreBooks(category: ShelfCategory): boolean {
+    const current = this.profile();
+    return current != null && current.books[category].length < current.bookCounts[category];
+  }
+
+  async loadMoreBooks(category: ShelfCategory): Promise<void> {
+    const current = this.profile();
+    const slug = this.slug;
+    if (!current || !slug || !this.hasMoreBooks(category) || this.loadingMoreBooks()[category]) return;
+    const offset = current.books[category].length;
+    this.loadingMoreBooks.update((loading) => ({ ...loading, [category]: true }));
+    try {
+      const page = await this.api.getPublicProfileBooks(slug, category, offset);
+      this.profile.update((profile) => {
+        if (!profile) return profile;
+        const books = { ...profile.books };
+        books[category] = [...books[category], ...page.books];
+        return {
+          ...profile,
+          books,
+          bookCounts: { ...profile.bookCounts, [category]: page.total },
+        };
+      });
+    } catch (error) {
+      this.toast.error(error instanceof Error ? error.message : 'No pudimos cargar más libros.');
+    } finally {
+      this.loadingMoreBooks.update((loading) => ({ ...loading, [category]: false }));
+    }
   }
 
   async editName(): Promise<void> {

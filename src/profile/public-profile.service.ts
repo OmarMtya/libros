@@ -21,6 +21,9 @@ type PublicBook = {
   } | null;
 };
 
+type PublicBookCategory = 'enjoyed' | 'notEnjoyed';
+const PUBLIC_BOOK_PAGE_SIZE = 50;
+
 @Injectable()
 export class PublicProfileService {
   constructor(private readonly prisma: PrismaService) {}
@@ -43,7 +46,9 @@ export class PublicProfileService {
     if (!profile) throw new NotFoundException('Perfil no encontrado.');
     const isOwner = viewerUserId != null && viewerUserId === profile.userId;
     const notReady = profile.user.questionnaireSessions.length === 0;
-    const [books, currentlyReading] = await Promise.all([this.books(profile.userId, profile.snapshotJson), this.currentlyReading(profile.userId)]);
+    const [allBooks, currentlyReading] = await Promise.all([this.books(profile.userId, profile.snapshotJson), this.currentlyReading(profile.userId)]);
+    const books = this.firstBookPage(allBooks);
+    const bookCounts = { enjoyed: allBooks.enjoyed.length, notEnjoyed: allBooks.notEnjoyed.length };
     if (notReady) {
       return {
         notReady: true,
@@ -57,6 +62,7 @@ export class PublicProfileService {
         categories: { liked: [], curious: [], notInterested: [] },
         constraints: null,
         books,
+        bookCounts,
         currentlyReading,
       };
     }
@@ -72,7 +78,35 @@ export class PublicProfileService {
       categories,
       constraints: this.constraints(profile.operationalConstraints),
       books,
+      bookCounts,
       currentlyReading,
+    };
+  }
+
+  async getBooks(slug: string, category: PublicBookCategory, offset = 0, limit = PUBLIC_BOOK_PAGE_SIZE) {
+    const profile = await this.prisma.readerProfile.findUnique({
+      where: { publicSlug: slug },
+      select: { userId: true, snapshotJson: true },
+    });
+    if (!profile) throw new NotFoundException('Perfil no encontrado.');
+    const allBooks = await this.books(profile.userId, profile.snapshotJson);
+    const shelf = allBooks[category];
+    const safeOffset = Number.isFinite(offset) && offset >= 0 ? Math.floor(offset) : 0;
+    const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), PUBLIC_BOOK_PAGE_SIZE) : PUBLIC_BOOK_PAGE_SIZE;
+    const books = shelf.slice(safeOffset, safeOffset + safeLimit);
+    return {
+      books,
+      offset: safeOffset,
+      limit: safeLimit,
+      total: shelf.length,
+      hasMore: safeOffset + books.length < shelf.length,
+    };
+  }
+
+  private firstBookPage(books: { enjoyed: PublicBook[]; notEnjoyed: PublicBook[] }) {
+    return {
+      enjoyed: books.enjoyed.slice(0, PUBLIC_BOOK_PAGE_SIZE),
+      notEnjoyed: books.notEnjoyed.slice(0, PUBLIC_BOOK_PAGE_SIZE),
     };
   }
 

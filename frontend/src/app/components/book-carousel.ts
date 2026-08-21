@@ -102,7 +102,7 @@ const NEGATIVE_LABELS: Record<string, string> = {
           <button
             type="button"
             (click)="scroll(1)"
-            [disabled]="!canNext()"
+            [disabled]="loadingMore || (!canNext() && !hasMore)"
             aria-label="Libros siguientes"
             class="flex h-8 w-8 items-center justify-center rounded-full border border-[#9eb2c1] bg-white text-ink transition hover:bg-[#e6eef3] disabled:cursor-not-allowed disabled:opacity-35">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
@@ -145,6 +145,13 @@ const NEGATIVE_LABELS: Record<string, string> = {
           </article>
         }
       </div>
+
+      @if (loadingMore) {
+        <div class="mt-3 flex items-center justify-center gap-2 rounded-sm border border-[#cad7df] bg-[#f7fafc] px-4 py-3 text-xs font-semibold text-[#567088]" role="status" aria-live="polite">
+          <span class="h-3 w-3 animate-spin rounded-full border-2 border-[#cad7df] border-t-coral"></span>
+          Cargando otros libros…
+        </div>
+      }
 
       <div class="expand-grid mt-4" [class.open]="selectedKey() != null">
         <div class="expand-inner">
@@ -259,9 +266,12 @@ export class BookCarousel implements OnDestroy {
   @Input() actionLabel: string | null = null;
   @Input() actionAriaLabel = '';
   @Input() canRemove = false;
+  @Input() hasMore = false;
+  @Input() loadingMore = false;
   @Output() action = new EventEmitter<void>();
   @Output() remove = new EventEmitter<BookCarouselItem>();
   @Output() edit = new EventEmitter<BookCarouselItem>();
+  @Output() loadMore = new EventEmitter<void>();
 
   private _books: BookCarouselItem[] = [];
   @Input() set books(value: BookCarouselItem[]) {
@@ -349,6 +359,10 @@ export class BookCarousel implements OnDestroy {
   scroll(direction: number): void {
     const el = this.track()?.nativeElement;
     if (!el) return;
+    if (direction > 0 && !this.canNext() && this.hasMore) {
+      this.loadMore.emit();
+      return;
+    }
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     el.scrollBy({ left: el.clientWidth * 0.8 * direction, behavior: reduce ? 'auto' : 'smooth' });
   }
@@ -356,7 +370,9 @@ export class BookCarousel implements OnDestroy {
   updateScrollState(): void {
     const el = this.track()?.nativeElement;
     if (!el) return;
+    const atEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 4;
     this.canPrev.set(el.scrollLeft > 4);
-    this.canNext.set(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+    this.canNext.set(!atEnd);
+    if (atEnd && this.hasMore && !this.loadingMore) this.loadMore.emit();
   }
 }
