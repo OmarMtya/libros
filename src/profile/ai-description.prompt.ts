@@ -47,8 +47,8 @@ const DIMENSION_GLOSSARY: Record<string, string> = {
 const PRIORITY_LABELS: Record<string, string> = {
   plot: 'trama',
   characters: 'personajes',
-  ideas: 'ideas',
-  atmosphere: 'atmósfera',
+  ideas: 'temas que trata',
+  atmosphere: 'ambiente',
   style: 'estilo',
   emotion: 'emoción',
 };

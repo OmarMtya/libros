@@ -167,6 +167,20 @@ export class QuestionnaireService {
         await tx.readerConditionalRule.deleteMany({ where: { sourceId: { in: previousIds } } });
         await tx.questionAnswer.deleteMany({ where: { sessionId, questionKey } });
       }
+      if (question.questionKey === 'Q05_SLOW_BURN_TOLERANCE' && this.readNumber(normalized, 'value') < 0.25) {
+        const hiddenAnswers = await tx.questionAnswer.findMany({
+          where: { sessionId, questionKey: 'Q05A_SLOW_BURN_CONDITIONS' },
+          select: { id: true },
+        });
+        const hiddenAnswerIds = hiddenAnswers.map((answer) => answer.id);
+        if (hiddenAnswerIds.length > 0) {
+          await tx.readerEvidence.updateMany({ where: { supersededById: { in: hiddenAnswerIds } }, data: { supersededById: null } });
+          await tx.readerEvidence.updateMany({ where: { sourceId: { in: hiddenAnswerIds } }, data: { status: 'rejected', deactivatedAt: new Date() } });
+          await tx.readerPositiveTriggerEvidence.deleteMany({ where: { sourceId: { in: hiddenAnswerIds } } });
+          await tx.readerConditionalRule.deleteMany({ where: { sourceId: { in: hiddenAnswerIds } } });
+          await tx.questionAnswer.deleteMany({ where: { id: { in: hiddenAnswerIds } } });
+        }
+      }
       const created = await tx.questionAnswer.create({
         data: {
           sessionId,

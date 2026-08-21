@@ -19,6 +19,18 @@ const QUESTION = {
   ],
 };
 
+const SLOW_BURN_QUESTION = {
+  id: 'q5',
+  questionKey: 'Q05_SLOW_BURN_TOLERANCE',
+  version: 1,
+  questionnaireVersion: 'onboarding/1.1',
+  responseType: 'scale',
+  isRequired: true,
+  textEsMx: '¿Toleras historias lentas?',
+  validationJson: null,
+  optionMappings: [],
+};
+
 const SESSION = {
   id: 's1',
   userId: 'u1',
@@ -83,6 +95,20 @@ describe('questionnaire re-answer', () => {
     await service.submitAnswer('s1', 'Q03_READING_PACE', { response: 2, idempotencyKey: 'idem-1' }, 'u1');
     expect(tx.questionAnswer.deleteMany).not.toHaveBeenCalled();
     expect(tx.questionAnswer.create).toHaveBeenCalledOnce();
+  });
+
+  it('removes a conditional answer when its dependency becomes hidden', async () => {
+    const tx = txMock();
+    tx.questionAnswer.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: 'stale-q05a-answer' }]);
+    const { service, prisma } = serviceWith({ transaction: vi.fn().mockImplementation((run: (t: unknown) => Promise<unknown>) => run(tx)) });
+    (prisma as unknown as { questionDefinition: { findUnique: unknown } }).questionDefinition.findUnique = vi.fn().mockResolvedValue(SLOW_BURN_QUESTION);
+
+    await service.submitAnswer('s1', 'Q05_SLOW_BURN_TOLERANCE', { response: 1, idempotencyKey: 'idem-low' }, 'u1');
+
+    expect(tx.questionAnswer.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['stale-q05a-answer'] } } });
+    expect(tx.readerConditionalRule.deleteMany).toHaveBeenCalledWith({ where: { sourceId: { in: ['stale-q05a-answer'] } } });
   });
 
   it('returns the question with its saved response', async () => {
