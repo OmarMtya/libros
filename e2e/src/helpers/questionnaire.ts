@@ -38,14 +38,16 @@ async function fillQuestion(page: Page): Promise<void> {
   // Q01/Q02: búsqueda de libros.
   if (await visible(page, body.locator('input[placeholder*="que no te haya gustado"]'))) {
     const card = page.locator('[id^="disliked-book-"]').first();
+    // Motivo: primer "pill" (botón redondeado que NO sea la calificación h-10) — robusto a cambios de texto.
     await addBook(page, 'que no te haya gustado', 'el código da vinci', 2,
-      card.getByRole('button', { name: /no me enganch|demasiado lento/i }));
+      card.locator('button.rounded-full:not([class*="h-10"])').first());
     return;
   }
   if (await visible(page, body.locator('input[placeholder^="Busca un título"]'))) {
     const card = page.locator('[id^="loved-book-"]').first();
+    // Aspecto: primer "pill" — robusto a cambios de texto.
     await addBook(page, 'Busca un título', 'cien años de soledad', 4,
-      card.getByRole('button', { name: /la historia|personajes|prosa|final/i }));
+      card.locator('button.rounded-full:not([class*="h-10"])').first());
     return;
   }
 
@@ -80,21 +82,18 @@ async function fillQuestion(page: Page): Promise<void> {
   // Q11: etiquetas. Requiere >=1 en "Me gustan" Y >=1 en "Me dan curiosidad".
   const tagInputs = page.locator('input[placeholder="Busca una etiqueta"]');
   if (await tagInputs.count()) {
+    const queries = ['novela', 'fantasia', 'ficcion', 'misterio', 'amor', 'ciencia', 'romance', 'suspenso', 'terror', 'historia'];
     for (let i = 0; i < Math.min(2, await tagInputs.count()); i++) {
       const input = tagInputs.nth(i);
-      await input.fill('novela');
       const match = page.locator('ul > li > button').first();
-      try {
-        await match.waitFor({ state: 'visible', timeout: 6_000 });
-        await match.click();
-      } catch {
-        // sin resultados para esta consulta; probar con otra
-        await input.fill('fantasia');
+      for (const q of queries) {
+        await input.fill(q);
         try {
-          await match.waitFor({ state: 'visible', timeout: 6_000 });
+          await match.waitFor({ state: 'visible', timeout: 4_000 });
           await match.click();
+          break;
         } catch {
-          // dejar el grupo vacío (el continue lo validará)
+          // sin resultados con este término; probar el siguiente
         }
       }
     }
