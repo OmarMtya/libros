@@ -57,6 +57,7 @@ const api = await builder
   .withEnvironment('STRIPE_SECRET_KEY', env.STRIPE_SECRET_KEY ?? '')
   .withEnvironment('STRIPE_WEBHOOK_SECRET', env.STRIPE_WEBHOOK_SECRET ?? '')
   .withEnvironment('DEEPSEEK_API_KEY', env.DEEPSEEK_API_KEY ?? '')
+  .withEnvironment('SENTRY_DSN', env.SENTRY_DSN ?? '')
   .withEnvironment('GOOGLE_BOOKS_API_KEY', env.GOOGLE_BOOKS_API_KEY ?? '')
   .withEnvironment('META_PIXEL_ID', env.META_PIXEL_ID ?? '')
   .withEnvironment('META_CAPI_ACCESS_TOKEN', env.META_CAPI_ACCESS_TOKEN ?? '')
