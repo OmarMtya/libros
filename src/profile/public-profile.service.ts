@@ -336,6 +336,7 @@ export class PublicProfileService {
       const key = title.toLowerCase();
       const destination = rating >= 3 ? enjoyed : notEnjoyed;
       const author = typeof book.author === 'string' ? book.author.trim() : '';
+      const isbn = typeof book.isbn === 'string' ? book.isbn.replace(/[^0-9Xx]/g, '') : '';
       const review = {
         readingStatus: null,
         selectionFitRating: rating,
@@ -364,7 +365,7 @@ export class PublicProfileService {
       destination.push({
         title,
         authors: author ? [author] : [],
-        coverUrl: null,
+        coverUrl: isbn ? `https://covers.openlibrary.org/b/isbn/${encodeURIComponent(isbn)}-L.jpg` : null,
         source: ['profile'],
         review,
       });
