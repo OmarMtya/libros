@@ -37,6 +37,12 @@
       "skillPath": "skills/frontend-design/SKILL.md",
       "computedHash": "93f53fd1c0352d3d7ec17b8f73d7351bf76f4821e55d123c9d2abc2c53ba48e4"
     },
+    "goodreads": {
+      "source": "phuc-nt/openclaw-skills",
+      "sourceType": "github",
+      "skillPath": "goodreads/SKILL.md",
+      "computedHash": "8dfd62187c9b37e3247a2828133edb3063fcee8ac6a4ba4c4edc9be1ae1f846d"
+    },
     "improve-animations": {
       "source": "emilkowalski/skills",
       "sourceType": "github",

@@ -104,6 +104,26 @@ describe('email templates', () => {
     expect(html).not.toContain('El libro que llegó');
   });
 
+  it('goodreads-imported confirma la biblioteca importada', () => {
+    const profileUrl = 'https://app.example.com/app/perfil/gerardo';
+    const { subject, html } = renderEmail('goodreads-imported', {
+      firstName: 'Gerardo',
+      importedCount: 26,
+      enjoyedCount: 19,
+      notEnjoyedCount: 7,
+      profileUrl,
+    });
+    expect(subject).toContain('Goodreads');
+    expect(html).toContain('Tu biblioteca ya está lista.');
+    expect(html).toContain('toda tu biblioteca de Goodreads');
+    expect(html).toContain('próxima lectura');
+    expect(html).toContain('26');
+    expect(html).toContain('19');
+    expect(html).toContain('7');
+    expect(html).toContain(profileUrl);
+    expect(html).toContain('Ver mi perfil lector');
+  });
+
   it('admin-order-notification incluye toda la información de la orden', () => {
     const { subject, html } = renderEmail('admin-order-notification', {
       orderRef: 'LS-ABC12345',

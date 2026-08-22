@@ -164,7 +164,7 @@ export type PublicProfileBooksPage = {
 
 export type ProductPackage = { key: 'libro_sorpresa_fisico'; name: string; description: string; priceCents: number; shippingCents: number; currency: string; includedFormats: string[] };
 export type CurrentUser = { id: string; email: string | null; displayName: string | null; role: 'customer' | 'admin' };
-export type AdminUser = { id: string; email: string | null; displayName: string | null; role: string; createdAt: string; readerProfile: { publicSlug: string | null; readyToRecommend: boolean; goodreadsUrl: string | null; currentVersion: number; updatedAt: string } | null; _count: { orders: number; readingFeedback: number } };
+export type AdminUser = { id: string; email: string | null; displayName: string | null; role: string; createdAt: string; readerProfile: { publicSlug: string | null; readyToRecommend: boolean; goodreadsUrl: string | null; currentVersion: number; updatedAt: string; goodreadsImport: { importedAt: string; importedCount: number; enjoyedCount: number; notEnjoyedCount: number } | null; goodreadsImportCompletedAt: string | null } | null; _count: { orders: number; readingFeedback: number } };
 
 export type OrderAddress = {
   recipientName: string;
@@ -499,6 +499,10 @@ export class ApiService {
 
   listAdminUsers(query = ''): Promise<AdminUser[]> {
     return firstValueFrom(this.http.get<AdminUser[]>(`${this.baseUrl}/admin/users`, { ...this.options(), params: query ? { q: query } : {} }));
+  }
+
+  completeAdminGoodreadsImport(userId: string): Promise<{ completed: boolean; alreadyCompleted: boolean; completedAt: string; emailSent: boolean }> {
+    return firstValueFrom(this.http.post<{ completed: boolean; alreadyCompleted: boolean; completedAt: string; emailSent: boolean }>(`${this.baseUrl}/admin/users/${encodeURIComponent(userId)}/goodreads-import-complete`, {}, this.options()));
   }
 
   getAdminUser(userId: string): Promise<unknown> {

@@ -42,7 +42,23 @@ import { ToastService } from '../toast.service';
               <div class="flex shrink-0 flex-col items-end gap-1">
                 <span class="font-mono text-xs text-[#566e80]">{{ user._count.orders }} pedidos · {{ user._count.readingFeedback }} opiniones</span>
                 @if (user.readerProfile?.goodreadsUrl; as goodreadsUrl) {
-                  <a class="text-xs font-semibold text-[#8a5a12] underline decoration-[#f2be45] underline-offset-2 hover:text-coral" [href]="goodreadsUrl" target="_blank" rel="noopener">Goodreads · pendiente de importar</a>
+                  <div class="flex flex-wrap items-center justify-end gap-2">
+                    <a class="text-xs font-semibold text-[#8a5a12] underline decoration-[#f2be45] underline-offset-2 hover:text-coral" [href]="goodreadsUrl" target="_blank" rel="noopener">
+                      Goodreads
+                    </a>
+                    @if (user.readerProfile?.goodreadsImport) {
+                      <span class="text-xs text-[#566e80]">· importado</span>
+                    } @else if (!user.readerProfile?.goodreadsImportCompletedAt) {
+                      <span class="text-xs text-[#8a5a12]">· pendiente de importar</span>
+                      <button
+                        type="button"
+                        class="rounded-sm border border-[#f2be45] bg-[#fff7e6] px-2 py-1 text-[10px] font-bold text-[#6b5310] transition hover:bg-[#f2be45] disabled:cursor-wait disabled:opacity-60"
+                        [disabled]="loading()"
+                        (click)="$event.stopPropagation(); completeGoodreadsImport(user)">
+                        Importación terminada
+                      </button>
+                    }
+                  </div>
                 }
                 @if (user.readerProfile?.publicSlug; as slug) {
                   <a
@@ -108,6 +124,17 @@ export class Readers {
     await this.run(async () => {
       this.detail.set(JSON.stringify(await this.api.getAdminUser(user.id), null, 2));
       this.detailName.set(user.displayName || user.email || 'Sin nombre');
+    });
+  }
+
+  async completeGoodreadsImport(user: AdminUser): Promise<void> {
+    if (!user.readerProfile?.goodreadsUrl || user.readerProfile.goodreadsImport || user.readerProfile.goodreadsImportCompletedAt) return;
+    await this.run(async () => {
+      const result = await this.api.completeAdminGoodreadsImport(user.id);
+      this.users.update((users) => users.map((item) => item.id === user.id && item.readerProfile
+        ? { ...item, readerProfile: { ...item.readerProfile, goodreadsImportCompletedAt: result.completedAt } }
+        : item));
+      this.toast.success('Importación terminada. Le enviamos el correo al lector.');
     });
   }
 

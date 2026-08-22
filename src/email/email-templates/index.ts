@@ -2,6 +2,7 @@ import { AdminFeedbackNotificationVars, renderAdminFeedbackNotification } from '
 import { AdminNewReaderVars, renderAdminNewReader } from './admin-new-reader';
 import { AdminOrderNotificationVars, renderAdminOrderNotification } from './admin-order-notification';
 import { DeliveredVars, renderDelivered } from './delivered';
+import { GoodreadsImportedVars, renderGoodreadsImported } from './goodreads-imported';
 import { OrderConfirmationVars, renderOrderConfirmation } from './order-confirmation';
 import { renderShipped, ShippedVars } from './shipped';
 
@@ -12,6 +13,7 @@ export type EmailTemplateMap = {
   'admin-feedback-notification': AdminFeedbackNotificationVars;
   shipped: ShippedVars;
   delivered: DeliveredVars;
+  'goodreads-imported': GoodreadsImportedVars;
 };
 
 export type EmailTemplateKey = keyof EmailTemplateMap;
@@ -27,6 +29,7 @@ export const EMAIL_TEMPLATES: { [K in EmailTemplateKey]: Renderer<K> } = {
   'admin-feedback-notification': renderAdminFeedbackNotification,
   shipped: renderShipped,
   delivered: renderDelivered,
+  'goodreads-imported': renderGoodreadsImported,
 };
 
 export function renderEmail<K extends EmailTemplateKey>(key: K, vars: EmailTemplateMap[K]): RenderedEmail {
