@@ -50,6 +50,8 @@ import { ToastService } from '../toast.service';
                       <span class="text-xs text-[#566e80]">· importado</span>
                     } @else if (!user.readerProfile?.goodreadsImportCompletedAt) {
                       <span class="text-xs text-[#8a5a12]">· pendiente de importar</span>
+                    }
+                    @if (!user.readerProfile?.goodreadsImportCompletedAt) {
                       <button
                         type="button"
                         class="rounded-sm border border-[#f2be45] bg-[#fff7e6] px-2 py-1 text-[10px] font-bold text-[#6b5310] transition hover:bg-[#f2be45] disabled:cursor-wait disabled:opacity-60"
@@ -128,7 +130,7 @@ export class Readers {
   }
 
   async completeGoodreadsImport(user: AdminUser): Promise<void> {
-    if (!user.readerProfile?.goodreadsUrl || user.readerProfile.goodreadsImport || user.readerProfile.goodreadsImportCompletedAt) return;
+    if (!user.readerProfile?.goodreadsUrl || user.readerProfile.goodreadsImportCompletedAt) return;
     await this.run(async () => {
       const result = await this.api.completeAdminGoodreadsImport(user.id);
       this.users.update((users) => users.map((item) => item.id === user.id && item.readerProfile
