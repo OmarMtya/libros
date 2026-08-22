@@ -56,18 +56,17 @@ export async function deriveTagPreferences(tx: Prisma.TransactionClient, profile
   const typeByKey = new Map(tagVersions.map((version) => [version.tagKey, version.tagType]));
   const aggregated = aggregateTagPreferences(active);
 
-  for (const [tagKey, aggregate] of aggregated) {
-    await tx.readerTagPreference.upsert({
-      where: { profileId_tagKey: { profileId, tagKey } },
-      create: { profileId, tagKey, tagType: typeByKey.get(tagKey) ?? 'theme', affinity: aggregate.affinity, confidence: aggregate.confidence, evidenceCount: aggregate.evidenceCount },
-      update: { tagType: typeByKey.get(tagKey) ?? 'theme', affinity: aggregate.affinity, confidence: aggregate.confidence, evidenceCount: aggregate.evidenceCount },
+  await tx.readerTagPreference.deleteMany({ where: { profileId } });
+  if (aggregated.size > 0) {
+    await tx.readerTagPreference.createMany({
+      data: [...aggregated].map(([tagKey, aggregate]) => ({
+        profileId,
+        tagKey,
+        tagType: typeByKey.get(tagKey) ?? 'theme',
+        affinity: aggregate.affinity,
+        confidence: aggregate.confidence,
+        evidenceCount: aggregate.evidenceCount,
+      })),
     });
-  }
-
-  const activeKeys = new Set(aggregated.keys());
-  const stale = await tx.readerTagPreference.findMany({ where: { profileId }, select: { tagKey: true } });
-  const toDelete = stale.filter((preference) => !activeKeys.has(preference.tagKey)).map((preference) => preference.tagKey);
-  if (toDelete.length > 0) {
-    await tx.readerTagPreference.deleteMany({ where: { profileId, tagKey: { in: toDelete } } });
   }
 }

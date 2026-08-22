@@ -222,7 +222,7 @@ export class QuestionnaireService {
         }
       }
       return created;
-    });
+    }, { maxWait: 5_000, timeout: 10_000 });
     return { answer, nextQuestion: await this.nextQuestionAfter(sessionId, questionKey, userId) };
   }
 
@@ -346,18 +346,24 @@ export class QuestionnaireService {
         where: { profileId, sourceType: 'questionnaire' },
         data: { status: 'rejected' },
       });
-      for (const preference of requested) {
-        const tag = await tx.tagVersion.findFirst({ where: { tagKey: preference.tagKey, taxonomicVersion: 'tag-tax/1.0.1', status: 'active' } });
-        if (!tag) throw new BadRequestException(`Unknown or inactive tag: ${preference.tagKey}.`);
-        const adjustment = preference.affinity;
-        const rawPayload = { questionnaire_version: QUESTIONNAIRE_VERSION, question_key: 'Q11_GENRES_THEMES', tag_key: preference.tagKey, affinity: preference.affinity };
-        const fingerprint = tagEvidenceFingerprint('questionnaire', sourceId, preference.tagKey, 'q11_initial', adjustment, rawPayload);
-        await tx.readerTagEvidence.upsert({
-          where: { sourceType_sourceId_tagKey_reasonCode: { sourceType: 'questionnaire', sourceId, tagKey: preference.tagKey, reasonCode: 'q11_initial' } },
-          create: {
+      const requestedByTag = new Map(requested.map((preference) => [preference.tagKey, preference]));
+      const tagKeys = [...requestedByTag.keys()];
+      const activeTags = await tx.tagVersion.findMany({
+        where: { tagKey: { in: tagKeys }, taxonomicVersion: 'tag-tax/1.0.1', status: 'active' },
+        select: { tagKey: true },
+      });
+      const activeTagKeys = new Set(activeTags.map((tag) => tag.tagKey));
+      for (const tagKey of tagKeys) {
+        if (!activeTagKeys.has(tagKey)) throw new BadRequestException(`Unknown or inactive tag: ${tagKey}.`);
+      }
+      await tx.readerTagEvidence.createMany({
+        data: [...requestedByTag.values()].map((preference) => {
+          const adjustment = preference.affinity;
+          const rawPayload = { questionnaire_version: QUESTIONNAIRE_VERSION, question_key: 'Q11_GENRES_THEMES', tag_key: preference.tagKey, affinity: preference.affinity };
+          return {
             userId: profile.userId,
             profileId,
-            sourceType: 'questionnaire',
+            sourceType: 'questionnaire' as const,
             sourceId,
             tagKey: preference.tagKey,
             adjustment,
@@ -367,12 +373,11 @@ export class QuestionnaireService {
             reasonCode: 'q11_initial',
             mappingVersion: 'questionnaire-tag/1.0',
             rawPayload: rawPayload as Prisma.InputJsonValue,
-            evidenceFingerprint: fingerprint,
-            status: 'active',
-          },
-          update: { adjustment, evidenceFingerprint: fingerprint },
-        });
-      }
+            evidenceFingerprint: tagEvidenceFingerprint('questionnaire', sourceId, preference.tagKey, 'q11_initial', adjustment, rawPayload),
+            status: 'active' as const,
+          };
+        }),
+      });
       await deriveTagPreferences(tx, profileId);
     }
   }

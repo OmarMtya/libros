@@ -39,16 +39,24 @@ export class ProfileService {
 
   async ensureProfile(userId: string) {
     await this.prisma.user.upsert({ where: { id: userId }, create: { id: userId }, update: {} });
-    const profile = await this.prisma.readerProfile.upsert({
-      where: { userId },
-      create: {
-        userId,
-        schemaVersion: PROFILE_SCHEMA_VERSION,
-        snapshotJson: {},
-        dimensions: { createMany: { data: DIMENSIONS.map((dimension) => ({ dimensionKey: dimension.key })) } },
-      },
-      update: {},
-    });
+    let profile;
+    try {
+      profile = await this.prisma.readerProfile.upsert({
+        where: { userId },
+        create: {
+          userId,
+          schemaVersion: PROFILE_SCHEMA_VERSION,
+          snapshotJson: {},
+          dimensions: { createMany: { data: DIMENSIONS.map((dimension) => ({ dimensionKey: dimension.key })) } },
+        },
+        update: {},
+      });
+    } catch (error) {
+      const target = error instanceof Prisma.PrismaClientKnownRequestError ? error.meta?.target : undefined;
+      const targetFields = Array.isArray(target) ? target : [target];
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002' || !targetFields.includes('user_id')) throw error;
+      profile = await this.prisma.readerProfile.findUniqueOrThrow({ where: { userId } });
+    }
     await this.ensurePublicSlug(profile.id);
     return this.prisma.readerProfile.findUniqueOrThrow({ where: { userId } });
   }
